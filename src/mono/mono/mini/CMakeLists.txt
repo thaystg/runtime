@@ -482,6 +482,7 @@ set(metadata_common_sources
 	callspec.c
 	assembly-load-context.c
 	native-library.c
+	native-library-qcall.c
 	loaded-images-internals.h
 	loaded-images.c
 	loaded-images-netcore.c
