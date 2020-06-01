@@ -11,6 +11,8 @@ namespace System
 {
     internal sealed partial class RuntimeType : TypeInfo, ICloneable
     {
+        internal IntPtr m_handle;
+
         public override Assembly Assembly => RuntimeTypeHandle.GetAssembly(this);
         public override Type? BaseType => GetBaseType();
         public override bool IsByRefLike => RuntimeTypeHandle.IsByRefLike(this);

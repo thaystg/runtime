@@ -939,7 +939,12 @@ namespace System.Reflection.Emit
                 CreateGlobalFunctionsNoLock();
             }
         }
+        
+        private RuntimeModule GetNativeHandle()
+        {
 
+        }
+        
         private void CreateGlobalFunctionsNoLock()
         {
             if (_moduleData._hasGlobalBeenCreated)

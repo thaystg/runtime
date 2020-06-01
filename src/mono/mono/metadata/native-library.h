@@ -28,26 +28,6 @@ typedef struct MonoLookupPInvokeStatus {
 	char *err_arg;
 } MonoLookupPInvokeStatus;
 
-struct ECClass
-{
-    const char* m_szClassName;
-    const char* m_szNameSpace;
-    const void**  m_pECFunc;
-};
-
-enum {
-    FCFuncFlag_EndOfArray   = 0x01,
-    FCFuncFlag_HasSignature = 0x02,
-    FCFuncFlag_Unreferenced = 0x04, // Suppress unused fcall check
-    FCFuncFlag_QCall        = 0x08, // QCall - mscorlib.dll to mscorwks.dll transition implemented as PInvoke
-};
-
-typedef struct {
-    int*            m_dwFlags;
-    void*              m_pImplementation;
-    const char*              m_szMethodName;
-} ECFunc;
-
 gpointer
 mono_lookup_pinvoke_qcall_internal (MonoMethod *method, MonoLookupPInvokeStatus *error);
 
