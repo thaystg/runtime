@@ -940,11 +940,6 @@ namespace System.Reflection.Emit
             }
         }
         
-        private RuntimeModule GetNativeHandle()
-        {
-
-        }
-        
         private void CreateGlobalFunctionsNoLock()
         {
             if (_moduleData._hasGlobalBeenCreated)
