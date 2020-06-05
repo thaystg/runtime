@@ -265,7 +265,7 @@ common_sources = \
 	domain-internals.h	\
 	environment.c		\
 	environment.h		\
-	icall-eventpipe.c	\
+	qcall-eventpipe.c	\
 	exception.c		\
 	exception.h		\
 	exception-internals.h	\

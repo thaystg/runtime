@@ -15,6 +15,7 @@
 #include <mono/utils/mono-rand.h>
 #include <mono/metadata/appdomain.h>
 #include <mono/metadata/profiler.h>
+#include <mono/metadata/native-library.h>
 
 typedef enum _EventPipeActivityControlCode {
 	EP_ACTIVITY_CONTROL_GET_ID = 1,
@@ -160,29 +161,22 @@ mono_eventpipe_fini (void)
 }
 
 gconstpointer
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_CreateProvider (
-	MonoStringHandle provider_name,
-	MonoDelegateHandle callback_func,
-	MonoError *error)
+System_Diagnostics_Tracing_EventPipeInternal_CreateProvider (
+	const uint8_t *provider_name,
+	void* callback_func)
 {
+	BEGIN_QCALL;
 	EventPipeProvider *provider = NULL;
 
-	if (MONO_HANDLE_IS_NULL (provider_name)) {
-		mono_error_set_argument_null (error, "providerName", "");
-		return NULL;
-	}
-
-	char *provider_name_utf8 = mono_string_handle_to_utf8 (provider_name, error);
-
 	//TODO: Need to pin delegate if we switch to safe mode or maybe we should get funcptr in icall?
-	provider = ep_create_provider (provider_name_utf8, MONO_HANDLE_GETVAL (callback_func, delegate_trampoline), NULL);
+	provider = ep_create_provider (provider_name, callback_func, NULL);
 
-	g_free (provider_name_utf8);
+	END_QCALL;
 	return provider;
 }
 
 intptr_t
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_DefineEvent (
+System_Diagnostics_Tracing_EventPipeInternal_DefineEvent (
 	intptr_t provider_handle,
 	uint32_t event_id,
 	int64_t keywords,
@@ -201,7 +195,7 @@ ves_icall_System_Diagnostics_Tracing_EventPipeInternal_DefineEvent (
 }
 
 void
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_DeleteProvider (intptr_t provider_handle)
+System_Diagnostics_Tracing_EventPipeInternal_DeleteProvider (intptr_t provider_handle)
 {
 	if (provider_handle) {
 		ep_delete_provider ((EventPipeProvider *)provider_handle);
@@ -209,14 +203,14 @@ ves_icall_System_Diagnostics_Tracing_EventPipeInternal_DeleteProvider (intptr_t 
 }
 
 void
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_Disable (uint64_t session_id)
+System_Diagnostics_Tracing_EventPipeInternal_Disable (uint64_t session_id)
 {
 	ep_disable (session_id);
 }
 
 uint64_t
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_Enable (
-	const gunichar2 *output_file,
+System_Diagnostics_Tracing_EventPipeInternal_Enable (
+	const char *output_file,
 	/* EventPipeSerializationFormat */int32_t format,
 	uint32_t circular_buffer_size_mb,
 	/* EventPipeProviderConfigurationNative[] */const void *providers,
@@ -228,10 +222,8 @@ ves_icall_System_Diagnostics_Tracing_EventPipeInternal_Enable (
 	if (circular_buffer_size_mb == 0 || format > EP_SERIALIZATION_FORMAT_COUNT || providers_len == 0 || providers == NULL)
 		return 0;
 
-	char *output_file_utf8 = mono_utf16_to_utf8 (output_file, g_utf16_len (output_file), error);
-
 	session_id = ep_enable (
-		output_file_utf8,
+		output_file,
 		circular_buffer_size_mb,
 		providers,
 		providers_len,
@@ -242,12 +234,11 @@ ves_icall_System_Diagnostics_Tracing_EventPipeInternal_Enable (
 		true);
 	ep_start_streaming (session_id);
 
-	g_free (output_file_utf8);
 	return session_id;
 }
 
 int32_t
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_EventActivityIdControl (
+System_Diagnostics_Tracing_EventPipeInternal_EventActivityIdControl (
 	uint32_t control_code,
 	/* GUID * */uint8_t *activity_id)
 {
@@ -283,7 +274,7 @@ ves_icall_System_Diagnostics_Tracing_EventPipeInternal_EventActivityIdControl (
 }
 
 MonoBoolean
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_GetNextEvent (
+System_Diagnostics_Tracing_EventPipeInternal_GetNextEvent (
 	uint64_t session_id,
 	/* EventPipeEventInstanceData * */void *instance)
 {
@@ -309,23 +300,19 @@ ves_icall_System_Diagnostics_Tracing_EventPipeInternal_GetNextEvent (
 }
 
 intptr_t
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_GetProvider (const gunichar2 *provider_name)
+System_Diagnostics_Tracing_EventPipeInternal_GetProvider (const char *provider_name)
 {
 	ERROR_DECL (error);
 	char * provider_name_utf8 = NULL;
 	EventPipeProvider *provider = NULL;
 
-	if (provider_name) {
-		provider_name_utf8 = mono_utf16_to_utf8 (provider_name, g_utf16_len (provider_name), error);
-		provider = ep_get_provider (provider_name_utf8);
-	}
+	provider = ep_get_provider (provider_name);
 
-	g_free (provider_name_utf8);
 	return (intptr_t)provider;
 }
 
 MonoBoolean
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_GetSessionInfo (
+System_Diagnostics_Tracing_EventPipeInternal_GetSessionInfo (
 	uint64_t session_id,
 	/* EventPipeSessionInfo * */void *session_info)
 {
@@ -345,13 +332,13 @@ ves_icall_System_Diagnostics_Tracing_EventPipeInternal_GetSessionInfo (
 }
 
 intptr_t
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_GetWaitHandle (uint64_t session_id)
+System_Diagnostics_Tracing_EventPipeInternal_GetWaitHandle (uint64_t session_id)
 {
 	return (intptr_t)ep_get_wait_handle (session_id);
 }
 
 void
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_WriteEventData (
+System_Diagnostics_Tracing_EventPipeInternal_WriteEventData (
 	intptr_t event_handle,
 	/* EventProviderEventData[] */const void *event_data,
 	uint32_t data_len,
@@ -364,17 +351,18 @@ ves_icall_System_Diagnostics_Tracing_EventPipeInternal_WriteEventData (
 #else /* ENABLE_PERFTRACING */
 
 gconstpointer
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_CreateProvider (
-	MonoStringHandle provider_name,
-	MonoDelegateHandle callback_func,
-	MonoError *error)
+System_Diagnostics_Tracing_EventPipeInternal_CreateProvider (
+	const char *provider_name,
+	void* callback_func)
 {
+	BEGIN_QCALL;
 	mono_error_set_not_implemented (error, "System.Diagnostics.Tracing.EventPipeInternal.CreateProvider");
+	END_QCALL;
 	return NULL;
 }
 
 intptr_t
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_DefineEvent (
+System_Diagnostics_Tracing_EventPipeInternal_DefineEvent (
 	intptr_t provider_handle,
 	uint32_t event_id,
 	int64_t keywords,
@@ -383,14 +371,14 @@ ves_icall_System_Diagnostics_Tracing_EventPipeInternal_DefineEvent (
 	const uint8_t *metadata,
 	uint32_t metadata_len)
 {
-	ERROR_DECL (error);
+	BEGIN_QCALL;
 	mono_error_set_not_implemented (error, "System.Diagnostics.Tracing.EventPipeInternal.DefineEvent");
-	mono_error_set_pending_exception (error);
+	END_QCALL;
 	return 0;
 }
 
 void
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_DeleteProvider (intptr_t provider_handle)
+System_Diagnostics_Tracing_EventPipeInternal_DeleteProvider (intptr_t provider_handle)
 {
 	ERROR_DECL (error);
 	mono_error_set_not_implemented (error, "System.Diagnostics.Tracing.EventPipeInternal.DeleteProvider");
@@ -398,92 +386,111 @@ ves_icall_System_Diagnostics_Tracing_EventPipeInternal_DeleteProvider (intptr_t 
 }
 
 void
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_Disable (uint64_t session_id)
+System_Diagnostics_Tracing_EventPipeInternal_Disable (uint64_t session_id)
 {
-	ERROR_DECL (error);
+	BEGIN_QCALL;
 	mono_error_set_not_implemented (error, "System.Diagnostics.Tracing.EventPipeInternal.Disable");
-	mono_error_set_pending_exception (error);
+	END_QCALL;
 }
 
 uint64_t
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_Enable (
-	const gunichar2 *output_file,
+System_Diagnostics_Tracing_EventPipeInternal_Enable (
+	const char *output_file,
 	/* EventPipeSerializationFormat */int32_t format,
 	uint32_t circular_buffer_size_mb,
 	/* EventPipeProviderConfigurationNative[] */const void *providers,
 	uint32_t providers_len)
 {
-	ERROR_DECL (error);
+	BEGIN_QCALL;
 	mono_error_set_not_implemented (error, "System.Diagnostics.Tracing.EventPipeInternal.Enable");
-	mono_error_set_pending_exception (error);
+	END_QCALL;
 	return 0;
 }
 
 int32_t
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_EventActivityIdControl (
+System_Diagnostics_Tracing_EventPipeInternal_EventActivityIdControl (
 	uint32_t control_code,
 	/* GUID * */uint8_t *activity_id)
 {
-	ERROR_DECL (error);
+	BEGIN_QCALL;
 	mono_error_set_not_implemented (error, "System.Diagnostics.Tracing.EventPipeInternal.EventActivityIdControl");
-	mono_error_set_pending_exception (error);
+	END_QCALL;
 	return 0;
 }
 
 MonoBoolean
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_GetNextEvent (
+System_Diagnostics_Tracing_EventPipeInternal_GetNextEvent (
 	uint64_t session_id,
 	/* EventPipeEventInstanceData * */void *instance)
 {
-	ERROR_DECL (error);
+	BEGIN_QCALL;
 	mono_error_set_not_implemented (error, "System.Diagnostics.Tracing.EventPipeInternal.GetNextEvent");
-	mono_error_set_pending_exception (error);
+	END_QCALL;
 	return FALSE;
 }
 
 intptr_t
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_GetProvider (const gunichar2 *provider_name)
+System_Diagnostics_Tracing_EventPipeInternal_GetProvider (const char *provider_name)
 {
-	ERROR_DECL (error);
+	BEGIN_QCALL;
 	mono_error_set_not_implemented (error, "System.Diagnostics.Tracing.EventPipeInternal.GetProvider");
-	mono_error_set_pending_exception (error);
+	END_QCALL;
 	return 0;
 }
 
 MonoBoolean
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_GetSessionInfo (
+System_Diagnostics_Tracing_EventPipeInternal_GetSessionInfo (
 	uint64_t session_id,
 	/* EventPipeSessionInfo * */void *session_info)
 {
-	ERROR_DECL (error);
+	BEGIN_QCALL;
 	mono_error_set_not_implemented (error, "System.Diagnostics.Tracing.EventPipeInternal.GetSessionInfo");
-	mono_error_set_pending_exception (error);
+	END_QCALL;
 	return FALSE;
 }
 
 intptr_t
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_GetWaitHandle (uint64_t session_id)
+System_Diagnostics_Tracing_EventPipeInternal_GetWaitHandle (uint64_t session_id)
 {
-	ERROR_DECL (error);
+	BEGIN_QCALL;
 	mono_error_set_not_implemented (error, "System.Diagnostics.Tracing.EventPipeInternal.GetWaitHandle");
-	mono_error_set_pending_exception (error);
+	END_QCALL;
 	return 0;
 }
 
 void
-ves_icall_System_Diagnostics_Tracing_EventPipeInternal_WriteEventData (
+System_Diagnostics_Tracing_EventPipeInternal_WriteEventData (
 	intptr_t event_handle,
 	/* EventProviderEventData[] */const void *event_data,
 	uint32_t data_len,
 	/* GUID * */const uint8_t *activity_id,
 	/* GUID * */const uint8_t *related_activity_id)
 {
-	ERROR_DECL (error);
+	BEGIN_QCALL;
 	mono_error_set_not_implemented (error, "System.Diagnostics.Tracing.EventPipeInternal.WriteEventData");
-	mono_error_set_pending_exception (error);
+	END_QCALL;
 }
 
 #endif /* ENABLE_PERFTRACING */
+#define FCFuncStart(name) extern const void* name[]; const void* name[] = {
+#define FCFuncEnd() (void*)0x01 /* FCFuncFlag_EndOfArray */ };
+
+#define QCFuncElement(name,impl) \
+    (void*)0x8 /* FCFuncFlag_QCall */, (void*)(impl), (void*)name,
+
+FCFuncStart(gEventPipeInternalFuncs)
+    QCFuncElement("CreateProvider", System_Diagnostics_Tracing_EventPipeInternal_CreateProvider)
+    QCFuncElement("DefineEvent", System_Diagnostics_Tracing_EventPipeInternal_DefineEvent)
+    QCFuncElement("DeleteProvider", System_Diagnostics_Tracing_EventPipeInternal_DeleteProvider)
+    QCFuncElement("Disable", System_Diagnostics_Tracing_EventPipeInternal_Disable)
+    QCFuncElement("Enable", System_Diagnostics_Tracing_EventPipeInternal_Enable)
+    QCFuncElement("EventActivityIdControl", System_Diagnostics_Tracing_EventPipeInternal_EventActivityIdControl)
+    QCFuncElement("GetNextEvent", System_Diagnostics_Tracing_EventPipeInternal_GetNextEvent)
+    QCFuncElement("GetProvider", System_Diagnostics_Tracing_EventPipeInternal_GetProvider)
+    QCFuncElement("GetSessionInfo", System_Diagnostics_Tracing_EventPipeInternal_GetSessionInfo)
+    QCFuncElement("GetWaitHandle",System_Diagnostics_Tracing_EventPipeInternal_GetWaitHandle)
+    QCFuncElement("WriteEventData", System_Diagnostics_Tracing_EventPipeInternal_WriteEventData)
+FCFuncEnd()
 #endif /* ENABLE_NETCORE */
 
 MONO_EMPTY_SOURCE_FILE (eventpipe_rt_mono);

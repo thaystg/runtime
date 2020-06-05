@@ -14,7 +14,7 @@
 #include "mono/metadata/qcalllist.h"
 
 
-const int c_nECClasses = sizeof(MonoQCallDef)/sizeof(c_qcalls[0]);
+const int c_nECClasses = sizeof(c_qcalls)/sizeof(c_qcalls[0]);
 
 static gboolean is_end_of_array (MonoQCallFunc *func)  { return !!((int)func->flags & func_flag_end_of_array); }
 static gboolean has_signature (MonoQCallFunc *func)  { return !!((int)func->flags & func_flag_has_signature); }
@@ -39,6 +39,7 @@ find_impls_index_for_class (MonoMethod* method)
         return -1;
 
     unsigned low  = 0;
+    printf("Tenho quantas classes - %d\n", c_nECClasses);
     unsigned high = c_nECClasses;
 
 #ifdef DEBUG
@@ -87,9 +88,13 @@ find_index_for_method (MonoMethod* method, const void **impls)
 gpointer
 mono_lookup_pinvoke_qcall_internal (MonoMethod *method, MonoLookupPInvokeStatus *status_out)
 {
+    printf("estou procurando o metodo - %s - da classe - %s - do namespace - %s\n", method->name,m_class_get_name(method->klass), m_class_get_name_space(method->klass));
+    fflush(stdout);
     int pos_class = find_impls_index_for_class (method);
     if (pos_class < 0)
         return NULL;
+    printf("achei %d\n", pos_class);
+    fflush(stdout);
     int pos_method = find_index_for_method (method, c_qcalls[pos_class].functions);
     if (pos_method < 0)
         return NULL;

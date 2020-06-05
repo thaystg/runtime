@@ -2,6 +2,7 @@
 #define _MONO_METADATA_QCALLLIST_H_
 
 extern const void* gPalGlobalizationNative[];
+extern const void* gEventPipeInternalFuncs[];
 
 
 typedef struct MonoQCallDef
@@ -27,6 +28,7 @@ enum {
 const MonoQCallDef c_qcalls[] =
 {
 #define FCClassElement(name,namespace,funcs) {name, namespace, funcs},
+FCClassElement("EventPipeInternal", "System.Diagnostics.Tracing", gEventPipeInternalFuncs)
 FCClassElement("Globalization", "", gPalGlobalizationNative)
 };
 
