@@ -2298,7 +2298,6 @@ namespace System
         private readonly object m_keepalive; // This will be filled with a LoaderAllocator reference when this RuntimeType represents a collectible type
 #pragma warning restore CA1823
         private IntPtr m_cache;
-        internal IntPtr m_handle;
 
         internal static readonly RuntimeType ValueType = (RuntimeType)typeof(System.ValueType);
 

@@ -939,7 +939,7 @@ namespace System.Reflection.Emit
                 CreateGlobalFunctionsNoLock();
             }
         }
-        
+
         private void CreateGlobalFunctionsNoLock()
         {
             if (_moduleData._hasGlobalBeenCreated)
