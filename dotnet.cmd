@@ -20,3 +20,4 @@ set DOTNET_MULTILEVEL_LOOKUP=0
 set DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 
 call "%dotnetPath%\dotnet.exe" %*
+
