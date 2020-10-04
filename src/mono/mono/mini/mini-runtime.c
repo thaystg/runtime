@@ -94,6 +94,7 @@
 #include "mini-gc.h"
 #include "mini-llvm.h"
 #include "debugger-agent.h"
+#include "icordbg-debugger-agent.h"
 #include "lldb.h"
 #include "mini-runtime.h"
 #include "interp/interp.h"
@@ -4395,6 +4396,7 @@ mini_init (const char *filename, const char *runtime_version)
 	mono_debugger_agent_stub_init ();
 #ifndef DISABLE_SDB
 	mono_debugger_agent_init ();
+	icordbg_debugger_init ();
 #endif
 
 	if (sdb_options)
