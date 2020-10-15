@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30523.141
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "EmbeddedSamples", "EmbeddedSamples", "{5FE09AA5-C3C9-45EA-A323-36A11B653CEC}"
 EndProject
@@ -215,6 +215,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "monow", "monow.vcxproj", "{
 	ProjectSection(ProjectDependencies) = postProject
 		{92AE7622-5F58-4234-9A26-9EC71876B3F4} = {92AE7622-5F58-4234-9A26-9EC71876B3F4}
 	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mscordbi", "mscordbi.vcxproj", "{974416C2-41F5-4723-8D1A-81788C0C795B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -456,6 +458,14 @@ Global
 		{D89D58F1-DA7A-4157-AFEE-F43D3BA20C9D}.Release|Win32.Build.0 = Release|Win32
 		{D89D58F1-DA7A-4157-AFEE-F43D3BA20C9D}.Release|x64.ActiveCfg = Release|x64
 		{D89D58F1-DA7A-4157-AFEE-F43D3BA20C9D}.Release|x64.Build.0 = Release|x64
+		{974416C2-41F5-4723-8D1A-81788C0C795B}.Debug|Win32.ActiveCfg = Debug|Win32
+		{974416C2-41F5-4723-8D1A-81788C0C795B}.Debug|Win32.Build.0 = Debug|Win32
+		{974416C2-41F5-4723-8D1A-81788C0C795B}.Debug|x64.ActiveCfg = Debug|x64
+		{974416C2-41F5-4723-8D1A-81788C0C795B}.Debug|x64.Build.0 = Debug|x64
+		{974416C2-41F5-4723-8D1A-81788C0C795B}.Release|Win32.ActiveCfg = Release|Win32
+		{974416C2-41F5-4723-8D1A-81788C0C795B}.Release|Win32.Build.0 = Release|Win32
+		{974416C2-41F5-4723-8D1A-81788C0C795B}.Release|x64.ActiveCfg = Release|x64
+		{974416C2-41F5-4723-8D1A-81788C0C795B}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -497,11 +507,13 @@ Global
 		{C3D4C623-55F8-4653-980D-61AA629B4E1D} = {7AF3635B-001C-42BF-94B9-C036CFDCA71D}
 		{8C02A728-7A50-43CE-B507-BDFC05B7EA94} = {4CFD7702-60B2-4E82-BFAD-FCBB53EB4DA2}
 		{D89D58F1-DA7A-4157-AFEE-F43D3BA20C9D} = {DE3617B4-17A8-4E5F-A00F-BA43D956881F}
+		{974416C2-41F5-4723-8D1A-81788C0C795B} = {0EBA83B7-0EB4-4C83-A900-77300A97E8B1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		AMDCaPersistentConfig = Debug|Win32
-		AMDCaPersistentStartup = mono
 		AMDCaProjectFile = C:\Users\Owner\Development\monogit\mono\msvc\CodeAnalyst\mono.caw
+		AMDCaPersistentStartup = mono
+		AMDCaPersistentConfig = Debug|Win32
+		SolutionGuid = {655E74BA-A5AB-4F0C-8F61-DF2B3D014F32}
 	EndGlobalSection
 	GlobalSection(DPCodeReviewSolutionGUID) = preSolution
 		DPCodeReviewSolutionGUID = {00000000-0000-0000-0000-000000000000}

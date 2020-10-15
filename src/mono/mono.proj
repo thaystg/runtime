@@ -13,6 +13,12 @@
     <CoreClrFileName Condition="'$(TargetsWindows)' == 'true'">coreclr.dll</CoreClrFileName>
     <CoreClrFileName Condition="'$(TargetsOSX)' == 'true'">libcoreclr.dylib</CoreClrFileName>
     <CoreClrFileName Condition="'$(CoreClrFileName)' == ''">libcoreclr.so</CoreClrFileName>
+    <DotNetExec Condition="'$(OS)' == 'Windows_NT'">dotnet.exe</DotNetExec>
+    <DotNetExec Condition="'$(DotNetExec)' == ''">dotnet</DotNetExec>
+    <LocalDotnetDir>$(RepoRoot).dotnet</LocalDotnetDir>
+    <LocalDotnet>$(LocalDotnetDir)\$(DotNetExec)</LocalDotnet>
+    <LocalMonoDotnetDir>$(RepoRoot).dotnet-mono</LocalMonoDotnetDir>
+    <LocalMonoDotnet>$(LocalMonoDotnetDir)\$(DotNetExec)</LocalMonoDotnet>
     <MonoFileName Condition="'$(TargetsiOS)' == 'true' or '$(TargetstvOS)' == 'true'">libmonosgen-2.0.dylib</MonoFileName>
     <MonoFileName Condition="'$(TargetsAndroid)' == 'true'">libmonosgen-2.0.so</MonoFileName>
     <MonoFileName Condition="'$(TargetsBrowser)' == 'true'">libmonosgen-2.0.a</MonoFileName>
@@ -818,6 +824,30 @@
           SkipUnchangedFiles="true" />
   </Target>
 
+  <Target Name="ValidateLocalDotnet">
+    <Error Condition="$([System.IO.Directory]::GetDirectories('$(LocalDotnetDir)\shared\Microsoft.NETCore.App').Length) > 1" Text="$(LocalDotnetDir) contains more than one SDK, please delete unused ones." />
+    <Error Condition="Exists('$(LocalMonoDotnetDir)') AND $([System.IO.Directory]::GetDirectories('$(LocalMonoDotnetDir)\shared\Microsoft.NETCore.App').Length) > 1" Text="$(LocalMonoDotnetDir) contains more than one SDK, please delete unused ones." />
+    <Error Condition="!Exists('$(LocalDotnet)')" Text="'$(LocalDotnet)' doesn't exist." />
+  </Target>
+
+  <Target Name="CloneLocalDotnet" DependsOnTargets="ValidateLocalDotnet">
+    <ItemGroup>
+      <_LocalDotnetFiles Include="$(LocalDotnetDir)\**\*.*" />
+    </ItemGroup>
+    <!-- copy .dotnet to .dotnet-mono if it doesn't exist -->
+    <Copy SourceFiles="@(_LocalDotnetFiles)"
+          DestinationFolder="$(LocalMonoDotnetDir)\%(RecursiveDir)"
+          OverwriteReadOnlyFiles="true"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- Copy Mono runtime bits to the local .dotnet-mono (clone of .dotnet) dir for local experiments (temp solution) -->
+  <Target Name="PatchLocalMonoDotnet" DependsOnTargets="CloneLocalDotnet">
+      <MSBuild Projects ="$(MSBuildProjectFullPath)"
+               Properties="Destination=$([System.IO.Directory]::GetDirectories('$(LocalMonoDotnetDir)\shared\Microsoft.NETCore.App')[0])"
+               Targets="CopyMonoRuntimeFilesFromArtifactsToDestination" />
+  </Target>
+
   <!-- Copy Mono runtime bits to the coreclr's Core_Root in order to run runtime tests -->
   <Target Name="PatchCoreClrCoreRoot">
     <MSBuild Projects="$(MSBuildProjectFullPath)"
@@ -885,6 +915,8 @@
     <PropertyGroup>
       <_MonoRuntimeFilePath Condition="'$(TargetsWindows)' == 'true' and '$(Platform)' == 'x64'">$(MonoObjDir)x64\Bin\$(Configuration)\mono-2.0-sgen.dll</_MonoRuntimeFilePath>
       <_MonoRuntimeFilePath Condition="'$(TargetsWindows)' == 'true' and '$(Platform)' == 'x86'">$(MonoObjDir)Win32\Bin\$(Configuration)\mono-2.0-sgen.dll</_MonoRuntimeFilePath>
+      <_MonoCorDbiFilePath Condition="'$(TargetsWindows)' == 'true' and '$(Platform)' == 'x64'">$(MonoObjDir)x64\lib\$(Configuration)\mscordbi.dll</_MonoCorDbiFilePath>
+      <_MonoCorDbiFilePath Condition="'$(TargetsWindows)' == 'true' and '$(Platform)' == 'x86'">$(MonoObjDir)Win32\lib\$(Configuration)\mscordbi.dll</_MonoCorDbiFilePath>
       <_MonoRuntimeFilePath Condition="'$(TargetsOSX)' == 'true' and '$(MonoEnableCMake)' != 'true'">$(MonoObjDir)mono\mini\.libs\libmonosgen-2.0.dylib</_MonoRuntimeFilePath>
       <_MonoRuntimeFilePath Condition="'$(TargetsOSX)' == 'true' and '$(MonoEnableCMake)' == 'true'">$(MonoObjDir)out\lib\libmonosgen-2.0.dylib</_MonoRuntimeFilePath>
       <_MonoRuntimeFilePath Condition="'$(TargetsiOS)' == 'true'">$(MonoObjDir)out\lib\libmonosgen-2.0.dylib</_MonoRuntimeFilePath>
@@ -907,6 +939,9 @@
     <ItemGroup>
       <_MonoRuntimeArtifacts Include="$(_MonoRuntimeFilePath)">
         <Destination>$(RuntimeBinDir)$(MonoFileName)</Destination>
+      </_MonoRuntimeArtifacts>
+      <_MonoRuntimeArtifacts Include="$(_MonoCorDbiFilePath)">
+        <Destination>$(RuntimeBinDir)mscordbi.dll</Destination>
       </_MonoRuntimeArtifacts>
       <_MonoRuntimeArtifacts Include="$(_MonoRuntimeStaticFilePath)">
         <Destination>$(RuntimeBinDir)$(MonoStaticFileName)</Destination>

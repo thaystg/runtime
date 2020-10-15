@@ -1,5 +1,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 16
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30523.141
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tools", "Tools", "{EE2CC761-9652-44AC-9204-7EB31194CAA6}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libraries", "Libraries", "{0EBA83B7-0EB4-4C83-A900-77300A97E8B1}"
@@ -28,6 +30,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "build-init", "build-init.vcxproj", "{92AE7622-5F58-4234-9A26-9EC71876B3F4}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libmono-dynamic", "libmono-dynamic.vcxproj", "{675F4175-FFB1-480D-AD36-F397578844D4}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mscordbi", "mscordbi.vcxproj", "{974416C2-41F5-4723-8D1A-81788C0C795B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -77,6 +81,17 @@ Global
 		{675F4175-FFB1-480D-AD36-F397578844D4}.Release|Win32.Build.0 = Release|Win32
 		{675F4175-FFB1-480D-AD36-F397578844D4}.Release|x64.ActiveCfg = Release|x64
 		{675F4175-FFB1-480D-AD36-F397578844D4}.Release|x64.Build.0 = Release|x64
+		{974416C2-41F5-4723-8D1A-81788C0C795B}.Debug|Win32.ActiveCfg = Debug|Win32
+		{974416C2-41F5-4723-8D1A-81788C0C795B}.Debug|Win32.Build.0 = Debug|Win32
+		{974416C2-41F5-4723-8D1A-81788C0C795B}.Debug|x64.ActiveCfg = Debug|x64
+		{974416C2-41F5-4723-8D1A-81788C0C795B}.Debug|x64.Build.0 = Debug|x64
+		{974416C2-41F5-4723-8D1A-81788C0C795B}.Release|Win32.ActiveCfg = Release|Win32
+		{974416C2-41F5-4723-8D1A-81788C0C795B}.Release|Win32.Build.0 = Release|Win32
+		{974416C2-41F5-4723-8D1A-81788C0C795B}.Release|x64.ActiveCfg = Release|x64
+		{974416C2-41F5-4723-8D1A-81788C0C795B}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{B7098DFA-31E6-4006-8A15-1C9A4E925149} = {EE2CC761-9652-44AC-9204-7EB31194CAA6}
@@ -84,10 +99,9 @@ Global
 		{158073ED-99AE-4196-9EDC-DDB2344F8466} = {0EBA83B7-0EB4-4C83-A900-77300A97E8B1}
 		{92AE7622-5F58-4234-9A26-9EC71876B3F4} = {DC782E23-920A-4873-82A7-37F195FB92C1}
 		{675F4175-FFB1-480D-AD36-F397578844D4} = {DE3617B4-17A8-4E5F-A00F-BA43D956881F}
+		{974416C2-41F5-4723-8D1A-81788C0C795B} = {0EBA83B7-0EB4-4C83-A900-77300A97E8B1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {E458FD7F-E05B-4AF9-9BF0-AECC546806E2}
-	EndGlobalSection
-	GlobalSection(ExtensibilityAddIns) = postSolution
 	EndGlobalSection
 EndGlobal

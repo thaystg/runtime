@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using System.Threading;
+using System.Diagnostics;
 
 namespace HelloWorld
 {
@@ -14,6 +16,13 @@ namespace HelloWorld
             Console.WriteLine(typeof(object).Assembly.FullName);
             Console.WriteLine(System.Reflection.Assembly.GetEntryAssembly ());
             Console.WriteLine(System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+            Console.WriteLine("Waiting for debugger to attach");
+            while (!Debugger.IsAttached)
+            {
+                Thread.Sleep(1000);
+                Console.WriteLine("Waiting for debugger to attach");
+            }
+            Console.WriteLine("Debugger attached");
         }
     }
 }
