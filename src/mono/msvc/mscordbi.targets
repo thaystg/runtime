@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="shim_libraries">
-    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb.c" />
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="$(top_srcdir)/../coreclr/src/pal/prebuilt/idl/xcordebug_i.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="$(top_srcdir)/../coreclr/src/pal/prebuilt/idl/cordebug_i.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="$(MONO_DIR)\mono\mini\debugger-protocol.c">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
   </ItemGroup>
 </Project>

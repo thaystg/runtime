@@ -88,6 +88,7 @@
 #include "debugger-engine.h"
 #include "mono/metadata/debug-mono-ppdb.h"
 #include "mono/metadata/custom-attrs-internals.h"
+#include "debugger-protocol.h"
 
 /*
  * On iOS we can't use System.Environment.Exit () as it will do the wrong
@@ -262,6 +263,12 @@ typedef struct {
 	int (*recv) (void *buf, int len);
 } DebuggerTransport;
 
+/* Buffered reply packets */
+static ReplyPacket reply_packets [128];
+static int nreply_packets;
+
+static int packet_id = 0;
+
 /* 
  * Wire Protocol definitions
  */
@@ -270,30 +277,6 @@ typedef struct {
 
 #define MAJOR_VERSION 2
 #define MINOR_VERSION 57
-
-typedef enum {
-	CMD_SET_VM = 1,
-	CMD_SET_OBJECT_REF = 9,
-	CMD_SET_STRING_REF = 10,
-	CMD_SET_THREAD = 11,
-	CMD_SET_ARRAY_REF = 13,
-	CMD_SET_EVENT_REQUEST = 15,
-	CMD_SET_STACK_FRAME = 16,
-	CMD_SET_APPDOMAIN = 20,
-	CMD_SET_ASSEMBLY = 21,
-	CMD_SET_METHOD = 22,
-	CMD_SET_TYPE = 23,
-	CMD_SET_MODULE = 24,
-	CMD_SET_FIELD = 25,
-	CMD_SET_EVENT = 64,
-	CMD_SET_POINTER = 65
-} CommandSet;
-
-typedef enum {
-	SUSPEND_POLICY_NONE = 0,
-	SUSPEND_POLICY_EVENT_THREAD = 1,
-	SUSPEND_POLICY_ALL = 2
-} SuspendPolicy;
 
 typedef enum {
 	ERR_NONE = 0,
@@ -344,24 +327,6 @@ typedef enum {
 } BindingFlagsExtensions;
 
 typedef enum {
-	CMD_VM_VERSION = 1,
-	CMD_VM_ALL_THREADS = 2,
-	CMD_VM_SUSPEND = 3,
-	CMD_VM_RESUME = 4,
-	CMD_VM_EXIT = 5,
-	CMD_VM_DISPOSE = 6,
-	CMD_VM_INVOKE_METHOD = 7,
-	CMD_VM_SET_PROTOCOL_VERSION = 8,
-	CMD_VM_ABORT_INVOKE = 9,
-	CMD_VM_SET_KEEPALIVE = 10,
-	CMD_VM_GET_TYPES_FOR_SOURCE_FILE = 11,
-	CMD_VM_GET_TYPES = 12,
-	CMD_VM_INVOKE_METHODS = 13,
-	CMD_VM_START_BUFFERING = 14,
-	CMD_VM_STOP_BUFFERING = 15
-} CmdVM;
-
-typedef enum {
 	CMD_THREAD_GET_FRAME_INFO = 1,
 	CMD_THREAD_GET_NAME = 2,
 	CMD_THREAD_GET_STATE = 3,
@@ -371,16 +336,6 @@ typedef enum {
 	CMD_THREAD_SET_IP = 7,
 	CMD_THREAD_ELAPSED_TIME = 8
 } CmdThread;
-
-typedef enum {
-	CMD_EVENT_REQUEST_SET = 1,
-	CMD_EVENT_REQUEST_CLEAR = 2,
-	CMD_EVENT_REQUEST_CLEAR_ALL_BREAKPOINTS = 3
-} CmdEvent;
-
-typedef enum {
-	CMD_COMPOSITE = 100
-} CmdComposite;
 
 typedef enum {
 	CMD_APPDOMAIN_GET_ROOT_DOMAIN = 1,
@@ -505,16 +460,6 @@ typedef struct {
 	MonoStackHash *hashes;
 } EventInfo;
 
-typedef struct {
-	guint8 *buf, *p, *end;
-} Buffer;
-
-typedef struct ReplyPacket {
-	int id;
-	int error;
-	Buffer *data;
-} ReplyPacket;
-
 #define DEBUG(level,s) do { if (G_UNLIKELY ((level) <= log_level)) { s; fflush (log_file); } } while (0)
 
 #ifdef HOST_ANDROID
@@ -555,8 +500,6 @@ static gint32 agent_inited;
 static int conn_fd;
 static int listen_fd;
 #endif
-
-static int packet_id = 0;
 
 static int objref_id = 0;
 
@@ -620,10 +563,6 @@ static gint32 suspend_count;
 
 /* Whenever to buffer reply messages and send them together */
 static gboolean buffer_replies;
-
-/* Buffered reply packets */
-static ReplyPacket reply_packets [128];
-static int nreply_packets;
 
 #define dbg_lock mono_de_lock
 #define dbg_unlock mono_de_unlock
@@ -1177,9 +1116,13 @@ set_keepalive (void)
 static int
 socket_transport_accept (int socket_fd)
 {
+	printf("socket_transport_accept\n");
+	fflush(stdout);
 	MONO_ENTER_GC_SAFE;
 	conn_fd = accept (socket_fd, NULL, NULL);
 	MONO_EXIT_GC_SAFE;
+	printf("accepted\n");
+	fflush(stdout);
 
 	if (conn_fd == -1) {
 		g_printerr ("debugger-agent: Unable to listen on %d\n", socket_fd);
@@ -1241,7 +1184,7 @@ socket_transport_connect (const char *address)
 			MONO_HINT_UNSPECIFIED
 		};
 
-		mono_network_init ();
+		mono_networking_init ();
 
 		for (int i = 0; i < sizeof(hints) / sizeof(int); i++) {
 			/* Obtain address(es) matching host/port */
@@ -1563,293 +1506,6 @@ mono_debugger_agent_transport_handshake (void)
 }
 
 static gboolean
-transport_handshake (void)
-{
-	char handshake_msg [128];
-	guint8 buf [128];
-	int res;
-	
-	disconnected = TRUE;
-	
-	/* Write handshake message */
-	sprintf (handshake_msg, "DWP-Handshake");
-
-	do {
-		res = transport_send (handshake_msg, strlen (handshake_msg));
-	} while (res == -1 && get_last_sock_error () == MONO_EINTR);
-
-	g_assert (res != -1);
-
-	/* Read answer */
-	res = transport_recv (buf, strlen (handshake_msg));
-	if ((res != strlen (handshake_msg)) || (memcmp (buf, handshake_msg, strlen (handshake_msg)) != 0)) {
-		g_printerr ("debugger-agent: DWP handshake failed.\n");
-		return FALSE;
-	}
-
-	/*
-	 * To support older clients, the client sends its protocol version after connecting
-	 * using a command. Until that is received, default to our protocol version.
-	 */
-	major_version = MAJOR_VERSION;
-	minor_version = MINOR_VERSION;
-	protocol_version_set = FALSE;
-
-#ifndef DISABLE_SOCKET_TRANSPORT
-	// FIXME: Move this somewhere else
-	/* 
-	 * Set TCP_NODELAY on the socket so the client receives events/command
-	 * results immediately.
-	 */
-	if (conn_fd) {
-		int flag = 1;
-		int result = setsockopt (conn_fd,
-                                 IPPROTO_TCP,
-                                 TCP_NODELAY,
-                                 (char *) &flag,
-                                 sizeof(int));
-		g_assert (result >= 0);
-	}
-
-	set_keepalive ();
-#endif
-	
-	disconnected = FALSE;
-	return TRUE;
-}
-
-static void
-stop_debugger_thread (void)
-{
-	if (!agent_inited)
-		return;
-
-	transport_close1 ();
-
-	/* 
-	 * Wait for the thread to exit.
-	 *
-	 * If we continue with the shutdown without waiting for it, then the client might
-	 * not receive an answer to its last command like a resume.
-	 */
-	if (!is_debugger_thread ()) {
-		do {
-			mono_coop_mutex_lock (&debugger_thread_exited_mutex);
-			if (!debugger_thread_exited)
-				mono_coop_cond_wait (&debugger_thread_exited_cond, &debugger_thread_exited_mutex);
-			mono_coop_mutex_unlock (&debugger_thread_exited_mutex);
-		} while (!debugger_thread_exited);
-
-		if (debugger_thread_handle)
-			mono_thread_info_wait_one_handle (debugger_thread_handle, MONO_INFINITE_WAIT, TRUE);
-	}
-
-	transport_close2 ();
-}
-
-static void
-start_debugger_thread (MonoError *error)
-{
-	MonoInternalThread *thread;
-
-	thread = mono_thread_create_internal (mono_get_root_domain (), (gpointer)debugger_thread, NULL, MONO_THREAD_CREATE_FLAGS_DEBUGGER, error);
-	return_if_nok (error);
-
-	/* Is it possible for the thread to be dead alreay ? */
-	debugger_thread_handle = mono_threads_open_thread_handle (thread->handle);
-	g_assert (debugger_thread_handle);
-	
-}
-
-/*
- * Functions to decode protocol data
- */
-
-static int
-decode_byte (guint8 *buf, guint8 **endbuf, guint8 *limit)
-{
-	*endbuf = buf + 1;
-	g_assert (*endbuf <= limit);
-	return buf [0];
-}
-
-static int
-decode_int (guint8 *buf, guint8 **endbuf, guint8 *limit)
-{
-	*endbuf = buf + 4;
-	g_assert (*endbuf <= limit);
-
-	return (((int)buf [0]) << 24) | (((int)buf [1]) << 16) | (((int)buf [2]) << 8) | (((int)buf [3]) << 0);
-}
-
-static gint64
-decode_long (guint8 *buf, guint8 **endbuf, guint8 *limit)
-{
-	guint32 high = decode_int (buf, &buf, limit);
-	guint32 low = decode_int (buf, &buf, limit);
-
-	*endbuf = buf;
-
-	return ((((guint64)high) << 32) | ((guint64)low));
-}
-
-static int
-decode_id (guint8 *buf, guint8 **endbuf, guint8 *limit)
-{
-	return decode_int (buf, endbuf, limit);
-}
-
-static char*
-decode_string (guint8 *buf, guint8 **endbuf, guint8 *limit)
-{
-	int len = decode_int (buf, &buf, limit);
-	char *s;
-
-	if (len < 0) {
-		*endbuf = buf;
-		return NULL;
-	}
-
-	s = (char *)g_malloc (len + 1);
-	g_assert (s);
-
-	memcpy (s, buf, len);
-	s [len] = '\0';
-	buf += len;
-	*endbuf = buf;
-
-	return s;
-}
-
-/*
- * Functions to encode protocol data
- */
-
-static void
-buffer_init (Buffer *buf, int size)
-{
-	buf->buf = (guint8 *)g_malloc (size);
-	buf->p = buf->buf;
-	buf->end = buf->buf + size;
-}
-
-static int
-buffer_len (Buffer *buf)
-{
-	return buf->p - buf->buf;
-}
-
-static void
-buffer_make_room (Buffer *buf, int size)
-{
-	if (buf->end - buf->p < size) {
-		int new_size = buf->end - buf->buf + size + 32;
-		guint8 *p = (guint8 *)g_realloc (buf->buf, new_size);
-		size = buf->p - buf->buf;
-		buf->buf = p;
-		buf->p = p + size;
-		buf->end = buf->buf + new_size;
-	}
-}
-
-static void
-buffer_add_byte (Buffer *buf, guint8 val)
-{
-	buffer_make_room (buf, 1);
-	buf->p [0] = val;
-	buf->p++;
-}
-
-static void
-buffer_add_short (Buffer *buf, guint32 val)
-{
-	buffer_make_room (buf, 2);
-	buf->p [0] = (val >> 8) & 0xff;
-	buf->p [1] = (val >> 0) & 0xff;
-	buf->p += 2;
-}
-
-static void
-buffer_add_int (Buffer *buf, guint32 val)
-{
-	buffer_make_room (buf, 4);
-	buf->p [0] = (val >> 24) & 0xff;
-	buf->p [1] = (val >> 16) & 0xff;
-	buf->p [2] = (val >> 8) & 0xff;
-	buf->p [3] = (val >> 0) & 0xff;
-	buf->p += 4;
-}
-
-static void
-buffer_add_long (Buffer *buf, guint64 l)
-{
-	buffer_add_int (buf, (l >> 32) & 0xffffffff);
-	buffer_add_int (buf, (l >> 0) & 0xffffffff);
-}
-
-static void
-buffer_add_id (Buffer *buf, int id)
-{
-	buffer_add_int (buf, (guint64)id);
-}
-
-static void
-buffer_add_data (Buffer *buf, guint8 *data, int len)
-{
-	buffer_make_room (buf, len);
-	memcpy (buf->p, data, len);
-	buf->p += len;
-}
-
-static void
-buffer_add_utf16 (Buffer *buf, guint8 *data, int len)
-{
-#if G_BYTE_ORDER == G_LITTLE_ENDIAN
-	buffer_make_room (buf, len);
-	memcpy (buf->p, data, len);
-#else
-	for (int i=0; i<len; i +=2) {
-		buf->p[i] = data[i+1];
-		buf->p[i+1] = data[i];
-	}
-#endif
-	buf->p += len;
-}
-
-static void
-buffer_add_string (Buffer *buf, const char *str)
-{
-	int len;
-
-	if (str == NULL) {
-		buffer_add_int (buf, 0);
-	} else {
-		len = strlen (str);
-		buffer_add_int (buf, len);
-		buffer_add_data (buf, (guint8*)str, len);
-	}
-}
-
-static void
-buffer_add_byte_array (Buffer *buf, guint8 *bytes, guint32 arr_len)
-{
-    buffer_add_int (buf, arr_len);
-    buffer_add_data (buf, bytes, arr_len);
-}
-
-static void
-buffer_add_buffer (Buffer *buf, Buffer *data)
-{
-	buffer_add_data (buf, data->buf, buffer_len (data));
-}
-
-static void
-buffer_free (Buffer *buf)
-{
-	g_free (buf->buf);
-}
-
-static gboolean
 send_packet (int command_set, int command, Buffer *data)
 {
 	Buffer buf;
@@ -1941,6 +1597,105 @@ buffer_reply_packet (int id, int error, Buffer *data)
 	buffer_init (p->data, buffer_len (data));
 	buffer_add_buffer (p->data, data);
 	nreply_packets ++;
+}
+
+static gboolean
+transport_handshake (void)
+{
+	char handshake_msg [128];
+	guint8 buf [128];
+	int res;
+	
+	disconnected = TRUE;
+	
+	/* Write handshake message */
+	sprintf (handshake_msg, "DWP-Handshake");
+
+	do {
+		res = transport_send (handshake_msg, strlen (handshake_msg));
+	} while (res == -1 && get_last_sock_error () == MONO_EINTR);
+
+	g_assert (res != -1);
+
+	/* Read answer */
+	res = transport_recv (buf, strlen (handshake_msg));
+	if ((res != strlen (handshake_msg)) || (memcmp (buf, handshake_msg, strlen (handshake_msg)) != 0)) {
+		g_printerr ("debugger-agent: DWP handshake failed. %s\n", buf);
+		return FALSE;
+	}
+
+	/*
+	 * To support older clients, the client sends its protocol version after connecting
+	 * using a command. Until that is received, default to our protocol version.
+	 */
+	major_version = MAJOR_VERSION;
+	minor_version = MINOR_VERSION;
+	protocol_version_set = FALSE;
+
+#ifndef DISABLE_SOCKET_TRANSPORT
+	// FIXME: Move this somewhere else
+	/* 
+	 * Set TCP_NODELAY on the socket so the client receives events/command
+	 * results immediately.
+	 */
+	if (conn_fd) {
+		int flag = 1;
+		int result = setsockopt (conn_fd,
+                                 IPPROTO_TCP,
+                                 TCP_NODELAY,
+                                 (char *) &flag,
+                                 sizeof(int));
+		g_assert (result >= 0);
+	}
+
+	set_keepalive ();
+#endif
+	
+	disconnected = FALSE;
+	return TRUE;
+}
+
+static void
+stop_debugger_thread (void)
+{
+	if (!agent_inited)
+		return;
+
+	transport_close1 ();
+
+	/* 
+	 * Wait for the thread to exit.
+	 *
+	 * If we continue with the shutdown without waiting for it, then the client might
+	 * not receive an answer to its last command like a resume.
+	 */
+	if (!is_debugger_thread ()) {
+		do {
+			mono_coop_mutex_lock (&debugger_thread_exited_mutex);
+			if (!debugger_thread_exited)
+				mono_coop_cond_wait (&debugger_thread_exited_cond, &debugger_thread_exited_mutex);
+			mono_coop_mutex_unlock (&debugger_thread_exited_mutex);
+		} while (!debugger_thread_exited);
+
+		if (debugger_thread_handle)
+			mono_thread_info_wait_one_handle (debugger_thread_handle, MONO_INFINITE_WAIT, TRUE);
+	}
+
+	transport_close2 ();
+}
+
+static void
+start_debugger_thread (MonoError *error)
+{
+	MonoInternalThread *thread;
+
+	thread = mono_thread_create_internal (mono_get_root_domain (), (gpointer)debugger_thread, NULL, MONO_THREAD_CREATE_FLAGS_DEBUGGER, error);
+	return_if_nok (error);
+
+	/* Is it possible for the thread to be dead alreay ? */
+	debugger_thread_handle = mono_threads_open_thread_handle (thread->handle);
+	g_assert (debugger_thread_handle);
+	
 }
 
 
@@ -3808,34 +3563,6 @@ create_event_list (EventKind event, GPtrArray *reqs, MonoJitInfo *ji, EventInfo 
 		events = g_slist_append (events, GINT_TO_POINTER (0));
 
 	return events;
-}
-
-static G_GNUC_UNUSED const char*
-event_to_string (EventKind event)
-{
-	switch (event) {
-	case EVENT_KIND_VM_START: return "VM_START";
-	case EVENT_KIND_VM_DEATH: return "VM_DEATH";
-	case EVENT_KIND_THREAD_START: return "THREAD_START";
-	case EVENT_KIND_THREAD_DEATH: return "THREAD_DEATH";
-	case EVENT_KIND_APPDOMAIN_CREATE: return "APPDOMAIN_CREATE";
-	case EVENT_KIND_APPDOMAIN_UNLOAD: return "APPDOMAIN_UNLOAD";
-	case EVENT_KIND_METHOD_ENTRY: return "METHOD_ENTRY";
-	case EVENT_KIND_METHOD_EXIT: return "METHOD_EXIT";
-	case EVENT_KIND_ASSEMBLY_LOAD: return "ASSEMBLY_LOAD";
-	case EVENT_KIND_ASSEMBLY_UNLOAD: return "ASSEMBLY_UNLOAD";
-	case EVENT_KIND_BREAKPOINT: return "BREAKPOINT";
-	case EVENT_KIND_STEP: return "STEP";
-	case EVENT_KIND_TYPE_LOAD: return "TYPE_LOAD";
-	case EVENT_KIND_EXCEPTION: return "EXCEPTION";
-	case EVENT_KIND_KEEPALIVE: return "KEEPALIVE";
-	case EVENT_KIND_USER_BREAK: return "USER_BREAK";
-	case EVENT_KIND_USER_LOG: return "USER_LOG";
-	case EVENT_KIND_CRASH: return "CRASH";
-	default:
-		g_assert_not_reached ();
-		return "";
-	}
 }
 
 /*
@@ -7209,6 +6936,7 @@ event_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 
 	switch (command) {
 	case CMD_EVENT_REQUEST_SET: {
+		printf("CMD_EVENT_REQUEST_SET\n");
 		EventRequest *req;
 		int i, event_kind, suspend_policy, nmodifiers;
 		ModifierKind mod;
@@ -7225,6 +6953,9 @@ event_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		event_kind = decode_byte (p, &p, end);
 		suspend_policy = decode_byte (p, &p, end);
 		nmodifiers = decode_byte (p, &p, end);
+
+
+		printf("CMD_EVENT_REQUEST_SET - %d - %d - %d\n", event_kind, suspend_policy, nmodifiers);
 
 		req = (EventRequest *)g_malloc0 (sizeof (EventRequest) + (nmodifiers * sizeof (Modifier)));
 		req->id = mono_atomic_inc_i32 (&event_request_id);
@@ -7398,6 +7129,7 @@ event_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 				break;
 			case EVENT_KIND_ASSEMBLY_LOAD:
 				/* Emit load events for currently loaded assemblies */
+				printf("EVENT_KIND_ASSEMBLY_LOAD\n");
 				mono_domain_foreach (send_assemblies_for_domain, NULL);
 				break;
 			case EVENT_KIND_THREAD_START:
@@ -10078,6 +9810,12 @@ debugger_thread (void *arg)
 	while (!attach_failed) {
 		res = transport_recv (header, HEADER_LENGTH);
 
+		while (res == 0) {
+			DEBUG_PRINTF (1, "[dbg] transport_recv () sleep returned %d, expected %d.\n", res, HEADER_LENGTH);
+			res = transport_recv (header, HEADER_LENGTH);
+			Sleep(1000);
+		}
+
 		/* This will break if the socket is closed during shutdown too */
 		if (res != HEADER_LENGTH) {
 			DEBUG_PRINTF (1, "[dbg] transport_recv () returned %d, expected %d.\n", res, HEADER_LENGTH);
@@ -10188,7 +9926,7 @@ debugger_thread (void *arg)
 				buffer_reply_packet (id, err, &buf);
 			} else {
 				send_reply_packet (id, err, &buf);
-				//DEBUG_PRINTF (1, "[dbg] Sent reply to %d [at=%lx].\n", id, (long)mono_100ns_ticks () / 10000);
+				DEBUG_PRINTF (1, "[dbg] Sent reply to %d [at=%lx].\n", id, (long)mono_100ns_ticks () / 10000);
 			}
 		}
 
