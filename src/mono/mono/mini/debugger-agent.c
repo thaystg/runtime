@@ -278,169 +278,6 @@ static int packet_id = 0;
 #define MAJOR_VERSION 2
 #define MINOR_VERSION 57
 
-typedef enum {
-	ERR_NONE = 0,
-	ERR_INVALID_OBJECT = 20,
-	ERR_INVALID_FIELDID = 25,
-	ERR_INVALID_FRAMEID = 30,
-	ERR_NOT_IMPLEMENTED = 100,
-	ERR_NOT_SUSPENDED = 101,
-	ERR_INVALID_ARGUMENT = 102,
-	ERR_UNLOADED = 103,
-	ERR_NO_INVOCATION = 104,
-	ERR_ABSENT_INFORMATION = 105,
-	ERR_NO_SEQ_POINT_AT_IL_OFFSET = 106,
-	ERR_INVOKE_ABORTED = 107,
-	ERR_LOADER_ERROR = 200, /*XXX extend the protocol to pass this information down the pipe */
-} ErrorCode;
-
-typedef enum {
-	TOKEN_TYPE_STRING = 0,
-	TOKEN_TYPE_TYPE = 1,
-	TOKEN_TYPE_FIELD = 2,
-	TOKEN_TYPE_METHOD = 3,
-	TOKEN_TYPE_UNKNOWN = 4
-} DebuggerTokenType;
-
-typedef enum {
-	VALUE_TYPE_ID_NULL = 0xf0,
-	VALUE_TYPE_ID_TYPE = 0xf1,
-	VALUE_TYPE_ID_PARENT_VTYPE = 0xf2,
-	VALUE_TYPE_ID_FIXED_ARRAY = 0xf3
-} ValueTypeId;
-
-typedef enum {
-	FRAME_FLAG_DEBUGGER_INVOKE = 1,
-	FRAME_FLAG_NATIVE_TRANSITION = 2
-} StackFrameFlags;
-
-typedef enum {
-	INVOKE_FLAG_DISABLE_BREAKPOINTS = 1,
-	INVOKE_FLAG_SINGLE_THREADED = 2,
-	INVOKE_FLAG_RETURN_OUT_THIS = 4,
-	INVOKE_FLAG_RETURN_OUT_ARGS = 8,
-	INVOKE_FLAG_VIRTUAL = 16
-} InvokeFlags;
-
-typedef enum {
-	BINDING_FLAGS_IGNORE_CASE = 0x70000000,
-} BindingFlagsExtensions;
-
-typedef enum {
-	CMD_THREAD_GET_FRAME_INFO = 1,
-	CMD_THREAD_GET_NAME = 2,
-	CMD_THREAD_GET_STATE = 3,
-	CMD_THREAD_GET_INFO = 4,
-	CMD_THREAD_GET_ID = 5,
-	CMD_THREAD_GET_TID = 6,
-	CMD_THREAD_SET_IP = 7,
-	CMD_THREAD_ELAPSED_TIME = 8
-} CmdThread;
-
-typedef enum {
-	CMD_APPDOMAIN_GET_ROOT_DOMAIN = 1,
-	CMD_APPDOMAIN_GET_FRIENDLY_NAME = 2,
-	CMD_APPDOMAIN_GET_ASSEMBLIES = 3,
-	CMD_APPDOMAIN_GET_ENTRY_ASSEMBLY = 4,
-	CMD_APPDOMAIN_CREATE_STRING = 5,
-	CMD_APPDOMAIN_GET_CORLIB = 6,
-	CMD_APPDOMAIN_CREATE_BOXED_VALUE = 7,
-	CMD_APPDOMAIN_CREATE_BYTE_ARRAY = 8,
-} CmdAppDomain;
-
-typedef enum {
-	CMD_ASSEMBLY_GET_LOCATION = 1,
-	CMD_ASSEMBLY_GET_ENTRY_POINT = 2,
-	CMD_ASSEMBLY_GET_MANIFEST_MODULE = 3,
-	CMD_ASSEMBLY_GET_OBJECT = 4,
-	CMD_ASSEMBLY_GET_TYPE = 5,
-	CMD_ASSEMBLY_GET_NAME = 6,
-	CMD_ASSEMBLY_GET_DOMAIN = 7,
-	CMD_ASSEMBLY_GET_METADATA_BLOB = 8,
-	CMD_ASSEMBLY_GET_IS_DYNAMIC = 9,
-	CMD_ASSEMBLY_GET_PDB_BLOB = 10,
-	CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN = 11,
-	CMD_ASSEMBLY_GET_METHOD_FROM_TOKEN = 12,
-	CMD_ASSEMBLY_HAS_DEBUG_INFO = 13
-} CmdAssembly;
-
-typedef enum {
-	CMD_MODULE_GET_INFO = 1,
-} CmdModule;
-
-typedef enum {
-	CMD_FIELD_GET_INFO = 1,
-} CmdField;
-
-typedef enum {
-	CMD_METHOD_GET_NAME = 1,
-	CMD_METHOD_GET_DECLARING_TYPE = 2,
-	CMD_METHOD_GET_DEBUG_INFO = 3,
-	CMD_METHOD_GET_PARAM_INFO = 4,
-	CMD_METHOD_GET_LOCALS_INFO = 5,
-	CMD_METHOD_GET_INFO = 6,
-	CMD_METHOD_GET_BODY = 7,
-	CMD_METHOD_RESOLVE_TOKEN = 8,
-	CMD_METHOD_GET_CATTRS = 9,
-	CMD_METHOD_MAKE_GENERIC_METHOD = 10
-} CmdMethod;
-
-typedef enum {
-	CMD_TYPE_GET_INFO = 1,
-	CMD_TYPE_GET_METHODS = 2,
-	CMD_TYPE_GET_FIELDS = 3,
-	CMD_TYPE_GET_VALUES = 4,
-	CMD_TYPE_GET_OBJECT = 5,
-	CMD_TYPE_GET_SOURCE_FILES = 6,
-	CMD_TYPE_SET_VALUES = 7,
-	CMD_TYPE_IS_ASSIGNABLE_FROM = 8,
-	CMD_TYPE_GET_PROPERTIES = 9,
-	CMD_TYPE_GET_CATTRS = 10,
-	CMD_TYPE_GET_FIELD_CATTRS = 11,
-	CMD_TYPE_GET_PROPERTY_CATTRS = 12,
-	CMD_TYPE_GET_SOURCE_FILES_2 = 13,
-	CMD_TYPE_GET_VALUES_2 = 14,
-	CMD_TYPE_GET_METHODS_BY_NAME_FLAGS = 15,
-	CMD_TYPE_GET_INTERFACES = 16,
-	CMD_TYPE_GET_INTERFACE_MAP = 17,
-	CMD_TYPE_IS_INITIALIZED = 18,
-	CMD_TYPE_CREATE_INSTANCE = 19,
-	CMD_TYPE_GET_VALUE_SIZE = 20
-} CmdType;
-
-typedef enum {
-	CMD_STACK_FRAME_GET_VALUES = 1,
-	CMD_STACK_FRAME_GET_THIS = 2,
-	CMD_STACK_FRAME_SET_VALUES = 3,
-	CMD_STACK_FRAME_GET_DOMAIN = 4,
-	CMD_STACK_FRAME_SET_THIS = 5,
-} CmdStackFrame;
-
-typedef enum {
-	CMD_ARRAY_REF_GET_LENGTH = 1,
-	CMD_ARRAY_REF_GET_VALUES = 2,
-	CMD_ARRAY_REF_SET_VALUES = 3,
-} CmdArray;
-
-typedef enum {
-	CMD_STRING_REF_GET_VALUE = 1,
-	CMD_STRING_REF_GET_LENGTH = 2,
-	CMD_STRING_REF_GET_CHARS = 3
-} CmdString;
-
-typedef enum {
-	CMD_POINTER_GET_VALUE = 1
-} CmdPointer;
-
-typedef enum {
-	CMD_OBJECT_REF_GET_TYPE = 1,
-	CMD_OBJECT_REF_GET_VALUES = 2,
-	CMD_OBJECT_REF_IS_COLLECTED = 3,
-	CMD_OBJECT_REF_GET_ADDRESS = 4,
-	CMD_OBJECT_REF_GET_DOMAIN = 5,
-	CMD_OBJECT_REF_SET_VALUES = 6,
-	CMD_OBJECT_REF_GET_INFO = 7,
-} CmdObject;
 
 /*
  * Contains additional information for an event
@@ -1544,7 +1381,7 @@ send_reply_packets (int npackets, ReplyPacket *packets)
 	for (i = 0; i < npackets; ++i) {
 		buffer_add_int (&buf, buffer_len (packets [i].data) + 11);
 		buffer_add_int (&buf, packets [i].id);
-		buffer_add_byte (&buf, 0x80); /* flags */
+		buffer_add_byte (&buf, REPLY_PACKET); /* flags */
 		buffer_add_byte (&buf, (packets [i].error >> 8) & 0xff);
 		buffer_add_byte (&buf, packets [i].error);
 		buffer_add_buffer (&buf, packets [i].data);
@@ -7505,6 +7342,28 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
     }
 	case CMD_ASSEMBLY_HAS_DEBUG_INFO: {
 		buffer_add_byte (buf, !ass->dynamic && mono_debug_image_has_debug_info (ass->image));
+		break;
+	}
+	case CMD_ASSEMBLY_GET_CUSTOM_ATTRIBUTES: {
+		ERROR_DECL (error);
+        error_init (error);
+		char *name_space = decode_string (p, &p, end);
+		char *name = decode_string (p, &p, end);
+		MonoClass *attr = mono_class_try_load_from_name (mono_defaults.corlib, name_space, name);
+		MonoCustomAttrInfo *ainfo = mono_custom_attrs_from_assembly_checked (ass, error);
+		mono_error_cleanup (error); /* FIXME don't swallow the error? */
+		if (ainfo && attr) {
+			MonoObject* attr_obj = mono_custom_attrs_get_attr(ainfo, attr);
+			MonoArrayHandleOut typed_args_h, named_args_h;
+			MonoObjectHandle val_h;
+			CattrNamedArg *arginfo = NULL;
+			typed_args_h = MONO_HANDLE_NEW (MonoArray, NULL);
+			named_args_h = MONO_HANDLE_NEW (MonoArray, NULL);
+			val_h = MONO_HANDLE_NEW (MonoObject, NULL);
+
+			mono_reflection_create_custom_attr_data_args (ass->image, attr->ctor, attr->data, attr->data_size, typed_args_h, named_args_h, &arginfo, error);
+		}
+		mono_custom_attrs_free (ainfo);
 		break;
 	}
 	default:

@@ -56,7 +56,7 @@ static int packet_id = 0;
 /*
  * Functions to decode protocol data
  */
-void 
+int  
 buffer_add_command_header(Buffer * data, int command_set, int command, Buffer *out)
 {
 	int id = mono_atomic_inc_i32(&packet_id);
@@ -69,6 +69,7 @@ buffer_add_command_header(Buffer * data, int command_set, int command, Buffer *o
 	buffer_add_byte(out, command_set);
 	buffer_add_byte(out, command);
 	buffer_add_data(out, data->buf, data->p - data->buf);
+	return id;
 }
 
 void 
