@@ -4,6 +4,7 @@
     <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb.cpp">
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb.hpp"/>
     <ClCompile Include="$(top_srcdir)/../coreclr/src/pal/prebuilt/idl/xcordebug_i.cpp">
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>

@@ -1,2281 +1,2156 @@
 #define MONO_DLL_EXPORT
 
-#include <mono\utils\mono-publib.h>
-#include <mono\mini\debugger-protocol.h>
-#include <mono\mini\debugger-engine.h>
-#include <stdio.h>
+#include <cordb.hpp>
 
 
-#ifdef WIN32
-#include <windows.h>
-#endif
-#include "cor.h"
-#include "corhdr.h"
-#include "cordebug.h"
-#include "xcordebug.h"
-#include <WS2tcpip.h>
-
-static MonoCoopMutex debug_mutex;
-
-#define dbg_lock() mono_os_mutex_trylock (&debug_mutex.m)
-#define dbg_unlock() mono_os_mutex_unlock (&debug_mutex.m)
-
-#define return_if_nok(error) do { if (!is_ok ((error))) return S_FALSE; } while (0)
-
-/*1   0x00007DA0    CoreCLRCreateCordbObject
-2   0x00007CA0    CoreCLRCreateCordbObjectEx
-3   0x00007C60    CreateCordbObject
-4   0x00007DC0    DllGetClassObjectInternal
-5   0x0000D0C0    OpenVirtualProcess
-6   0x0000D070    OpenVirtualProcess2
-7   0x0000CE30    OpenVirtualProcessImpl
-8   0x0000CFF0    OpenVirtualProcessImpl2*/
-
-class Cordb;
-class CordbProcess;
-class CordbAppDomain;
-class CordbAssembly;
-
-class Connection
+CordbSymbol::CordbSymbol(CordbAssembly* cordbAssembly)
 {
-	SOCKET connect_socket;
-	CordbProcess* ppProcess;
-	CordbAppDomain*pCorDebugAppDomain;
-	Cordb* ppCordb;
-public:
-	GHashTable* received_replies;
-	GPtrArray* received_replies_to_process;
-	Connection(CordbProcess* proc, Cordb* cordb);
-	void loop_send_receive();
-	void process_packet_internal(Buffer* recvbuf);
-	void process_packet_from_queue();
-	void enable_event(EventKind eventKind);
-	void close_connection();
-	void start_connection();
-	void transport_handshake();
-	void send_packet(Buffer& sendbuf);
-	void receive_packet(Buffer& b, int len);
-	void receive_header(Header* header);
-	int send_event(int cmd_set, int cmd, Buffer* sendbuf);
-	int process_packet();
-};
+	pCordbAssembly = cordbAssembly;
+}
 
-static Connection* connection;
-
-
-
-class CordbSymbol :
-	public IMetaDataImport,
-	public IMetaDataImport2,
-	public IMetaDataAssemblyImport
+HRESULT CordbSymbol::EnumGenericParams(
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdToken      tk,                    // [IN] TypeDef or MethodDef whose generic parameters are requested
+	mdGenericParam rGenericParams[],    // [OUT] Put GenericParams here.
+	ULONG       cMax,                   // [IN] Max GenericParams to put.
+	ULONG* pcGenericParams)
 {
-	CordbAssembly* pCordbAssembly;
-public:
-	
-	CordbSymbol(CordbAssembly* cordbAssembly)
-	{
-		pCordbAssembly = cordbAssembly;
-	}
-	STDMETHOD(EnumGenericParams)(
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdToken      tk,                    // [IN] TypeDef or MethodDef whose generic parameters are requested
-		mdGenericParam rGenericParams[],    // [OUT] Put GenericParams here.
-		ULONG       cMax,                   // [IN] Max GenericParams to put.
-		ULONG* pcGenericParams)
-	{
-		printf("CordbSymbol - EnumGenericParams - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+	printf("CordbSymbol - EnumGenericParams - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
 
-	STDMETHOD(GetGenericParamProps)(        // S_OK or error.
-		mdGenericParam gp,                  // [IN] GenericParam
-		ULONG* pulParamSeq,          // [OUT] Index of the type parameter
-		DWORD* pdwParamFlags,        // [OUT] Flags, for future use (e.g. variance)
-		mdToken* ptOwner,              // [OUT] Owner (TypeDef or MethodDef)
-		DWORD* reserved,              // [OUT] For future use (e.g. non-type parameters)
-		_Out_writes_to_opt_(cchName, *pchName)
-		LPWSTR       wzname,                // [OUT] Put name here
-		ULONG        cchName,               // [IN] Size of buffer
-		ULONG* pchName) {
-		printf("CordbSymbol - GetGenericParamProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}       // [OUT] Put size of name (wide chars) here.
+HRESULT CordbSymbol::GetGenericParamProps(        // S_OK or error.
+	mdGenericParam gp,                  // [IN] GenericParam
+	ULONG* pulParamSeq,          // [OUT] Index of the type parameter
+	DWORD* pdwParamFlags,        // [OUT] Flags, for future use (e.g. variance)
+	mdToken* ptOwner,              // [OUT] Owner (TypeDef or MethodDef)
+	DWORD* reserved,              // [OUT] For future use (e.g. non-type parameters)
+	_Out_writes_to_opt_(cchName, *pchName)
+	LPWSTR       wzname,                // [OUT] Put name here
+	ULONG        cchName,               // [IN] Size of buffer
+	ULONG* pchName) {
+	printf("CordbSymbol - GetGenericParamProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}       // [OUT] Put size of name (wide chars) here.
 
-	STDMETHOD(GetMethodSpecProps)(
-		mdMethodSpec mi,                    // [IN] The method instantiation
-		mdToken* tkParent,                  // [OUT] MethodDef or MemberRef
-		PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to the blob value of meta data
-		ULONG* pcbSigBlob) {
-		printf("CordbSymbol - GetMethodSpecProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}     // [OUT] actual size of signature blob
+HRESULT CordbSymbol::GetMethodSpecProps(
+	mdMethodSpec mi,                    // [IN] The method instantiation
+	mdToken* tkParent,                  // [OUT] MethodDef or MemberRef
+	PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to the blob value of meta data
+	ULONG* pcbSigBlob) {
+	printf("CordbSymbol - GetMethodSpecProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}     // [OUT] actual size of signature blob
 
-	STDMETHOD(EnumGenericParamConstraints)(
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdGenericParam tk,                  // [IN] GenericParam whose constraints are requested
-		mdGenericParamConstraint rGenericParamConstraints[],    // [OUT] Put GenericParamConstraints here.
-		ULONG       cMax,                   // [IN] Max GenericParamConstraints to put.
-		ULONG* pcGenericParamConstraints) {
-		printf("CordbSymbol - EnumGenericParamConstraints - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}// [OUT] Put # put here.
+HRESULT CordbSymbol::EnumGenericParamConstraints(
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdGenericParam tk,                  // [IN] GenericParam whose constraints are requested
+	mdGenericParamConstraint rGenericParamConstraints[],    // [OUT] Put GenericParamConstraints here.
+	ULONG       cMax,                   // [IN] Max GenericParamConstraints to put.
+	ULONG* pcGenericParamConstraints) {
+	printf("CordbSymbol - EnumGenericParamConstraints - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}// [OUT] Put # put here.
 
-	STDMETHOD(GetGenericParamConstraintProps)( // S_OK or error.
-		mdGenericParamConstraint gpc,       // [IN] GenericParamConstraint
-		mdGenericParam* ptGenericParam,     // [OUT] GenericParam that is constrained
-		mdToken* ptkConstraintType) {
-		printf("CordbSymbol - GetGenericParamConstraintProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}// [OUT] TypeDef/Ref/Spec constraint
+HRESULT CordbSymbol::GetGenericParamConstraintProps( // S_OK or error.
+	mdGenericParamConstraint gpc,       // [IN] GenericParamConstraint
+	mdGenericParam* ptGenericParam,     // [OUT] GenericParam that is constrained
+	mdToken* ptkConstraintType) {
+	printf("CordbSymbol - GetGenericParamConstraintProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}// [OUT] TypeDef/Ref/Spec constraint
 
-	STDMETHOD(GetPEKind)(                   // S_OK or error.
-		DWORD* pdwPEKind,                   // [OUT] The kind of PE (0 - not a PE)
-		DWORD* pdwMAchine) {
-		printf("CordbSymbol - GetPEKind - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}           // [OUT] Machine as defined in NT header
+HRESULT CordbSymbol::GetPEKind(                   // S_OK or error.
+	DWORD* pdwPEKind,                   // [OUT] The kind of PE (0 - not a PE)
+	DWORD* pdwMAchine) {
+	printf("CordbSymbol - GetPEKind - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}           // [OUT] Machine as defined in NT header
 
-	STDMETHOD(GetVersionString)(            // S_OK or error.
-		_Out_writes_to_opt_(ccBufSize, *pccBufSize)
-		LPWSTR      pwzBuf,                 // [OUT] Put version string here.
-		DWORD       ccBufSize,              // [IN] size of the buffer, in wide chars
-		DWORD* pccBufSize) {
-		printf("CordbSymbol - GetVersionString - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}     // [OUT] Size of the version string, wide chars, including terminating nul.
+HRESULT CordbSymbol::GetVersionString(            // S_OK or error.
+	_Out_writes_to_opt_(ccBufSize, *pccBufSize)
+	LPWSTR      pwzBuf,                 // [OUT] Put version string here.
+	DWORD       ccBufSize,              // [IN] size of the buffer, in wide chars
+	DWORD* pccBufSize) {
+	printf("CordbSymbol - GetVersionString - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}     // [OUT] Size of the version string, wide chars, including terminating nul.
 
-	STDMETHOD(EnumMethodSpecs)(
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdToken      tk,                    // [IN] MethodDef or MemberRef whose MethodSpecs are requested
-		mdMethodSpec rMethodSpecs[],        // [OUT] Put MethodSpecs here.
-		ULONG       cMax,                   // [IN] Max tokens to put.
-		ULONG* pcMethodSpecs) {
-		printf("CordbSymbol - EnumMethodSpecs - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}  // [OUT] Put actual count here.
+HRESULT CordbSymbol::EnumMethodSpecs(
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdToken      tk,                    // [IN] MethodDef or MemberRef whose MethodSpecs are requested
+	mdMethodSpec rMethodSpecs[],        // [OUT] Put MethodSpecs here.
+	ULONG       cMax,                   // [IN] Max tokens to put.
+	ULONG* pcMethodSpecs) {
+	printf("CordbSymbol - EnumMethodSpecs - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}  // [OUT] Put actual count here.
 
-	STDMETHOD(GetAssemblyProps)(            // S_OK or error.
-		mdAssembly  mda,                    // [IN] The Assembly for which to get the properties.
-		const void** ppbPublicKey,         // [OUT] Pointer to the public key.
-		ULONG* pcbPublicKey,          // [OUT] Count of bytes in the public key.
-		ULONG* pulHashAlgId,          // [OUT] Hash Algorithm.
-		_Out_writes_to_opt_(cchName, *pchName) LPWSTR  szName, // [OUT] Buffer to fill with assembly's simply name.
-		ULONG       cchName,                // [IN] Size of buffer in wide chars.
-		ULONG* pchName,               // [OUT] Actual # of wide chars in name.
-		ASSEMBLYMETADATA* pMetaData,        // [OUT] Assembly MetaData.
-		DWORD* pdwAssemblyFlags) {
-		printf("CordbSymbol - GetAssemblyProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}   // [OUT] Flags.
+HRESULT CordbSymbol::GetAssemblyProps(            // S_OK or error.
+	mdAssembly  mda,                    // [IN] The Assembly for which to get the properties.
+	const void** ppbPublicKey,         // [OUT] Pointer to the public key.
+	ULONG* pcbPublicKey,          // [OUT] Count of bytes in the public key.
+	ULONG* pulHashAlgId,          // [OUT] Hash Algorithm.
+	_Out_writes_to_opt_(cchName, *pchName) LPWSTR  szName, // [OUT] Buffer to fill with assembly's simply name.
+	ULONG       cchName,                // [IN] Size of buffer in wide chars.
+	ULONG* pchName,               // [OUT] Actual # of wide chars in name.
+	ASSEMBLYMETADATA* pMetaData,        // [OUT] Assembly MetaData.
+	DWORD* pdwAssemblyFlags) {
+	printf("CordbSymbol - GetAssemblyProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}   // [OUT] Flags.
 
-	STDMETHOD(GetAssemblyRefProps)(         // S_OK or error.
-		mdAssemblyRef mdar,                 // [IN] The AssemblyRef for which to get the properties.
-		const void** ppbPublicKeyOrToken,  // [OUT] Pointer to the public key or token.
-		ULONG* pcbPublicKeyOrToken,   // [OUT] Count of bytes in the public key or token.
-		_Out_writes_to_opt_(cchName, *pchName)LPWSTR szName, // [OUT] Buffer to fill with name.
-		ULONG       cchName,                // [IN] Size of buffer in wide chars.
-		ULONG* pchName,               // [OUT] Actual # of wide chars in name.
-		ASSEMBLYMETADATA* pMetaData,        // [OUT] Assembly MetaData.
-		const void** ppbHashValue,         // [OUT] Hash blob.
-		ULONG* pcbHashValue,          // [OUT] Count of bytes in the hash blob.
-		DWORD* pdwAssemblyRefFlags) {
-		printf("CordbSymbol - GetAssemblyRefProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}// [OUT] Flags.
+HRESULT CordbSymbol::GetAssemblyRefProps(         // S_OK or error.
+	mdAssemblyRef mdar,                 // [IN] The AssemblyRef for which to get the properties.
+	const void** ppbPublicKeyOrToken,  // [OUT] Pointer to the public key or token.
+	ULONG* pcbPublicKeyOrToken,   // [OUT] Count of bytes in the public key or token.
+	_Out_writes_to_opt_(cchName, *pchName)LPWSTR szName, // [OUT] Buffer to fill with name.
+	ULONG       cchName,                // [IN] Size of buffer in wide chars.
+	ULONG* pchName,               // [OUT] Actual # of wide chars in name.
+	ASSEMBLYMETADATA* pMetaData,        // [OUT] Assembly MetaData.
+	const void** ppbHashValue,         // [OUT] Hash blob.
+	ULONG* pcbHashValue,          // [OUT] Count of bytes in the hash blob.
+	DWORD* pdwAssemblyRefFlags) {
+	printf("CordbSymbol - GetAssemblyRefProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}// [OUT] Flags.
 
-	STDMETHOD(GetFileProps)(                // S_OK or error.
-		mdFile      mdf,                    // [IN] The File for which to get the properties.
-		_Out_writes_to_opt_(cchName, *pchName) LPWSTR      szName, // [OUT] Buffer to fill with name.
-		ULONG       cchName,                // [IN] Size of buffer in wide chars.
-		ULONG* pchName,               // [OUT] Actual # of wide chars in name.
-		const void** ppbHashValue,         // [OUT] Pointer to the Hash Value Blob.
-		ULONG* pcbHashValue,          // [OUT] Count of bytes in the Hash Value Blob.
-		DWORD* pdwFileFlags) {
-		printf("CordbSymbol - GetFileProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}   // [OUT] Flags.
+HRESULT CordbSymbol::GetFileProps(                // S_OK or error.
+	mdFile      mdf,                    // [IN] The File for which to get the properties.
+	_Out_writes_to_opt_(cchName, *pchName) LPWSTR      szName, // [OUT] Buffer to fill with name.
+	ULONG       cchName,                // [IN] Size of buffer in wide chars.
+	ULONG* pchName,               // [OUT] Actual # of wide chars in name.
+	const void** ppbHashValue,         // [OUT] Pointer to the Hash Value Blob.
+	ULONG* pcbHashValue,          // [OUT] Count of bytes in the Hash Value Blob.
+	DWORD* pdwFileFlags) {
+	printf("CordbSymbol - GetFileProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}   // [OUT] Flags.
 
-	STDMETHOD(GetExportedTypeProps)(        // S_OK or error.
-		mdExportedType   mdct,              // [IN] The ExportedType for which to get the properties.
-		_Out_writes_to_opt_(cchName, *pchName) LPWSTR      szName, // [OUT] Buffer to fill with name.
-		ULONG       cchName,                // [IN] Size of buffer in wide chars.
-		ULONG* pchName,               // [OUT] Actual # of wide chars in name.
-		mdToken* ptkImplementation,     // [OUT] mdFile or mdAssemblyRef or mdExportedType.
-		mdTypeDef* ptkTypeDef,            // [OUT] TypeDef token within the file.
-		DWORD* pdwExportedTypeFlags) {
-		printf("CordbSymbol - GetExportedTypeProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}// [OUT] Flags.
+HRESULT CordbSymbol::GetExportedTypeProps(        // S_OK or error.
+	mdExportedType   mdct,              // [IN] The ExportedType for which to get the properties.
+	_Out_writes_to_opt_(cchName, *pchName) LPWSTR      szName, // [OUT] Buffer to fill with name.
+	ULONG       cchName,                // [IN] Size of buffer in wide chars.
+	ULONG* pchName,               // [OUT] Actual # of wide chars in name.
+	mdToken* ptkImplementation,     // [OUT] mdFile or mdAssemblyRef or mdExportedType.
+	mdTypeDef* ptkTypeDef,            // [OUT] TypeDef token within the file.
+	DWORD* pdwExportedTypeFlags) {
+	printf("CordbSymbol - GetExportedTypeProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}// [OUT] Flags.
 
-	STDMETHOD(GetManifestResourceProps)(    // S_OK or error.
-		mdManifestResource  mdmr,           // [IN] The ManifestResource for which to get the properties.
-		_Out_writes_to_opt_(cchName, *pchName)LPWSTR      szName,  // [OUT] Buffer to fill with name.
-		ULONG       cchName,                // [IN] Size of buffer in wide chars.
-		ULONG* pchName,               // [OUT] Actual # of wide chars in name.
-		mdToken* ptkImplementation,     // [OUT] mdFile or mdAssemblyRef that provides the ManifestResource.
-		DWORD* pdwOffset,             // [OUT] Offset to the beginning of the resource within the file.
-		DWORD* pdwResourceFlags) {
-		printf("CordbSymbol - GetManifestResourceProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}// [OUT] Flags.
+HRESULT CordbSymbol::GetManifestResourceProps(    // S_OK or error.
+	mdManifestResource  mdmr,           // [IN] The ManifestResource for which to get the properties.
+	_Out_writes_to_opt_(cchName, *pchName)LPWSTR      szName,  // [OUT] Buffer to fill with name.
+	ULONG       cchName,                // [IN] Size of buffer in wide chars.
+	ULONG* pchName,               // [OUT] Actual # of wide chars in name.
+	mdToken* ptkImplementation,     // [OUT] mdFile or mdAssemblyRef that provides the ManifestResource.
+	DWORD* pdwOffset,             // [OUT] Offset to the beginning of the resource within the file.
+	DWORD* pdwResourceFlags) {
+	printf("CordbSymbol - GetManifestResourceProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}// [OUT] Flags.
 
-	STDMETHOD(EnumAssemblyRefs)(            // S_OK or error
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdAssemblyRef rAssemblyRefs[],      // [OUT] Put AssemblyRefs here.
-		ULONG       cMax,                   // [IN] Max AssemblyRefs to put.
-		ULONG* pcTokens) {
-		printf("CordbSymbol - EnumAssemblyRefs - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}       // [OUT] Put # put here.
+HRESULT CordbSymbol::EnumAssemblyRefs(            // S_OK or error
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdAssemblyRef rAssemblyRefs[],      // [OUT] Put AssemblyRefs here.
+	ULONG       cMax,                   // [IN] Max AssemblyRefs to put.
+	ULONG* pcTokens) {
+	printf("CordbSymbol - EnumAssemblyRefs - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}       // [OUT] Put # put here.
 
-	STDMETHOD(EnumFiles)(                   // S_OK or error
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdFile      rFiles[],               // [OUT] Put Files here.
-		ULONG       cMax,                   // [IN] Max Files to put.
-		ULONG* pcTokens) {
-		printf("CordbSymbol - EnumFiles - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}       // [OUT] Put # put here.
+HRESULT CordbSymbol::EnumFiles(                   // S_OK or error
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdFile      rFiles[],               // [OUT] Put Files here.
+	ULONG       cMax,                   // [IN] Max Files to put.
+	ULONG* pcTokens) {
+	printf("CordbSymbol - EnumFiles - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}       // [OUT] Put # put here.
 
-	STDMETHOD(EnumExportedTypes)(           // S_OK or error
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdExportedType   rExportedTypes[],  // [OUT] Put ExportedTypes here.
-		ULONG       cMax,                   // [IN] Max ExportedTypes to put.
-		ULONG* pcTokens) {
-		printf("CordbSymbol - EnumExportedTypes - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}       // [OUT] Put # put here.
+HRESULT CordbSymbol::EnumExportedTypes(           // S_OK or error
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdExportedType   rExportedTypes[],  // [OUT] Put ExportedTypes here.
+	ULONG       cMax,                   // [IN] Max ExportedTypes to put.
+	ULONG* pcTokens) {
+	printf("CordbSymbol - EnumExportedTypes - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}       // [OUT] Put # put here.
 
-	STDMETHOD(EnumManifestResources)(       // S_OK or error
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdManifestResource  rManifestResources[],   // [OUT] Put ManifestResources here.
-		ULONG       cMax,                   // [IN] Max Resources to put.
-		ULONG* pcTokens) {
-		printf("CordbSymbol - EnumManifestResources - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}       // [OUT] Put # put here.
+HRESULT CordbSymbol::EnumManifestResources(       // S_OK or error
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdManifestResource  rManifestResources[],   // [OUT] Put ManifestResources here.
+	ULONG       cMax,                   // [IN] Max Resources to put.
+	ULONG* pcTokens) {
+	printf("CordbSymbol - EnumManifestResources - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}       // [OUT] Put # put here.
 
-	STDMETHOD(GetAssemblyFromScope)(        // S_OK or error
-		mdAssembly* ptkAssembly);
+HRESULT CordbSymbol::FindExportedTypeByName(      // S_OK or error
+	LPCWSTR     szName,                 // [IN] Name of the ExportedType.
+	mdToken     mdtExportedType,        // [IN] ExportedType for the enclosing class.
+	mdExportedType* ptkExportedType) {
+	printf("CordbSymbol - FindExportedTypeByName - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}// [OUT] Put the ExportedType token here.
 
-	STDMETHOD(FindExportedTypeByName)(      // S_OK or error
-		LPCWSTR     szName,                 // [IN] Name of the ExportedType.
-		mdToken     mdtExportedType,        // [IN] ExportedType for the enclosing class.
-		mdExportedType* ptkExportedType) {
-		printf("CordbSymbol - FindExportedTypeByName - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}// [OUT] Put the ExportedType token here.
+HRESULT CordbSymbol::FindManifestResourceByName(  // S_OK or error
+	LPCWSTR     szName,                 // [IN] Name of the ManifestResource.
+	mdManifestResource* ptkManifestResource) {
+	printf("CordbSymbol - FindManifestResourceByName - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+} // [OUT] Put the ManifestResource token here.
 
-	STDMETHOD(FindManifestResourceByName)(  // S_OK or error
-		LPCWSTR     szName,                 // [IN] Name of the ManifestResource.
-		mdManifestResource* ptkManifestResource) {
-		printf("CordbSymbol - FindManifestResourceByName - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	} // [OUT] Put the ManifestResource token here.
+HRESULT CordbSymbol::FindAssembliesByName(        // S_OK or error
+	LPCWSTR  szAppBase,                 // [IN] optional - can be NULL
+	LPCWSTR  szPrivateBin,              // [IN] optional - can be NULL
+	LPCWSTR  szAssemblyName,            // [IN] required - this is the assembly you are requesting
+	IUnknown* ppIUnk[],                 // [OUT] put IMetaDataAssemblyImport pointers here
+	ULONG    cMax,                      // [IN] The max number to put
+	ULONG* pcAssemblies) {
+	printf("CordbSymbol - FindAssembliesByName - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}      // [OUT] The number of assemblies returned.
 
-	STDMETHOD(FindAssembliesByName)(        // S_OK or error
-		LPCWSTR  szAppBase,                 // [IN] optional - can be NULL
-		LPCWSTR  szPrivateBin,              // [IN] optional - can be NULL
-		LPCWSTR  szAssemblyName,            // [IN] required - this is the assembly you are requesting
-		IUnknown* ppIUnk[],                 // [OUT] put IMetaDataAssemblyImport pointers here
-		ULONG    cMax,                      // [IN] The max number to put
-		ULONG* pcAssemblies) {
-		printf("CordbSymbol - FindAssembliesByName - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}      // [OUT] The number of assemblies returned.
-
-	// IUnknown methods
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, LPVOID* ppvObj)
-	{
-		if (ppvObj == NULL)
-			return E_POINTER;
-		if (riid == IID_IMetaDataAssemblyImport)
-			*ppvObj = static_cast<IMetaDataAssemblyImport*>(this);
+// IUnknown methods
+HRESULT CordbSymbol::QueryInterface(REFIID riid, LPVOID* ppvObj)
+{
+	if (ppvObj == NULL)
+		return E_POINTER;
+	if (riid == IID_IMetaDataAssemblyImport)
+		*ppvObj = static_cast<IMetaDataAssemblyImport*>(this);
+	else
+		if (riid == IID_IMetaDataImport2)
+			*ppvObj = static_cast<IMetaDataImport2*>(this);
 		else
-			if (riid == IID_IMetaDataImport2)
-				*ppvObj = static_cast<IMetaDataImport2*>(this);
+			if (riid == IID_IMetaDataImport)
+				*ppvObj = static_cast<IMetaDataImport*>(this);
 			else
-				if (riid == IID_IMetaDataImport)
+				if (riid == IID_IUnknown)
 					*ppvObj = static_cast<IMetaDataImport*>(this);
 				else
-					if (riid == IID_IUnknown)
-						*ppvObj = static_cast<IMetaDataImport*>(this);
-					else
-					{
-						//((unsigned long*)&rguid1)[0]
-						printf("CordbSymbol - QueryInterface - E_NOTIMPL - %x - %x - %x - %x\n", ((unsigned long*)&riid)[0], ((unsigned long*)&riid)[1], ((unsigned long*)&riid)[2], ((unsigned long*)&riid)[3]);
-						return E_NOTIMPL;
-					}
-
-		return S_OK;
-	}
-
-	virtual ULONG STDMETHODCALLTYPE AddRef()
-	{
-		printf("CordbSymbol - AddRef - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-	virtual ULONG STDMETHODCALLTYPE Release()
-	{
-		printf("CordbSymbol - Release - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-
-	// IMetaDataImport functions
-
-	void STDMETHODCALLTYPE CloseEnum(HCORENUM hEnum)
-	{
-		printf("CordbSymbol - CloseEnum - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return;
-	}
-	virtual HRESULT STDMETHODCALLTYPE CountEnum(HCORENUM hEnum, ULONG* pulCount)
-	{
-		printf("CordbSymbol - CountEnum - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-	virtual HRESULT STDMETHODCALLTYPE ResetEnum(HCORENUM hEnum, ULONG ulPos)
-	{
-		printf("CordbSymbol - ResetEnum - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-	virtual HRESULT STDMETHODCALLTYPE EnumTypeDefs(HCORENUM* phEnum, mdTypeDef rTypeDefs[],
-		ULONG cMax, ULONG* pcTypeDefs)
-	{
-		printf("CordbSymbol - EnumTypeDefs - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-	virtual HRESULT STDMETHODCALLTYPE EnumInterfaceImpls(HCORENUM* phEnum, mdTypeDef td,
-		mdInterfaceImpl rImpls[], ULONG cMax,
-		ULONG* pcImpls)
-	{
-		printf("CordbSymbol - EnumInterfaceImpls - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-	virtual HRESULT STDMETHODCALLTYPE EnumTypeRefs(HCORENUM* phEnum, mdTypeRef rTypeRefs[],
-		ULONG cMax, ULONG* pcTypeRefs)
-	{
-		printf("CordbSymbol - EnumTypeRefs - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE FindTypeDefByName(           // S_OK or error.
-		LPCWSTR     szTypeDef,              // [IN] Name of the Type.
-		mdToken     tkEnclosingClass,       // [IN] TypeDef/TypeRef for Enclosing class.
-		mdTypeDef* ptd)             // [OUT] Put the TypeDef token here.
-	{
-		printf("CordbSymbol - FindTypeDefByName - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetScopeProps(               // S_OK or error.
-		__out_ecount_part_opt(cchName, *pchName)
-		LPWSTR      szName,                 // [OUT] Put the name here.
-		ULONG       cchName,                // [IN] Size of name buffer in wide chars.
-		ULONG* pchName,               // [OUT] Put size of name (wide chars) here.
-		GUID* pmvid)           // [OUT, OPTIONAL] Put MVID here.
-	{
-		printf("CordbSymbol - GetScopeProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetModuleFromScope(          // S_OK.
-		mdModule* pmd)            // [OUT] Put mdModule token here.
-	{
-		printf("CordbSymbol - GetModuleFromScope - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetTypeDefProps(             // S_OK or error.
-		mdTypeDef   td,                     // [IN] TypeDef token for inquiry.
-		__out_ecount_part_opt(cchTypeDef, *pchTypeDef)
-		LPWSTR      szTypeDef,              // [OUT] Put name here.
-		ULONG       cchTypeDef,             // [IN] size of name buffer in wide chars.
-		ULONG* pchTypeDef,            // [OUT] put size of name (wide chars) here.
-		DWORD* pdwTypeDefFlags,       // [OUT] Put flags here.
-		mdToken* ptkExtends)     // [OUT] Put base class TypeDef/TypeRef here.
-
-	{
-		printf("CordbSymbol - GetTypeDefProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetInterfaceImplProps(       // S_OK or error.
-		mdInterfaceImpl iiImpl,             // [IN] InterfaceImpl token.
-		mdTypeDef* pClass,                // [OUT] Put implementing class token here.
-		mdToken* ptkIface)        // [OUT] Put implemented interface token here.
-
-	{
-		printf("CordbSymbol - GetInterfaceImplProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetTypeRefProps(             // S_OK or error.
-		mdTypeRef   tr,                     // [IN] TypeRef token.
-		mdToken* ptkResolutionScope,    // [OUT] Resolution scope, ModuleRef or AssemblyRef.
-		__out_ecount_part_opt(cchName, *pchName)
-		LPWSTR      szName,                 // [OUT] Name of the TypeRef.
-		ULONG       cchName,                // [IN] Size of buffer.
-		ULONG* pchName)         // [OUT] Size of Name.
-
-	{
-		printf("CordbSymbol - GetTypeRefProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE ResolveTypeRef(mdTypeRef tr, REFIID riid, IUnknown** ppIScope, mdTypeDef* ptd)
-	{
-		printf("CordbSymbol - ResolveTypeRef - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumMembers(                 // S_OK, S_FALSE, or error.
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdTypeDef   cl,                     // [IN] TypeDef to scope the enumeration.
-		mdToken     rMembers[],             // [OUT] Put MemberDefs here.
-		ULONG       cMax,                   // [IN] Max MemberDefs to put.
-		ULONG* pcTokens)        // [OUT] Put # put here.
-
-	{
-		printf("CordbSymbol - EnumMembers - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumMembersWithName(         // S_OK, S_FALSE, or error.
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdTypeDef   cl,                     // [IN] TypeDef to scope the enumeration.
-		LPCWSTR     szName,                 // [IN] Limit results to those with this name.
-		mdToken     rMembers[],             // [OUT] Put MemberDefs here.
-		ULONG       cMax,                   // [IN] Max MemberDefs to put.
-		ULONG* pcTokens)        // [OUT] Put # put here.
-
-	{
-		printf("CordbSymbol - EnumMembersWithName - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumMethods(                 // S_OK, S_FALSE, or error.
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdTypeDef   cl,                     // [IN] TypeDef to scope the enumeration.
-		mdMethodDef rMethods[],             // [OUT] Put MethodDefs here.
-		ULONG       cMax,                   // [IN] Max MethodDefs to put.
-		ULONG* pcTokens)        // [OUT] Put # put here.
-
-	{
-		printf("CordbSymbol - EnumMethods - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumMethodsWithName(         // S_OK, S_FALSE, or error.
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdTypeDef   cl,                     // [IN] TypeDef to scope the enumeration.
-		LPCWSTR     szName,                 // [IN] Limit results to those with this name.
-		mdMethodDef rMethods[],             // [OU] Put MethodDefs here.
-		ULONG       cMax,                   // [IN] Max MethodDefs to put.
-		ULONG* pcTokens)        // [OUT] Put # put here.
-
-	{
-		printf("CordbSymbol - EnumMethodsWithName - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumFields(                  // S_OK, S_FALSE, or error.
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdTypeDef   cl,                     // [IN] TypeDef to scope the enumeration.
-		mdFieldDef  rFields[],              // [OUT] Put FieldDefs here.
-		ULONG       cMax,                   // [IN] Max FieldDefs to put.
-		ULONG* pcTokens)        // [OUT] Put # put here.
-
-	{
-		printf("CordbSymbol - EnumFields - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumFieldsWithName(          // S_OK, S_FALSE, or error.
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdTypeDef   cl,                     // [IN] TypeDef to scope the enumeration.
-		LPCWSTR     szName,                 // [IN] Limit results to those with this name.
-		mdFieldDef  rFields[],              // [OUT] Put MemberDefs here.
-		ULONG       cMax,                   // [IN] Max MemberDefs to put.
-		ULONG* pcTokens)        // [OUT] Put # put here.
-
-	{
-		printf("CordbSymbol - EnumFieldsWithName - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-
-	virtual HRESULT STDMETHODCALLTYPE EnumParams(                  // S_OK, S_FALSE, or error.
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdMethodDef mb,                     // [IN] MethodDef to scope the enumeration.
-		mdParamDef  rParams[],              // [OUT] Put ParamDefs here.
-		ULONG       cMax,                   // [IN] Max ParamDefs to put.
-		ULONG* pcTokens)        // [OUT] Put # put here.
-
-	{
-		printf("CordbSymbol - EnumParams - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumMemberRefs(              // S_OK, S_FALSE, or error.
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdToken     tkParent,               // [IN] Parent token to scope the enumeration.
-		mdMemberRef rMemberRefs[],          // [OUT] Put MemberRefs here.
-		ULONG       cMax,                   // [IN] Max MemberRefs to put.
-		ULONG* pcTokens)        // [OUT] Put # put here.
-
-	{
-		printf("CordbSymbol - EnumMemberRefs - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumMethodImpls(             // S_OK, S_FALSE, or error
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdTypeDef   td,                     // [IN] TypeDef to scope the enumeration.
-		mdToken     rMethodBody[],          // [OUT] Put Method Body tokens here.
-		mdToken     rMethodDecl[],          // [OUT] Put Method Declaration tokens here.
-		ULONG       cMax,                   // [IN] Max tokens to put.
-		ULONG* pcTokens)        // [OUT] Put # put here.
-
-	{
-		printf("CordbSymbol - EnumMethodImpls - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumPermissionSets(          // S_OK, S_FALSE, or error.
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdToken     tk,                     // [IN] if !NIL, token to scope the enumeration.
-		DWORD       dwActions,              // [IN] if !0, return only these actions.
-		mdPermission rPermission[],         // [OUT] Put Permissions here.
-		ULONG       cMax,                   // [IN] Max Permissions to put.
-		ULONG* pcTokens)        // [OUT] Put # put here.
-
-	{
-		printf("CordbSymbol - EnumPermissionSets - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE FindMember(
-		mdTypeDef   td,                     // [IN] given typedef
-		LPCWSTR     szName,                 // [IN] member name
-		PCCOR_SIGNATURE pvSigBlob,          // [IN] point to a blob value of CLR signature
-		ULONG       cbSigBlob,              // [IN] count of bytes in the signature blob
-		mdToken* pmb)             // [OUT] matching memberdef
-
-	{
-		printf("CordbSymbol - FindMember - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE FindMethod(
-		mdTypeDef   td,                     // [IN] given typedef
-		LPCWSTR     szName,                 // [IN] member name
-		PCCOR_SIGNATURE pvSigBlob,          // [IN] point to a blob value of CLR signature
-		ULONG       cbSigBlob,              // [IN] count of bytes in the signature blob
-		mdMethodDef* pmb)             // [OUT] matching memberdef
-
-	{
-		printf("CordbSymbol - FindMethod - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE FindField(
-		mdTypeDef   td,                     // [IN] given typedef
-		LPCWSTR     szName,                 // [IN] member name
-		PCCOR_SIGNATURE pvSigBlob,          // [IN] point to a blob value of CLR signature
-		ULONG       cbSigBlob,              // [IN] count of bytes in the signature blob
-		mdFieldDef* pmb)             // [OUT] matching memberdef
-
-	{
-		printf("CordbSymbol - FindField - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE FindMemberRef(
-		mdTypeRef   td,                     // [IN] given typeRef
-		LPCWSTR     szName,                 // [IN] member name
-		PCCOR_SIGNATURE pvSigBlob,          // [IN] point to a blob value of CLR signature
-		ULONG       cbSigBlob,              // [IN] count of bytes in the signature blob
-		mdMemberRef* pmr)             // [OUT] matching memberref
-
-	{
-		printf("CordbSymbol - FindMemberRef - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetMethodProps(
-		mdMethodDef mb,                     // The method for which to get props.
-		mdTypeDef* pClass,                // Put method's class here.
-		__out_ecount_part_opt(cchMethod, *pchMethod)
-		LPWSTR      szMethod,               // Put method's name here.
-		ULONG       cchMethod,              // Size of szMethod buffer in wide chars.
-		ULONG* pchMethod,             // Put actual size here
-		DWORD* pdwAttr,               // Put flags here.
-		PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to the blob value of meta data
-		ULONG* pcbSigBlob,            // [OUT] actual size of signature blob
-		ULONG* pulCodeRVA,            // [OUT] codeRVA
-		DWORD* pdwImplFlags)    // [OUT] Impl. Flags
-
-	{
-		printf("CordbSymbol - GetMethodProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetMemberRefProps(           // S_OK or error.
-		mdMemberRef mr,                     // [IN] given memberref
-		mdToken* ptk,                   // [OUT] Put classref or classdef here.
-		__out_ecount_part_opt(cchMember, *pchMember)
-		LPWSTR      szMember,               // [OUT] buffer to fill for member's name
-		ULONG       cchMember,              // [IN] the count of char of szMember
-		ULONG* pchMember,             // [OUT] actual count of char in member name
-		PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to meta data blob value
-		ULONG* pbSig)           // [OUT] actual size of signature blob
-
-	{
-		printf("CordbSymbol - GetMemberRefProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumProperties(              // S_OK, S_FALSE, or error.
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdTypeDef   td,                     // [IN] TypeDef to scope the enumeration.
-		mdProperty  rProperties[],          // [OUT] Put Properties here.
-		ULONG       cMax,                   // [IN] Max properties to put.
-		ULONG* pcProperties)    // [OUT] Put # put here.
-
-	{
-		printf("CordbSymbol - EnumProperties - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumEvents(                  // S_OK, S_FALSE, or error.
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdTypeDef   td,                     // [IN] TypeDef to scope the enumeration.
-		mdEvent     rEvents[],              // [OUT] Put events here.
-		ULONG       cMax,                   // [IN] Max events to put.
-		ULONG* pcEvents)        // [OUT] Put # put here.
-
-	{
-		printf("CordbSymbol - EnumEvents - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetEventProps(               // S_OK, S_FALSE, or error.
-		mdEvent     ev,                     // [IN] event token
-		mdTypeDef* pClass,                // [OUT] typedef containing the event declarion.
-		LPCWSTR     szEvent,                // [OUT] Event name
-		ULONG       cchEvent,               // [IN] the count of wchar of szEvent
-		ULONG* pchEvent,              // [OUT] actual count of wchar for event's name
-		DWORD* pdwEventFlags,         // [OUT] Event flags.
-		mdToken* ptkEventType,          // [OUT] EventType class
-		mdMethodDef* pmdAddOn,              // [OUT] AddOn method of the event
-		mdMethodDef* pmdRemoveOn,           // [OUT] RemoveOn method of the event
-		mdMethodDef* pmdFire,               // [OUT] Fire method of the event
-		mdMethodDef rmdOtherMethod[],       // [OUT] other method of the event
-		ULONG       cMax,                   // [IN] size of rmdOtherMethod
-		ULONG* pcOtherMethod)   // [OUT] total number of other method of this event
-
-	{
-		printf("CordbSymbol - GetEventProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumMethodSemantics(         // S_OK, S_FALSE, or error.
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdMethodDef mb,                     // [IN] MethodDef to scope the enumeration.
-		mdToken     rEventProp[],           // [OUT] Put Event/Property here.
-		ULONG       cMax,                   // [IN] Max properties to put.
-		ULONG* pcEventProp)     // [OUT] Put # put here.
-
-	{
-		printf("CordbSymbol - EnumMethodSemantics - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetMethodSemantics(          // S_OK, S_FALSE, or error.
-		mdMethodDef mb,                     // [IN] method token
-		mdToken     tkEventProp,            // [IN] event/property token.
-		DWORD* pdwSemanticsFlags) // [OUT] the role flags for the method/propevent pair
-
-	{
-		printf("CordbSymbol - GetMethodSemantics - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetClassLayout(
-		mdTypeDef   td,                     // [IN] give typedef
-		DWORD* pdwPackSize,           // [OUT] 1, 2, 4, 8, or 16
-		COR_FIELD_OFFSET rFieldOffset[],    // [OUT] field offset array
-		ULONG       cMax,                   // [IN] size of the array
-		ULONG* pcFieldOffset,         // [OUT] needed array size
-		ULONG* pulClassSize)        // [OUT] the size of the class
-
-	{
-		printf("CordbSymbol - GetClassLayout - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetFieldMarshal(
-		mdToken     tk,                     // [IN] given a field's memberdef
-		PCCOR_SIGNATURE* ppvNativeType,     // [OUT] native type of this field
-		ULONG* pcbNativeType)   // [OUT] the count of bytes of *ppvNativeType
-
-	{
-		printf("CordbSymbol - GetFieldMarshal - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetRVA(                      // S_OK or error.
-		mdToken     tk,                     // Member for which to set offset
-		ULONG* pulCodeRVA,            // The offset
-		DWORD* pdwImplFlags)    // the implementation flags
-
-	{
-		printf("CordbSymbol - GetRVA - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetPermissionSetProps(
-		mdPermission pm,                    // [IN] the permission token.
-		DWORD* pdwAction,             // [OUT] CorDeclSecurity.
-		void const** ppvPermission,        // [OUT] permission blob.
-		ULONG* pcbPermission)   // [OUT] count of bytes of pvPermission.
-
-	{
-		printf("CordbSymbol - GetPermissionSetProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetSigFromToken(             // S_OK or error.
-		mdSignature mdSig,                  // [IN] Signature token.
-		PCCOR_SIGNATURE* ppvSig,            // [OUT] return pointer to token.
-		ULONG* pcbSig)          // [OUT] return size of signature.
-
-	{
-		printf("CordbSymbol - GetSigFromToken - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetModuleRefProps(           // S_OK or error.
-		mdModuleRef mur,                    // [IN] moduleref token.
-		__out_ecount_part_opt(cchName, *pchName)
-		LPWSTR      szName,                 // [OUT] buffer to fill with the moduleref name.
-		ULONG       cchName,                // [IN] size of szName in wide characters.
-		ULONG* pchName)         // [OUT] actual count of characters in the name.
-
-	{
-		printf("CordbSymbol - GetModuleRefProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumModuleRefs(              // S_OK or error.
-		HCORENUM* phEnum,                // [IN|OUT] pointer to the enum.
-		mdModuleRef rModuleRefs[],          // [OUT] put modulerefs here.
-		ULONG       cmax,                   // [IN] max memberrefs to put.
-		ULONG* pcModuleRefs)    // [OUT] put # put here.
-
-	{
-		printf("CordbSymbol - EnumModuleRefs - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetTypeSpecFromToken(        // S_OK or error.
-		mdTypeSpec typespec,                // [IN] TypeSpec token.
-		PCCOR_SIGNATURE* ppvSig,            // [OUT] return pointer to TypeSpec signature
-		ULONG* pcbSig)          // [OUT] return size of signature.
-
-	{
-		printf("CordbSymbol - GetTypeSpecFromToken - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetNameFromToken(            // Not Recommended! May be removed!
-		mdToken     tk,                     // [IN] Token to get name from.  Must have a name.
-		MDUTF8CSTR* pszUtf8NamePtr)  // [OUT] Return pointer to UTF8 name in heap.
-
-	{
-		printf("CordbSymbol - GetNameFromToken - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumUnresolvedMethods(       // S_OK, S_FALSE, or error.
-		HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
-		mdToken     rMethods[],             // [OUT] Put MemberDefs here.
-		ULONG       cMax,                   // [IN] Max MemberDefs to put.
-		ULONG* pcTokens)        // [OUT] Put # put here.
-
-	{
-		printf("CordbSymbol - EnumUnresolvedMethods - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetUserString(               // S_OK or error.
-		mdString    stk,                    // [IN] String token.
-		__out_ecount_part_opt(cchString, *pchString)
-		LPWSTR      szString,               // [OUT] Copy of string.
-		ULONG       cchString,              // [IN] Max chars of room in szString.
-		ULONG* pchString)       // [OUT] How many chars in actual string.
-
-	{
-		printf("CordbSymbol - GetUserString - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetPinvokeMap(               // S_OK or error.
-		mdToken     tk,                     // [IN] FieldDef or MethodDef.
-		DWORD* pdwMappingFlags,       // [OUT] Flags used for mapping.
-		__out_ecount_part_opt(cchImportName, *pchImportName)
-		LPWSTR      szImportName,           // [OUT] Import name.
-		ULONG       cchImportName,          // [IN] Size of the name buffer.
-		ULONG* pchImportName,         // [OUT] Actual number of characters stored.
-		mdModuleRef* pmrImportDLL)    // [OUT] ModuleRef token for the target DLL.
-	{
-		printf("CordbSymbol - GetPinvokeMap - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumSignatures(              // S_OK or error.
-		HCORENUM* phEnum,                // [IN|OUT] pointer to the enum.
-		mdSignature rSignatures[],          // [OUT] put signatures here.
-		ULONG       cmax,                   // [IN] max signatures to put.
-		ULONG* pcSignatures)    // [OUT] put # put here.
-	{
-		printf("CordbSymbol - EnumSignatures - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumTypeSpecs(               // S_OK or error.
-		HCORENUM* phEnum,                // [IN|OUT] pointer to the enum.
-		mdTypeSpec  rTypeSpecs[],           // [OUT] put TypeSpecs here.
-		ULONG       cmax,                   // [IN] max TypeSpecs to put.
-		ULONG* pcTypeSpecs)     // [OUT] put # put here.
-	{
-		printf("CordbSymbol - EnumTypeSpecs - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-
-	virtual HRESULT STDMETHODCALLTYPE EnumUserStrings(             // S_OK or error.
-		HCORENUM* phEnum,                // [IN/OUT] pointer to the enum.
-		mdString    rStrings[],             // [OUT] put Strings here.
-		ULONG       cmax,                   // [IN] max Strings to put.
-		ULONG* pcStrings)       // [OUT] put # put here.
-	{
-		printf("CordbSymbol - EnumUserStrings - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetParamForMethodIndex(      // S_OK or error.
-		mdMethodDef md,                     // [IN] Method token.
-		ULONG       ulParamSeq,             // [IN] Parameter sequence.
-		mdParamDef* ppd)             // [IN] Put Param token here.
-	{
-		printf("CordbSymbol - GetParamForMethodIndex - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumCustomAttributes(        // S_OK or error.
-		HCORENUM* phEnum,                // [IN, OUT] COR enumerator.
-		mdToken     tk,                     // [IN] Token to scope the enumeration, 0 for all.
-		mdToken     tkType,                 // [IN] Type of interest, 0 for all.
-		mdCustomAttribute rCustomAttributes[], // [OUT] Put custom attribute tokens here.
-		ULONG       cMax,                   // [IN] Size of rCustomAttributes.
-		ULONG* pcCustomAttributes)  // [OUT, OPTIONAL] Put count of token values here.
-	{
-		printf("CordbSymbol - EnumCustomAttributes - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetCustomAttributeProps(     // S_OK or error.
-		mdCustomAttribute cv,               // [IN] CustomAttribute token.
-		mdToken* ptkObj,                // [OUT, OPTIONAL] Put object token here.
-		mdToken* ptkType,               // [OUT, OPTIONAL] Put AttrType token here.
-		void const** ppBlob,               // [OUT, OPTIONAL] Put pointer to data here.
-		ULONG* pcbSize)         // [OUT, OPTIONAL] Put size of date here.
-	{
-		printf("CordbSymbol - GetCustomAttributeProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE FindTypeRef(
-		mdToken     tkResolutionScope,      // [IN] ModuleRef, AssemblyRef or TypeRef.
-		LPCWSTR     szName,                 // [IN] TypeRef Name.
-		mdTypeRef* ptr)             // [OUT] matching TypeRef.
-	{
-		printf("CordbSymbol - FindTypeRef - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetMemberProps(
-		mdToken     mb,                     // The member for which to get props.
-		mdTypeDef* pClass,                // Put member's class here.
-		__out_ecount_part_opt(cchMember, *pchMember)
-		LPWSTR      szMember,               // Put member's name here.
-		ULONG       cchMember,              // Size of szMember buffer in wide chars.
-		ULONG* pchMember,             // Put actual size here
-		DWORD* pdwAttr,               // Put flags here.
-		PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to the blob value of meta data
-		ULONG* pcbSigBlob,            // [OUT] actual size of signature blob
-		ULONG* pulCodeRVA,            // [OUT] codeRVA
-		DWORD* pdwImplFlags,          // [OUT] Impl. Flags
-		DWORD* pdwCPlusTypeFlag,      // [OUT] flag for value type. selected ELEMENT_TYPE_*
-		UVCP_CONSTANT* ppValue,             // [OUT] constant value
-		ULONG* pcchValue)       // [OUT] size of constant string in chars, 0 for non-strings.
-	{
-		printf("CordbSymbol - GetMemberProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetFieldProps(
-		mdFieldDef  mb,                     // The field for which to get props.
-		mdTypeDef* pClass,                // Put field's class here.
-		__out_ecount_part_opt(cchField, *pchField)
-		LPWSTR      szField,                // Put field's name here.
-		ULONG       cchField,               // Size of szField buffer in wide chars.
-		ULONG* pchField,              // Put actual size here
-		DWORD* pdwAttr,               // Put flags here.
-		PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to the blob value of meta data
-		ULONG* pcbSigBlob,            // [OUT] actual size of signature blob
-		DWORD* pdwCPlusTypeFlag,      // [OUT] flag for value type. selected ELEMENT_TYPE_*
-		UVCP_CONSTANT* ppValue,             // [OUT] constant value
-		ULONG* pcchValue)       // [OUT] size of constant string in chars, 0 for non-strings.
-	{
-		printf("CordbSymbol - GetFieldProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetPropertyProps(            // S_OK, S_FALSE, or error.
-		mdProperty  prop,                   // [IN] property token
-		mdTypeDef* pClass,                // [OUT] typedef containing the property declarion.
-		LPCWSTR     szProperty,             // [OUT] Property name
-		ULONG       cchProperty,            // [IN] the count of wchar of szProperty
-		ULONG* pchProperty,           // [OUT] actual count of wchar for property name
-		DWORD* pdwPropFlags,          // [OUT] property flags.
-		PCCOR_SIGNATURE* ppvSig,            // [OUT] property type. pointing to meta data internal blob
-		ULONG* pbSig,                 // [OUT] count of bytes in *ppvSig
-		DWORD* pdwCPlusTypeFlag,      // [OUT] flag for value type. selected ELEMENT_TYPE_*
-		UVCP_CONSTANT* ppDefaultValue,      // [OUT] constant value
-		ULONG* pcchDefaultValue,      // [OUT] size of constant string in chars, 0 for non-strings.
-		mdMethodDef* pmdSetter,             // [OUT] setter method of the property
-		mdMethodDef* pmdGetter,             // [OUT] getter method of the property
-		mdMethodDef rmdOtherMethod[],       // [OUT] other method of the property
-		ULONG       cMax,                   // [IN] size of rmdOtherMethod
-		ULONG* pcOtherMethod)   // [OUT] total number of other method of this property
-	{
-		printf("CordbSymbol - GetPropertyProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetParamProps(               // S_OK or error.
-		mdParamDef  tk,                     // [IN]The Parameter.
-		mdMethodDef* pmd,                   // [OUT] Parent Method token.
-		ULONG* pulSequence,           // [OUT] Parameter sequence.
-		__out_ecount_part_opt(cchName, *pchName)
-		LPWSTR      szName,                 // [OUT] Put name here.
-		ULONG       cchName,                // [OUT] Size of name buffer.
-		ULONG* pchName,               // [OUT] Put actual size of name here.
-		DWORD* pdwAttr,               // [OUT] Put flags here.
-		DWORD* pdwCPlusTypeFlag,      // [OUT] Flag for value type. selected ELEMENT_TYPE_*.
-		UVCP_CONSTANT* ppValue,             // [OUT] Constant value.
-		ULONG* pcchValue)       // [OUT] size of constant string in chars, 0 for non-strings.
-	{
-		printf("CordbSymbol - GetParamProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetCustomAttributeByName(    // S_OK or error.
-		mdToken     tkObj,                  // [IN] Object with Custom Attribute.
-		LPCWSTR     szName,                 // [IN] Name of desired Custom Attribute.
-		const void** ppData,               // [OUT] Put pointer to data here.
-		ULONG* pcbData)         // [OUT] Put size of data here.
-	{
-		printf("CordbSymbol - GetCustomAttributeByName - IMPLEMENTED\n");
-		fflush(stdout);
-		byte *ret = new byte[6];
-		ret[0] = 1;
-		ret[1] = 0;
-		ret[2] = 0;
-		ret[3] = 0;
-		ret[4] = 0;
-		ret[5] = 0;
-		*ppData = ret;
-		*pcbData = 6;
-		return S_OK;
-	}
-
-	virtual BOOL STDMETHODCALLTYPE IsValidToken(         // True or False.
-		mdToken     tk)               // [IN] Given token.
-	{
-		printf("CordbSymbol - IsValidToken - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetNestedClassProps(         // S_OK or error.
-		mdTypeDef   tdNestedClass,          // [IN] NestedClass token.
-		mdTypeDef* ptdEnclosingClass) // [OUT] EnclosingClass token.
-	{
-		printf("CordbSymbol - GetNestedClassProps - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetNativeCallConvFromSig(    // S_OK or error.
-		void const* pvSig,                 // [IN] Pointer to signature.
-		ULONG       cbSig,                  // [IN] Count of signature bytes.
-		ULONG* pCallConv)       // [OUT] Put calling conv here (see CorPinvokemap).
-	{
-		printf("CordbSymbol - GetNativeCallConvFromSig - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE IsGlobal(                    // S_OK or error.
-		mdToken     pd,                     // [IN] Type, Field, or Method token.
-		int* pbGlobal)        // [OUT] Put 1 if global, 0 otherwise.
-
-	{
-		printf("CordbSymbol - IsGlobal - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-};
-
-
-class CordbAppDomain :
-	public ICorDebugAppDomain,
-	public ICorDebugAppDomain2,
-	public ICorDebugAppDomain3,
-	public ICorDebugAppDomain4
+				{
+					//((unsigned long*)&rguid1)[0]
+					printf("CordbSymbol - QueryInterface - E_NOTIMPL - %x - %x - %x - %x\n", ((unsigned long*)&riid)[0], ((unsigned long*)&riid)[1], ((unsigned long*)&riid)[2], ((unsigned long*)&riid)[3]);
+					return E_NOTIMPL;
+				}
+
+	return S_OK;
+}
+
+	ULONG CordbSymbol::AddRef()
 {
-public:
-	CordbAppDomain(ICorDebugProcess* ppProcess)
-	{
-		pProcess = ppProcess;
-	}
-private:
-	ICorDebugProcess* pProcess;
-
-	virtual HRESULT STDMETHODCALLTYPE Stop(
-		/* [in] */ DWORD dwTimeoutIgnored)
-	{
-		printf("CordbAppDomain - Stop - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE Continue(
-		/* [in] */ BOOL fIsOutOfBand)
-	{
-		printf("CordbAppDomain - Continue - IMPLEMENTED\n");
-		fflush(stdout);
-		pProcess->Continue(fIsOutOfBand);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE IsRunning(
-		/* [out] */ BOOL* pbRunning)
-	{
-		printf("CordbAppDomain - IsRunning - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE HasQueuedCallbacks(
-		/* [in] */ ICorDebugThread* pThread,
-		/* [out] */ BOOL* pbQueued)
-	{
-		printf("CordbAppDomain - HasQueuedCallbacks - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumerateThreads(
-		/* [out] */ ICorDebugThreadEnum** ppThreads)
-	{
-		printf("CordbAppDomain - EnumerateThreads - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE SetAllThreadsDebugState(
-		/* [in] */ CorDebugThreadState state,
-		/* [in] */ ICorDebugThread* pExceptThisThread)
-	{
-		printf("CordbAppDomain - SetAllThreadsDebugState - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE Detach(void)
-	{
-		printf("CordbAppDomain - Detach - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE Terminate(
-		/* [in] */ UINT exitCode)
-	{
-		printf("CordbAppDomain - Terminate - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE CanCommitChanges(
-		/* [in] */ ULONG cSnapshots,
-		/* [size_is][in] */ ICorDebugEditAndContinueSnapshot* pSnapshots[],
-		/* [out] */ ICorDebugErrorInfoEnum** pError)
-	{
-		printf("CordbAppDomain - CanCommitChanges - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE CommitChanges(
-		/* [in] */ ULONG cSnapshots,
-		/* [size_is][in] */ ICorDebugEditAndContinueSnapshot* pSnapshots[],
-		/* [out] */ ICorDebugErrorInfoEnum** pError)
-	{
-		printf("CordbAppDomain - CommitChanges - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(
-		/* [in] */ REFIID id,
-		/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppInterface)
-	{
-		if (id == IID_ICorDebugAppDomain)
-		{
-			*ppInterface = (ICorDebugAppDomain*)this;
-		}
-		else if (id == IID_ICorDebugAppDomain2)
-		{
-			*ppInterface = (ICorDebugAppDomain2*)this;
-		}
-		else if (id == IID_ICorDebugAppDomain3)
-		{
-			*ppInterface = (ICorDebugAppDomain3*)this;
-		}
-		else if (id == IID_ICorDebugAppDomain4)
-		{
-			*ppInterface = (ICorDebugAppDomain4*)this;
-		}
-		else if (id == IID_ICorDebugController)
-			*ppInterface = (ICorDebugController*)(ICorDebugAppDomain*)this;
-		else if (id == IID_IUnknown)
-			*ppInterface = (IUnknown*)(ICorDebugAppDomain*)this;
-		else
-		{
-			printf("CordbAppDomain - QueryInterface - E_NOTIMPL - %x - %x - %x - %x\n", ((unsigned long*)&id)[0], ((unsigned long*)&id)[1], ((unsigned long*)&id)[2], ((unsigned long*)&id)[3]);
-			fflush(stdout);
-			*ppInterface = NULL;
-			return E_NOINTERFACE;
-		}
-		return S_OK;
-	}
-
-	virtual ULONG STDMETHODCALLTYPE AddRef(void)
-	{
-		printf("CordbAppDomain - AddRef - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual ULONG STDMETHODCALLTYPE Release(void)
-	{
-		printf("CordbAppDomain - Release - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetProcess(
-		/* [out] */ ICorDebugProcess** ppProcess)
-	{
-		printf("CordbAppDomain - GetProcess - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		*ppProcess = pProcess;
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumerateAssemblies(
-		/* [out] */ ICorDebugAssemblyEnum** ppAssemblies)
-	{
-		printf("CordbAppDomain - EnumerateAssemblies - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-
-	virtual HRESULT STDMETHODCALLTYPE GetModuleFromMetaDataInterface(
-		/* [in] */ IUnknown* pIMetaData,
-		/* [out] */ ICorDebugModule** ppModule)
-	{
-		printf("CordbAppDomain - GetModuleFromMetaDataInterface - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-
-	virtual HRESULT STDMETHODCALLTYPE EnumerateBreakpoints(
-		/* [out] */ ICorDebugBreakpointEnum** ppBreakpoints)
-	{
-		printf("CordbAppDomain - EnumerateBreakpoints - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-
-	virtual HRESULT STDMETHODCALLTYPE EnumerateSteppers(
-		/* [out] */ ICorDebugStepperEnum** ppSteppers)
-	{
-		printf("CordbAppDomain - EnumerateSteppers - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-
-	virtual HRESULT STDMETHODCALLTYPE IsAttached(
-		/* [out] */ BOOL* pbAttached)
-	{
-		printf("CordbAppDomain - IsAttached - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-
-	virtual HRESULT STDMETHODCALLTYPE GetName(
-		/* [in] */ ULONG32 cchName,
-		/* [out] */ ULONG32* pcchName,
-		/* [length_is][size_is][out] */ WCHAR szName[])
-	{
-		printf("CordbAppDomain - GetName - IMPLEMENTED\n");
-		if (cchName < strlen("DefaultDomain")) {
-			*pcchName = strlen("DefaultDomain") + 1;
-			return S_OK;
-		}
-		wcscpy(szName, L"DefaultDomain");
-		fflush(stdout);
-		return S_OK;
-	}
-
-
-	virtual HRESULT STDMETHODCALLTYPE GetObject(
-		/* [out] */ ICorDebugValue** ppObject)
-	{
-		printf("CordbAppDomain - GetObject - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-
-	virtual HRESULT STDMETHODCALLTYPE Attach(void)
-	{
-		printf("CordbAppDomain - Attach - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-
-	virtual HRESULT STDMETHODCALLTYPE GetID(
-		/* [out] */ ULONG32* pId)
-	{
-		printf("CordbAppDomain - GetID - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-	virtual HRESULT STDMETHODCALLTYPE GetArrayOrPointerType(
-		/* [in] */ CorElementType elementType,
-		/* [in] */ ULONG32 nRank,
-		/* [in] */ ICorDebugType* pTypeArg,
-		/* [out] */ ICorDebugType** ppType)
-	{
-		printf("CordbAppDomain - GetArrayOrPointerType - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-
-	virtual HRESULT STDMETHODCALLTYPE GetFunctionPointerType(
-		/* [in] */ ULONG32 nTypeArgs,
-		/* [size_is][in] */ ICorDebugType* ppTypeArgs[],
-		/* [out] */ ICorDebugType** ppType)
-	{
-		printf("CordbAppDomain - GetFunctionPointerType - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetCachedWinRTTypesForIIDs(
-		/* [in] */ ULONG32 cReqTypes,
-		/* [size_is][in] */ GUID* iidsToResolve,
-		/* [out] */ ICorDebugTypeEnum** ppTypesEnum)
-	{
-		printf("CordbAppDomain - GetCachedWinRTTypesForIIDs - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-
-	virtual HRESULT STDMETHODCALLTYPE GetCachedWinRTTypes(
-		/* [out] */ ICorDebugGuidToTypeEnum** ppGuidToTypeEnum)
-	{
-		printf("CordbAppDomain - GetCachedWinRTTypes - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-
-	virtual HRESULT STDMETHODCALLTYPE GetObjectForCCW(
-		/* [in] */ CORDB_ADDRESS ccwPointer,
-		/* [out] */ ICorDebugValue** ppManagedObject)
-	{
-		printf("CordbAppDomain - GetObjectForCCW - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-};
-
-
-class CordbModule : 
-	public ICorDebugModule,
-	public ICorDebugModule2,
-	public ICorDebugModule3,
-	public ICorDebugModule4
+	printf("CordbSymbol - AddRef - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+ULONG CordbSymbol::Release()
 {
-public:
-	int id; //id on mono side;
-	CordbProcess* pProcess;
-	CordbSymbol* pCordbSymbol;
-	CordbAssembly* pAssembly;
-	CordbModule(CordbProcess* process, CordbAssembly* assembly, int id_assembly)
+	printf("CordbSymbol - Release - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+
+// IMetaDataImport functions
+
+void CordbSymbol::CloseEnum(HCORENUM hEnum)
+{
+	printf("CordbSymbol - CloseEnum - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return;
+}
+HRESULT CordbSymbol::CountEnum(HCORENUM hEnum, ULONG* pulCount)
+{
+	printf("CordbSymbol - CountEnum - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+HRESULT CordbSymbol::ResetEnum(HCORENUM hEnum, ULONG ulPos)
+{
+	printf("CordbSymbol - ResetEnum - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+	HRESULT CordbSymbol::EnumTypeDefs(HCORENUM* phEnum, mdTypeDef rTypeDefs[],
+	ULONG cMax, ULONG* pcTypeDefs)
+{
+	printf("CordbSymbol - EnumTypeDefs - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+	HRESULT CordbSymbol::EnumInterfaceImpls(HCORENUM* phEnum, mdTypeDef td,
+	mdInterfaceImpl rImpls[], ULONG cMax,
+	ULONG* pcImpls)
+{
+	printf("CordbSymbol - EnumInterfaceImpls - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+	HRESULT CordbSymbol::EnumTypeRefs(HCORENUM* phEnum, mdTypeRef rTypeRefs[],
+	ULONG cMax, ULONG* pcTypeRefs)
+{
+	printf("CordbSymbol - EnumTypeRefs - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::FindTypeDefByName(           // S_OK or error.
+	LPCWSTR     szTypeDef,              // [IN] Name of the Type.
+	mdToken     tkEnclosingClass,       // [IN] TypeDef/TypeRef for Enclosing class.
+	mdTypeDef* ptd)             // [OUT] Put the TypeDef token here.
+{
+	printf("CordbSymbol - FindTypeDefByName - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetScopeProps(               // S_OK or error.
+	__out_ecount_part_opt(cchName, *pchName)
+	LPWSTR      szName,                 // [OUT] Put the name here.
+	ULONG       cchName,                // [IN] Size of name buffer in wide chars.
+	ULONG* pchName,               // [OUT] Put size of name (wide chars) here.
+	GUID* pmvid)           // [OUT, OPTIONAL] Put MVID here.
+{
+	printf("CordbSymbol - GetScopeProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetModuleFromScope(          // S_OK.
+	mdModule* pmd)            // [OUT] Put mdModule token here.
+{
+	printf("CordbSymbol - GetModuleFromScope - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetTypeDefProps(             // S_OK or error.
+	mdTypeDef   td,                     // [IN] TypeDef token for inquiry.
+	__out_ecount_part_opt(cchTypeDef, *pchTypeDef)
+	LPWSTR      szTypeDef,              // [OUT] Put name here.
+	ULONG       cchTypeDef,             // [IN] size of name buffer in wide chars.
+	ULONG* pchTypeDef,            // [OUT] put size of name (wide chars) here.
+	DWORD* pdwTypeDefFlags,       // [OUT] Put flags here.
+	mdToken* ptkExtends)     // [OUT] Put base class TypeDef/TypeRef here.
+
+{
+	printf("CordbSymbol - GetTypeDefProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetInterfaceImplProps(       // S_OK or error.
+	mdInterfaceImpl iiImpl,             // [IN] InterfaceImpl token.
+	mdTypeDef* pClass,                // [OUT] Put implementing class token here.
+	mdToken* ptkIface)        // [OUT] Put implemented interface token here.
+
+{
+	printf("CordbSymbol - GetInterfaceImplProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetTypeRefProps(             // S_OK or error.
+	mdTypeRef   tr,                     // [IN] TypeRef token.
+	mdToken* ptkResolutionScope,    // [OUT] Resolution scope, ModuleRef or AssemblyRef.
+	__out_ecount_part_opt(cchName, *pchName)
+	LPWSTR      szName,                 // [OUT] Name of the TypeRef.
+	ULONG       cchName,                // [IN] Size of buffer.
+	ULONG* pchName)         // [OUT] Size of Name.
+
+{
+	printf("CordbSymbol - GetTypeRefProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::ResolveTypeRef(mdTypeRef tr, REFIID riid, IUnknown** ppIScope, mdTypeDef* ptd)
+{
+	printf("CordbSymbol - ResolveTypeRef - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumMembers(                 // S_OK, S_FALSE, or error.
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdTypeDef   cl,                     // [IN] TypeDef to scope the enumeration.
+	mdToken     rMembers[],             // [OUT] Put MemberDefs here.
+	ULONG       cMax,                   // [IN] Max MemberDefs to put.
+	ULONG* pcTokens)        // [OUT] Put # put here.
+
+{
+	printf("CordbSymbol - EnumMembers - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumMembersWithName(         // S_OK, S_FALSE, or error.
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdTypeDef   cl,                     // [IN] TypeDef to scope the enumeration.
+	LPCWSTR     szName,                 // [IN] Limit results to those with this name.
+	mdToken     rMembers[],             // [OUT] Put MemberDefs here.
+	ULONG       cMax,                   // [IN] Max MemberDefs to put.
+	ULONG* pcTokens)        // [OUT] Put # put here.
+
+{
+	printf("CordbSymbol - EnumMembersWithName - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumMethods(                 // S_OK, S_FALSE, or error.
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdTypeDef   cl,                     // [IN] TypeDef to scope the enumeration.
+	mdMethodDef rMethods[],             // [OUT] Put MethodDefs here.
+	ULONG       cMax,                   // [IN] Max MethodDefs to put.
+	ULONG* pcTokens)        // [OUT] Put # put here.
+
+{
+	printf("CordbSymbol - EnumMethods - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumMethodsWithName(         // S_OK, S_FALSE, or error.
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdTypeDef   cl,                     // [IN] TypeDef to scope the enumeration.
+	LPCWSTR     szName,                 // [IN] Limit results to those with this name.
+	mdMethodDef rMethods[],             // [OU] Put MethodDefs here.
+	ULONG       cMax,                   // [IN] Max MethodDefs to put.
+	ULONG* pcTokens)        // [OUT] Put # put here.
+
+{
+	printf("CordbSymbol - EnumMethodsWithName - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumFields(                  // S_OK, S_FALSE, or error.
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdTypeDef   cl,                     // [IN] TypeDef to scope the enumeration.
+	mdFieldDef  rFields[],              // [OUT] Put FieldDefs here.
+	ULONG       cMax,                   // [IN] Max FieldDefs to put.
+	ULONG* pcTokens)        // [OUT] Put # put here.
+
+{
+	printf("CordbSymbol - EnumFields - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumFieldsWithName(          // S_OK, S_FALSE, or error.
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdTypeDef   cl,                     // [IN] TypeDef to scope the enumeration.
+	LPCWSTR     szName,                 // [IN] Limit results to those with this name.
+	mdFieldDef  rFields[],              // [OUT] Put MemberDefs here.
+	ULONG       cMax,                   // [IN] Max MemberDefs to put.
+	ULONG* pcTokens)        // [OUT] Put # put here.
+
+{
+	printf("CordbSymbol - EnumFieldsWithName - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+
+	HRESULT CordbSymbol::EnumParams(                  // S_OK, S_FALSE, or error.
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdMethodDef mb,                     // [IN] MethodDef to scope the enumeration.
+	mdParamDef  rParams[],              // [OUT] Put ParamDefs here.
+	ULONG       cMax,                   // [IN] Max ParamDefs to put.
+	ULONG* pcTokens)        // [OUT] Put # put here.
+
+{
+	printf("CordbSymbol - EnumParams - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumMemberRefs(              // S_OK, S_FALSE, or error.
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdToken     tkParent,               // [IN] Parent token to scope the enumeration.
+	mdMemberRef rMemberRefs[],          // [OUT] Put MemberRefs here.
+	ULONG       cMax,                   // [IN] Max MemberRefs to put.
+	ULONG* pcTokens)        // [OUT] Put # put here.
+
+{
+	printf("CordbSymbol - EnumMemberRefs - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumMethodImpls(             // S_OK, S_FALSE, or error
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdTypeDef   td,                     // [IN] TypeDef to scope the enumeration.
+	mdToken     rMethodBody[],          // [OUT] Put Method Body tokens here.
+	mdToken     rMethodDecl[],          // [OUT] Put Method Declaration tokens here.
+	ULONG       cMax,                   // [IN] Max tokens to put.
+	ULONG* pcTokens)        // [OUT] Put # put here.
+
+{
+	printf("CordbSymbol - EnumMethodImpls - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumPermissionSets(          // S_OK, S_FALSE, or error.
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdToken     tk,                     // [IN] if !NIL, token to scope the enumeration.
+	DWORD       dwActions,              // [IN] if !0, return only these actions.
+	mdPermission rPermission[],         // [OUT] Put Permissions here.
+	ULONG       cMax,                   // [IN] Max Permissions to put.
+	ULONG* pcTokens)        // [OUT] Put # put here.
+
+{
+	printf("CordbSymbol - EnumPermissionSets - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::FindMember(
+	mdTypeDef   td,                     // [IN] given typedef
+	LPCWSTR     szName,                 // [IN] member name
+	PCCOR_SIGNATURE pvSigBlob,          // [IN] point to a blob value of CLR signature
+	ULONG       cbSigBlob,              // [IN] count of bytes in the signature blob
+	mdToken* pmb)             // [OUT] matching memberdef
+
+{
+	printf("CordbSymbol - FindMember - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::FindMethod(
+	mdTypeDef   td,                     // [IN] given typedef
+	LPCWSTR     szName,                 // [IN] member name
+	PCCOR_SIGNATURE pvSigBlob,          // [IN] point to a blob value of CLR signature
+	ULONG       cbSigBlob,              // [IN] count of bytes in the signature blob
+	mdMethodDef* pmb)             // [OUT] matching memberdef
+
+{
+	printf("CordbSymbol - FindMethod - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::FindField(
+	mdTypeDef   td,                     // [IN] given typedef
+	LPCWSTR     szName,                 // [IN] member name
+	PCCOR_SIGNATURE pvSigBlob,          // [IN] point to a blob value of CLR signature
+	ULONG       cbSigBlob,              // [IN] count of bytes in the signature blob
+	mdFieldDef* pmb)             // [OUT] matching memberdef
+
+{
+	printf("CordbSymbol - FindField - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::FindMemberRef(
+	mdTypeRef   td,                     // [IN] given typeRef
+	LPCWSTR     szName,                 // [IN] member name
+	PCCOR_SIGNATURE pvSigBlob,          // [IN] point to a blob value of CLR signature
+	ULONG       cbSigBlob,              // [IN] count of bytes in the signature blob
+	mdMemberRef* pmr)             // [OUT] matching memberref
+
+{
+	printf("CordbSymbol - FindMemberRef - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetMethodProps(
+	mdMethodDef mb,                     // The method for which to get props.
+	mdTypeDef* pClass,                // Put method's class here.
+	__out_ecount_part_opt(cchMethod, *pchMethod)
+	LPWSTR      szMethod,               // Put method's name here.
+	ULONG       cchMethod,              // Size of szMethod buffer in wide chars.
+	ULONG* pchMethod,             // Put actual size here
+	DWORD* pdwAttr,               // Put flags here.
+	PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to the blob value of meta data
+	ULONG* pcbSigBlob,            // [OUT] actual size of signature blob
+	ULONG* pulCodeRVA,            // [OUT] codeRVA
+	DWORD* pdwImplFlags)    // [OUT] Impl. Flags
+
+{
+	printf("CordbSymbol - GetMethodProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetMemberRefProps(           // S_OK or error.
+	mdMemberRef mr,                     // [IN] given memberref
+	mdToken* ptk,                   // [OUT] Put classref or classdef here.
+	__out_ecount_part_opt(cchMember, *pchMember)
+	LPWSTR      szMember,               // [OUT] buffer to fill for member's name
+	ULONG       cchMember,              // [IN] the count of char of szMember
+	ULONG* pchMember,             // [OUT] actual count of char in member name
+	PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to meta data blob value
+	ULONG* pbSig)           // [OUT] actual size of signature blob
+
+{
+	printf("CordbSymbol - GetMemberRefProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumProperties(              // S_OK, S_FALSE, or error.
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdTypeDef   td,                     // [IN] TypeDef to scope the enumeration.
+	mdProperty  rProperties[],          // [OUT] Put Properties here.
+	ULONG       cMax,                   // [IN] Max properties to put.
+	ULONG* pcProperties)    // [OUT] Put # put here.
+
+{
+	printf("CordbSymbol - EnumProperties - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumEvents(                  // S_OK, S_FALSE, or error.
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdTypeDef   td,                     // [IN] TypeDef to scope the enumeration.
+	mdEvent     rEvents[],              // [OUT] Put events here.
+	ULONG       cMax,                   // [IN] Max events to put.
+	ULONG* pcEvents)        // [OUT] Put # put here.
+
+{
+	printf("CordbSymbol - EnumEvents - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetEventProps(               // S_OK, S_FALSE, or error.
+	mdEvent     ev,                     // [IN] event token
+	mdTypeDef* pClass,                // [OUT] typedef containing the event declarion.
+	LPCWSTR     szEvent,                // [OUT] Event name
+	ULONG       cchEvent,               // [IN] the count of wchar of szEvent
+	ULONG* pchEvent,              // [OUT] actual count of wchar for event's name
+	DWORD* pdwEventFlags,         // [OUT] Event flags.
+	mdToken* ptkEventType,          // [OUT] EventType class
+	mdMethodDef* pmdAddOn,              // [OUT] AddOn method of the event
+	mdMethodDef* pmdRemoveOn,           // [OUT] RemoveOn method of the event
+	mdMethodDef* pmdFire,               // [OUT] Fire method of the event
+	mdMethodDef rmdOtherMethod[],       // [OUT] other method of the event
+	ULONG       cMax,                   // [IN] size of rmdOtherMethod
+	ULONG* pcOtherMethod)   // [OUT] total number of other method of this event
+
+{
+	printf("CordbSymbol - GetEventProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumMethodSemantics(         // S_OK, S_FALSE, or error.
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdMethodDef mb,                     // [IN] MethodDef to scope the enumeration.
+	mdToken     rEventProp[],           // [OUT] Put Event/Property here.
+	ULONG       cMax,                   // [IN] Max properties to put.
+	ULONG* pcEventProp)     // [OUT] Put # put here.
+
+{
+	printf("CordbSymbol - EnumMethodSemantics - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetMethodSemantics(          // S_OK, S_FALSE, or error.
+	mdMethodDef mb,                     // [IN] method token
+	mdToken     tkEventProp,            // [IN] event/property token.
+	DWORD* pdwSemanticsFlags) // [OUT] the role flags for the method/propevent pair
+
+{
+	printf("CordbSymbol - GetMethodSemantics - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetClassLayout(
+	mdTypeDef   td,                     // [IN] give typedef
+	DWORD* pdwPackSize,           // [OUT] 1, 2, 4, 8, or 16
+	COR_FIELD_OFFSET rFieldOffset[],    // [OUT] field offset array
+	ULONG       cMax,                   // [IN] size of the array
+	ULONG* pcFieldOffset,         // [OUT] needed array size
+	ULONG* pulClassSize)        // [OUT] the size of the class
+
+{
+	printf("CordbSymbol - GetClassLayout - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetFieldMarshal(
+	mdToken     tk,                     // [IN] given a field's memberdef
+	PCCOR_SIGNATURE* ppvNativeType,     // [OUT] native type of this field
+	ULONG* pcbNativeType)   // [OUT] the count of bytes of *ppvNativeType
+
+{
+	printf("CordbSymbol - GetFieldMarshal - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetRVA(                      // S_OK or error.
+	mdToken     tk,                     // Member for which to set offset
+	ULONG* pulCodeRVA,            // The offset
+	DWORD* pdwImplFlags)    // the implementation flags
+
+{
+	printf("CordbSymbol - GetRVA - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetPermissionSetProps(
+	mdPermission pm,                    // [IN] the permission token.
+	DWORD* pdwAction,             // [OUT] CorDeclSecurity.
+	void const** ppvPermission,        // [OUT] permission blob.
+	ULONG* pcbPermission)   // [OUT] count of bytes of pvPermission.
+
+{
+	printf("CordbSymbol - GetPermissionSetProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetSigFromToken(             // S_OK or error.
+	mdSignature mdSig,                  // [IN] Signature token.
+	PCCOR_SIGNATURE* ppvSig,            // [OUT] return pointer to token.
+	ULONG* pcbSig)          // [OUT] return size of signature.
+
+{
+	printf("CordbSymbol - GetSigFromToken - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetModuleRefProps(           // S_OK or error.
+	mdModuleRef mur,                    // [IN] moduleref token.
+	__out_ecount_part_opt(cchName, *pchName)
+	LPWSTR      szName,                 // [OUT] buffer to fill with the moduleref name.
+	ULONG       cchName,                // [IN] size of szName in wide characters.
+	ULONG* pchName)         // [OUT] actual count of characters in the name.
+
+{
+	printf("CordbSymbol - GetModuleRefProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumModuleRefs(              // S_OK or error.
+	HCORENUM* phEnum,                // [IN|OUT] pointer to the enum.
+	mdModuleRef rModuleRefs[],          // [OUT] put modulerefs here.
+	ULONG       cmax,                   // [IN] max memberrefs to put.
+	ULONG* pcModuleRefs)    // [OUT] put # put here.
+
+{
+	printf("CordbSymbol - EnumModuleRefs - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetTypeSpecFromToken(        // S_OK or error.
+	mdTypeSpec typespec,                // [IN] TypeSpec token.
+	PCCOR_SIGNATURE* ppvSig,            // [OUT] return pointer to TypeSpec signature
+	ULONG* pcbSig)          // [OUT] return size of signature.
+
+{
+	printf("CordbSymbol - GetTypeSpecFromToken - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetNameFromToken(            // Not Recommended! May be removed!
+	mdToken     tk,                     // [IN] Token to get name from.  Must have a name.
+	MDUTF8CSTR* pszUtf8NamePtr)  // [OUT] Return pointer to UTF8 name in heap.
+
+{
+	printf("CordbSymbol - GetNameFromToken - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumUnresolvedMethods(       // S_OK, S_FALSE, or error.
+	HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
+	mdToken     rMethods[],             // [OUT] Put MemberDefs here.
+	ULONG       cMax,                   // [IN] Max MemberDefs to put.
+	ULONG* pcTokens)        // [OUT] Put # put here.
+
+{
+	printf("CordbSymbol - EnumUnresolvedMethods - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetUserString(               // S_OK or error.
+	mdString    stk,                    // [IN] String token.
+	__out_ecount_part_opt(cchString, *pchString)
+	LPWSTR      szString,               // [OUT] Copy of string.
+	ULONG       cchString,              // [IN] Max chars of room in szString.
+	ULONG* pchString)       // [OUT] How many chars in actual string.
+
+{
+	printf("CordbSymbol - GetUserString - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetPinvokeMap(               // S_OK or error.
+	mdToken     tk,                     // [IN] FieldDef or MethodDef.
+	DWORD* pdwMappingFlags,       // [OUT] Flags used for mapping.
+	__out_ecount_part_opt(cchImportName, *pchImportName)
+	LPWSTR      szImportName,           // [OUT] Import name.
+	ULONG       cchImportName,          // [IN] Size of the name buffer.
+	ULONG* pchImportName,         // [OUT] Actual number of characters stored.
+	mdModuleRef* pmrImportDLL)    // [OUT] ModuleRef token for the target DLL.
+{
+	printf("CordbSymbol - GetPinvokeMap - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumSignatures(              // S_OK or error.
+	HCORENUM* phEnum,                // [IN|OUT] pointer to the enum.
+	mdSignature rSignatures[],          // [OUT] put signatures here.
+	ULONG       cmax,                   // [IN] max signatures to put.
+	ULONG* pcSignatures)    // [OUT] put # put here.
+{
+	printf("CordbSymbol - EnumSignatures - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumTypeSpecs(               // S_OK or error.
+	HCORENUM* phEnum,                // [IN|OUT] pointer to the enum.
+	mdTypeSpec  rTypeSpecs[],           // [OUT] put TypeSpecs here.
+	ULONG       cmax,                   // [IN] max TypeSpecs to put.
+	ULONG* pcTypeSpecs)     // [OUT] put # put here.
+{
+	printf("CordbSymbol - EnumTypeSpecs - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+
+	HRESULT CordbSymbol::EnumUserStrings(             // S_OK or error.
+	HCORENUM* phEnum,                // [IN/OUT] pointer to the enum.
+	mdString    rStrings[],             // [OUT] put Strings here.
+	ULONG       cmax,                   // [IN] max Strings to put.
+	ULONG* pcStrings)       // [OUT] put # put here.
+{
+	printf("CordbSymbol - EnumUserStrings - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetParamForMethodIndex(      // S_OK or error.
+	mdMethodDef md,                     // [IN] Method token.
+	ULONG       ulParamSeq,             // [IN] Parameter sequence.
+	mdParamDef* ppd)             // [IN] Put Param token here.
+{
+	printf("CordbSymbol - GetParamForMethodIndex - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::EnumCustomAttributes(        // S_OK or error.
+	HCORENUM* phEnum,                // [IN, OUT] COR enumerator.
+	mdToken     tk,                     // [IN] Token to scope the enumeration, 0 for all.
+	mdToken     tkType,                 // [IN] Type of interest, 0 for all.
+	mdCustomAttribute rCustomAttributes[], // [OUT] Put custom attribute tokens here.
+	ULONG       cMax,                   // [IN] Size of rCustomAttributes.
+	ULONG* pcCustomAttributes)  // [OUT, OPTIONAL] Put count of token values here.
+{
+	printf("CordbSymbol - EnumCustomAttributes - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetCustomAttributeProps(     // S_OK or error.
+	mdCustomAttribute cv,               // [IN] CustomAttribute token.
+	mdToken* ptkObj,                // [OUT, OPTIONAL] Put object token here.
+	mdToken* ptkType,               // [OUT, OPTIONAL] Put AttrType token here.
+	void const** ppBlob,               // [OUT, OPTIONAL] Put pointer to data here.
+	ULONG* pcbSize)         // [OUT, OPTIONAL] Put size of date here.
+{
+	printf("CordbSymbol - GetCustomAttributeProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::FindTypeRef(
+	mdToken     tkResolutionScope,      // [IN] ModuleRef, AssemblyRef or TypeRef.
+	LPCWSTR     szName,                 // [IN] TypeRef Name.
+	mdTypeRef* ptr)             // [OUT] matching TypeRef.
+{
+	printf("CordbSymbol - FindTypeRef - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetMemberProps(
+	mdToken     mb,                     // The member for which to get props.
+	mdTypeDef* pClass,                // Put member's class here.
+	__out_ecount_part_opt(cchMember, *pchMember)
+	LPWSTR      szMember,               // Put member's name here.
+	ULONG       cchMember,              // Size of szMember buffer in wide chars.
+	ULONG* pchMember,             // Put actual size here
+	DWORD* pdwAttr,               // Put flags here.
+	PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to the blob value of meta data
+	ULONG* pcbSigBlob,            // [OUT] actual size of signature blob
+	ULONG* pulCodeRVA,            // [OUT] codeRVA
+	DWORD* pdwImplFlags,          // [OUT] Impl. Flags
+	DWORD* pdwCPlusTypeFlag,      // [OUT] flag for value type. selected ELEMENT_TYPE_*
+	UVCP_CONSTANT* ppValue,             // [OUT] constant value
+	ULONG* pcchValue)       // [OUT] size of constant string in chars, 0 for non-strings.
+{
+	printf("CordbSymbol - GetMemberProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetFieldProps(
+	mdFieldDef  mb,                     // The field for which to get props.
+	mdTypeDef* pClass,                // Put field's class here.
+	__out_ecount_part_opt(cchField, *pchField)
+	LPWSTR      szField,                // Put field's name here.
+	ULONG       cchField,               // Size of szField buffer in wide chars.
+	ULONG* pchField,              // Put actual size here
+	DWORD* pdwAttr,               // Put flags here.
+	PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to the blob value of meta data
+	ULONG* pcbSigBlob,            // [OUT] actual size of signature blob
+	DWORD* pdwCPlusTypeFlag,      // [OUT] flag for value type. selected ELEMENT_TYPE_*
+	UVCP_CONSTANT* ppValue,             // [OUT] constant value
+	ULONG* pcchValue)       // [OUT] size of constant string in chars, 0 for non-strings.
+{
+	printf("CordbSymbol - GetFieldProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetPropertyProps(            // S_OK, S_FALSE, or error.
+	mdProperty  prop,                   // [IN] property token
+	mdTypeDef* pClass,                // [OUT] typedef containing the property declarion.
+	LPCWSTR     szProperty,             // [OUT] Property name
+	ULONG       cchProperty,            // [IN] the count of wchar of szProperty
+	ULONG* pchProperty,           // [OUT] actual count of wchar for property name
+	DWORD* pdwPropFlags,          // [OUT] property flags.
+	PCCOR_SIGNATURE* ppvSig,            // [OUT] property type. pointing to meta data internal blob
+	ULONG* pbSig,                 // [OUT] count of bytes in *ppvSig
+	DWORD* pdwCPlusTypeFlag,      // [OUT] flag for value type. selected ELEMENT_TYPE_*
+	UVCP_CONSTANT* ppDefaultValue,      // [OUT] constant value
+	ULONG* pcchDefaultValue,      // [OUT] size of constant string in chars, 0 for non-strings.
+	mdMethodDef* pmdSetter,             // [OUT] setter method of the property
+	mdMethodDef* pmdGetter,             // [OUT] getter method of the property
+	mdMethodDef rmdOtherMethod[],       // [OUT] other method of the property
+	ULONG       cMax,                   // [IN] size of rmdOtherMethod
+	ULONG* pcOtherMethod)   // [OUT] total number of other method of this property
+{
+	printf("CordbSymbol - GetPropertyProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetParamProps(               // S_OK or error.
+	mdParamDef  tk,                     // [IN]The Parameter.
+	mdMethodDef* pmd,                   // [OUT] Parent Method token.
+	ULONG* pulSequence,           // [OUT] Parameter sequence.
+	__out_ecount_part_opt(cchName, *pchName)
+	LPWSTR      szName,                 // [OUT] Put name here.
+	ULONG       cchName,                // [OUT] Size of name buffer.
+	ULONG* pchName,               // [OUT] Put actual size of name here.
+	DWORD* pdwAttr,               // [OUT] Put flags here.
+	DWORD* pdwCPlusTypeFlag,      // [OUT] Flag for value type. selected ELEMENT_TYPE_*.
+	UVCP_CONSTANT* ppValue,             // [OUT] Constant value.
+	ULONG* pcchValue)       // [OUT] size of constant string in chars, 0 for non-strings.
+{
+	printf("CordbSymbol - GetParamProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetCustomAttributeByName(    // S_OK or error.
+	mdToken     tkObj,                  // [IN] Object with Custom Attribute.
+	LPCWSTR     szName,                 // [IN] Name of desired Custom Attribute.
+	const void** ppData,               // [OUT] Put pointer to data here.
+	ULONG* pcbData)         // [OUT] Put size of data here.
+{
+	printf("CordbSymbol - GetCustomAttributeByName - IMPLEMENTED\n");
+	fflush(stdout);
+	byte *ret = new byte[6];
+	ret[0] = 1;
+	ret[1] = 0;
+	ret[2] = 0;
+	ret[3] = 0;
+	ret[4] = 0;
+	ret[5] = 0;
+	*ppData = ret;
+	*pcbData = 6;
+	return S_OK;
+}
+
+	BOOL CordbSymbol::IsValidToken(         // True or False.
+	mdToken     tk)               // [IN] Given token.
+{
+	printf("CordbSymbol - IsValidToken - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetNestedClassProps(         // S_OK or error.
+	mdTypeDef   tdNestedClass,          // [IN] NestedClass token.
+	mdTypeDef* ptdEnclosingClass) // [OUT] EnclosingClass token.
+{
+	printf("CordbSymbol - GetNestedClassProps - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbSymbol::GetNativeCallConvFromSig(    // S_OK or error.
+	void const* pvSig,                 // [IN] Pointer to signature.
+	ULONG       cbSig,                  // [IN] Count of signature bytes.
+	ULONG* pCallConv)       // [OUT] Put calling conv here (see CorPinvokemap).
+{
+	printf("CordbSymbol - GetNativeCallConvFromSig - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT CordbSymbol::IsGlobal(                    // S_OK or error.
+mdToken     pd,                     // [IN] Type, Field, or Method token.
+int* pbGlobal)        // [OUT] Put 1 if global, 0 otherwise.
+
+{
+	printf("CordbSymbol - IsGlobal - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+
+CordbAppDomain::CordbAppDomain(ICorDebugProcess* ppProcess)
+{
+	pProcess = ppProcess;
+}
+
+	HRESULT CordbAppDomain::Stop(
+	/* [in] */ DWORD dwTimeoutIgnored)
+{
+	printf("CordbAppDomain - Stop - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbAppDomain::Continue(
+	/* [in] */ BOOL fIsOutOfBand)
+{
+	printf("CordbAppDomain - Continue - IMPLEMENTED\n");
+	fflush(stdout);
+	pProcess->Continue(fIsOutOfBand);
+	return S_OK;
+}
+
+	HRESULT CordbAppDomain::IsRunning(
+	/* [out] */ BOOL* pbRunning)
+{
+	printf("CordbAppDomain - IsRunning - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbAppDomain::HasQueuedCallbacks(
+	/* [in] */ ICorDebugThread* pThread,
+	/* [out] */ BOOL* pbQueued)
+{
+	printf("CordbAppDomain - HasQueuedCallbacks - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbAppDomain::EnumerateThreads(
+	/* [out] */ ICorDebugThreadEnum** ppThreads)
+{
+	printf("CordbAppDomain - EnumerateThreads - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbAppDomain::SetAllThreadsDebugState(
+	/* [in] */ CorDebugThreadState state,
+	/* [in] */ ICorDebugThread* pExceptThisThread)
+{
+	printf("CordbAppDomain - SetAllThreadsDebugState - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbAppDomain::Detach(void)
+{
+	printf("CordbAppDomain - Detach - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbAppDomain::Terminate(
+	/* [in] */ UINT exitCode)
+{
+	printf("CordbAppDomain - Terminate - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbAppDomain::CanCommitChanges(
+	/* [in] */ ULONG cSnapshots,
+	/* [size_is][in] */ ICorDebugEditAndContinueSnapshot* pSnapshots[],
+	/* [out] */ ICorDebugErrorInfoEnum** pError)
+{
+	printf("CordbAppDomain - CanCommitChanges - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbAppDomain::CommitChanges(
+	/* [in] */ ULONG cSnapshots,
+	/* [size_is][in] */ ICorDebugEditAndContinueSnapshot* pSnapshots[],
+	/* [out] */ ICorDebugErrorInfoEnum** pError)
+{
+	printf("CordbAppDomain - CommitChanges - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbAppDomain::QueryInterface(
+	/* [in] */ REFIID id,
+	/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppInterface)
+{
+	if (id == IID_ICorDebugAppDomain)
 	{
-		pProcess = process;
-		pCordbSymbol = NULL;
-		pAssembly = assembly;
-		id = id_assembly;
+		*ppInterface = (ICorDebugAppDomain*)this;
 	}
-
-	HRESULT CordbModule::QueryInterface(REFIID id, void** pInterface)
+	else if (id == IID_ICorDebugAppDomain2)
 	{
-		if (id == IID_ICorDebugModule)
-		{
-			*pInterface = static_cast<ICorDebugModule*>(this);
-		}
-		else if (id == IID_ICorDebugModule2)
-		{
-			*pInterface = static_cast<ICorDebugModule2*>(this);
-		}
-		else if (id == IID_ICorDebugModule3)
-		{
-			*pInterface = static_cast<ICorDebugModule3*>(this);
-		}
-		else if (id == IID_ICorDebugModule4)
-		{
-			*pInterface = static_cast<ICorDebugModule4*>(this);
-		}
-		else if (id == IID_IUnknown)
-		{
-			*pInterface = static_cast<IUnknown*>(static_cast<ICorDebugModule*>(this));
-		}
-		else
-		{
-			printf("CordbModule - QueryInterface - E_NOTIMPL - %x - %x - %x - %x\n", ((unsigned long*)&id)[0], ((unsigned long*)&id)[1], ((unsigned long*)&id)[2], ((unsigned long*)&id)[3]);
-			fflush(stdout);
-
-			*pInterface = NULL;
-			return E_NOINTERFACE;
-		}
-		return S_OK;
+		*ppInterface = (ICorDebugAppDomain2*)this;
 	}
-
-	virtual ULONG STDMETHODCALLTYPE AddRef(void)
+	else if (id == IID_ICorDebugAppDomain3)
 	{
-		printf("CordbModule -AddRef - NOT IMPLEMENTED\n");
-		return S_OK;
+		*ppInterface = (ICorDebugAppDomain3*)this;
 	}
-
-	virtual ULONG STDMETHODCALLTYPE Release(void)
+	else if (id == IID_ICorDebugAppDomain4)
 	{
-		printf("CordbModule - Release - NOT IMPLEMENTED\n");
-		return S_OK;
+		*ppInterface = (ICorDebugAppDomain4*)this;
 	}
-	virtual HRESULT STDMETHODCALLTYPE IsMappedLayout(
-		/* [out] */ BOOL* pIsMapped)
+	else if (id == IID_ICorDebugController)
+		*ppInterface = (ICorDebugController*)(ICorDebugAppDomain*)this;
+	else if (id == IID_IUnknown)
+		*ppInterface = (IUnknown*)(ICorDebugAppDomain*)this;
+	else
 	{
-		printf("CordbModule - IsMappedLayout - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-	virtual HRESULT STDMETHODCALLTYPE CreateReaderForInMemorySymbols(
-		/* [in] */ REFIID riid,
-		/* [iid_is][out] */ void** ppObj)
-	{
-		printf("CordbModule - CreateReaderForInMemorySymbols - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-	virtual HRESULT STDMETHODCALLTYPE SetJMCStatus(
-		/* [in] */ BOOL bIsJustMyCode,
-		/* [in] */ ULONG32 cTokens,
-		/* [size_is][in] */ mdToken pTokens[])
-	{
-		printf("CordbModule - SetJMCStatus - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE ApplyChanges(
-		/* [in] */ ULONG cbMetadata,
-		/* [size_is][in] */ BYTE pbMetadata[],
-		/* [in] */ ULONG cbIL,
-		/* [size_is][in] */ BYTE pbIL[])
-	{
-		printf("CordbModule - ApplyChanges - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE SetJITCompilerFlags(
-		/* [in] */ DWORD dwFlags)
-	{
-		printf("CordbModule - SetJITCompilerFlags - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetJITCompilerFlags(
-		/* [out] */ DWORD* pdwFlags)
-	{
-		printf("CordbModule - GetJITCompilerFlags - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE ResolveAssembly(
-		/* [in] */ mdToken tkAssemblyRef,
-		/* [out] */ ICorDebugAssembly** ppAssembly)
-	{
-		printf("CordbModule - ResolveAssembly - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetProcess(
-		/* [out] */ ICorDebugProcess** ppProcess)
-	{
-		printf("CordbModule - GetProcess - NOT IMPLEMENTED\n");
-		// *ppProcess = pProcess;
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetBaseAddress(
-		/* [out] */ CORDB_ADDRESS* pAddress)
-	{
-		printf("CordbModule - GetBaseAddress - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetAssembly(
-		/* [out] */ ICorDebugAssembly** ppAssembly);
-
-	virtual HRESULT STDMETHODCALLTYPE GetName(
-		/* [in] */ ULONG32 cchName,
-		/* [out] */ ULONG32* pcchName,
-		/* [length_is][size_is][out] */ WCHAR szName[])
-	{
-		Buffer localbuf;
-		buffer_init(&localbuf, 128);
-		buffer_add_id(&localbuf, id);
-		int cmdId = connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_NAME, &localbuf);
-		buffer_free(&localbuf);
-
-		Buffer* localbuf2 = NULL;
-		while (!localbuf2) {
-			connection->process_packet();
-			localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
-		}
-
-		char* assembly_name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		printf("CordbModule - GetName - %s - IMPLEMENTED\n", assembly_name);
+		printf("CordbAppDomain - QueryInterface - E_NOTIMPL - %x - %x - %x - %x\n", ((unsigned long*)&id)[0], ((unsigned long*)&id)[1], ((unsigned long*)&id)[2], ((unsigned long*)&id)[3]);
 		fflush(stdout);
-		if (cchName < strlen(assembly_name) + 1) {
-			*pcchName = strlen(assembly_name) + 1;
-			g_free(assembly_name);
-			return S_OK;
-		}
-		mbstowcs(szName, assembly_name, strlen(assembly_name));
+		*ppInterface = NULL;
+		return E_NOINTERFACE;
+	}
+	return S_OK;
+}
+
+	ULONG CordbAppDomain::AddRef(void)
+{
+	printf("CordbAppDomain - AddRef - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	ULONG CordbAppDomain::Release(void)
+{
+	printf("CordbAppDomain - Release - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbAppDomain::GetProcess(
+	/* [out] */ ICorDebugProcess** ppProcess)
+{
+	printf("CordbAppDomain - GetProcess - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	*ppProcess = pProcess;
+	return S_OK;
+}
+
+	HRESULT CordbAppDomain::EnumerateAssemblies(
+	/* [out] */ ICorDebugAssemblyEnum** ppAssemblies)
+{
+	printf("CordbAppDomain - EnumerateAssemblies - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+
+	HRESULT CordbAppDomain::GetModuleFromMetaDataInterface(
+	/* [in] */ IUnknown* pIMetaData,
+	/* [out] */ ICorDebugModule** ppModule)
+{
+	printf("CordbAppDomain - GetModuleFromMetaDataInterface - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+
+	HRESULT CordbAppDomain::EnumerateBreakpoints(
+	/* [out] */ ICorDebugBreakpointEnum** ppBreakpoints)
+{
+	printf("CordbAppDomain - EnumerateBreakpoints - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+
+	HRESULT CordbAppDomain::EnumerateSteppers(
+	/* [out] */ ICorDebugStepperEnum** ppSteppers)
+{
+	printf("CordbAppDomain - EnumerateSteppers - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+
+	HRESULT CordbAppDomain::IsAttached(
+	/* [out] */ BOOL* pbAttached)
+{
+	printf("CordbAppDomain - IsAttached - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+
+	HRESULT CordbAppDomain::GetName(
+	/* [in] */ ULONG32 cchName,
+	/* [out] */ ULONG32* pcchName,
+	/* [length_is][size_is][out] */ WCHAR szName[])
+{
+	printf("CordbAppDomain - GetName - IMPLEMENTED\n");
+	if (cchName < strlen("DefaultDomain")) {
+		*pcchName = strlen("DefaultDomain") + 1;
+		return S_OK;
+	}
+	wcscpy(szName, L"DefaultDomain");
+	fflush(stdout);
+	return S_OK;
+}
+
+
+	HRESULT CordbAppDomain::GetObject(
+	/* [out] */ ICorDebugValue** ppObject)
+{
+	printf("CordbAppDomain - GetObject - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+
+	HRESULT CordbAppDomain::Attach(void)
+{
+	printf("CordbAppDomain - Attach - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+
+	HRESULT CordbAppDomain::GetID(
+	/* [out] */ ULONG32* pId)
+{
+	printf("CordbAppDomain - GetID - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+	HRESULT CordbAppDomain::GetArrayOrPointerType(
+	/* [in] */ CorElementType elementType,
+	/* [in] */ ULONG32 nRank,
+	/* [in] */ ICorDebugType* pTypeArg,
+	/* [out] */ ICorDebugType** ppType)
+{
+	printf("CordbAppDomain - GetArrayOrPointerType - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+
+	HRESULT CordbAppDomain::GetFunctionPointerType(
+	/* [in] */ ULONG32 nTypeArgs,
+	/* [size_is][in] */ ICorDebugType* ppTypeArgs[],
+	/* [out] */ ICorDebugType** ppType)
+{
+	printf("CordbAppDomain - GetFunctionPointerType - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbAppDomain::GetCachedWinRTTypesForIIDs(
+	/* [in] */ ULONG32 cReqTypes,
+	/* [size_is][in] */ GUID* iidsToResolve,
+	/* [out] */ ICorDebugTypeEnum** ppTypesEnum)
+{
+	printf("CordbAppDomain - GetCachedWinRTTypesForIIDs - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+
+	HRESULT CordbAppDomain::GetCachedWinRTTypes(
+	/* [out] */ ICorDebugGuidToTypeEnum** ppGuidToTypeEnum)
+{
+	printf("CordbAppDomain - GetCachedWinRTTypes - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+
+	HRESULT CordbAppDomain::GetObjectForCCW(
+	/* [in] */ CORDB_ADDRESS ccwPointer,
+	/* [out] */ ICorDebugValue** ppManagedObject)
+{
+	printf("CordbAppDomain - GetObjectForCCW - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+
+CordbModule::CordbModule(CordbProcess* process, CordbAssembly* assembly, int id_assembly)
+{
+	pProcess = process;
+	pCordbSymbol = NULL;
+	pAssembly = assembly;
+	id = id_assembly;
+}
+
+HRESULT CordbModule::QueryInterface(REFIID id, void** pInterface)
+{
+	if (id == IID_ICorDebugModule)
+	{
+		*pInterface = static_cast<ICorDebugModule*>(this);
+	}
+	else if (id == IID_ICorDebugModule2)
+	{
+		*pInterface = static_cast<ICorDebugModule2*>(this);
+	}
+	else if (id == IID_ICorDebugModule3)
+	{
+		*pInterface = static_cast<ICorDebugModule3*>(this);
+	}
+	else if (id == IID_ICorDebugModule4)
+	{
+		*pInterface = static_cast<ICorDebugModule4*>(this);
+	}
+	else if (id == IID_IUnknown)
+	{
+		*pInterface = static_cast<IUnknown*>(static_cast<ICorDebugModule*>(this));
+	}
+	else
+	{
+		printf("CordbModule - QueryInterface - E_NOTIMPL - %x - %x - %x - %x\n", ((unsigned long*)&id)[0], ((unsigned long*)&id)[1], ((unsigned long*)&id)[2], ((unsigned long*)&id)[3]);
+		fflush(stdout);
+
+		*pInterface = NULL;
+		return E_NOINTERFACE;
+	}
+	return S_OK;
+}
+
+ULONG CordbModule::AddRef(void)
+{
+	printf("CordbModule -AddRef - NOT IMPLEMENTED\n");
+	return S_OK;
+}
+
+ULONG CordbModule::Release(void)
+{
+	printf("CordbModule - Release - NOT IMPLEMENTED\n");
+	return S_OK;
+}
+HRESULT CordbModule::IsMappedLayout(
+	/* [out] */ BOOL* pIsMapped)
+{
+	printf("CordbModule - IsMappedLayout - NOT IMPLEMENTED\n");
+	return S_OK;
+}
+HRESULT CordbModule::CreateReaderForInMemorySymbols(
+	/* [in] */ REFIID riid,
+	/* [iid_is][out] */ void** ppObj)
+{
+	printf("CordbModule - CreateReaderForInMemorySymbols - NOT IMPLEMENTED\n");
+	return S_OK;
+}
+HRESULT CordbModule::SetJMCStatus(
+	/* [in] */ BOOL bIsJustMyCode,
+	/* [in] */ ULONG32 cTokens,
+	/* [size_is][in] */ mdToken pTokens[])
+{
+	printf("CordbModule - SetJMCStatus - NOT IMPLEMENTED\n");
+	return S_OK;
+}
+
+HRESULT CordbModule::ApplyChanges(
+	/* [in] */ ULONG cbMetadata,
+	/* [size_is][in] */ BYTE pbMetadata[],
+	/* [in] */ ULONG cbIL,
+	/* [size_is][in] */ BYTE pbIL[])
+{
+	printf("CordbModule - ApplyChanges - NOT IMPLEMENTED\n");
+	return S_OK;
+}
+
+HRESULT CordbModule::SetJITCompilerFlags(
+	/* [in] */ DWORD dwFlags)
+{
+	printf("CordbModule - SetJITCompilerFlags - NOT IMPLEMENTED\n");
+	return S_OK;
+}
+
+HRESULT CordbModule::GetJITCompilerFlags(
+	/* [out] */ DWORD* pdwFlags)
+{
+	printf("CordbModule - GetJITCompilerFlags - NOT IMPLEMENTED\n");
+	return S_OK;
+}
+
+HRESULT CordbModule::ResolveAssembly(
+	/* [in] */ mdToken tkAssemblyRef,
+	/* [out] */ ICorDebugAssembly** ppAssembly)
+{
+	printf("CordbModule - ResolveAssembly - NOT IMPLEMENTED\n");
+	return S_OK;
+}
+
+HRESULT CordbModule::GetProcess(
+	/* [out] */ ICorDebugProcess** ppProcess)
+{
+	printf("CordbModule - GetProcess - NOT IMPLEMENTED\n");
+	// *ppProcess = pProcess;
+	return S_OK;
+}
+
+HRESULT CordbModule::GetBaseAddress(
+	/* [out] */ CORDB_ADDRESS* pAddress)
+{
+	printf("CordbModule - GetBaseAddress - NOT IMPLEMENTED\n");
+	return S_OK;
+}
+
+HRESULT CordbModule::GetName(
+	/* [in] */ ULONG32 cchName,
+	/* [out] */ ULONG32* pcchName,
+	/* [length_is][size_is][out] */ WCHAR szName[])
+{
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, id);
+	int cmdId = connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_NAME, &localbuf);
+	buffer_free(&localbuf);
+
+	Buffer* localbuf2 = NULL;
+	while (!localbuf2) {
+		connection->process_packet();
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+
+	char* assembly_name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	printf("CordbModule - GetName - %s - IMPLEMENTED\n", assembly_name);
+	fflush(stdout);
+	if (cchName < strlen(assembly_name) + 1) {
+		*pcchName = strlen(assembly_name) + 1;
 		g_free(assembly_name);
 		return S_OK;
 	}
+	mbstowcs(szName, assembly_name, strlen(assembly_name));
+	g_free(assembly_name);
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE EnableJITDebugging(
-		/* [in] */ BOOL bTrackJITInfo,
-		/* [in] */ BOOL bAllowJitOpts)
-	{
-		printf("CordbModule - EnableJITDebugging - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnableClassLoadCallbacks(
-		/* [in] */ BOOL bClassLoadCallbacks)
-	{
-		printf("CordbModule - EnableClassLoadCallbacks - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetFunctionFromToken(
-		/* [in] */ mdMethodDef methodDef,
-		/* [out] */ ICorDebugFunction** ppFunction)
-	{
-		printf("CordbModule - GetFunctionFromToken - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetFunctionFromRVA(
-		/* [in] */ CORDB_ADDRESS rva,
-		/* [out] */ ICorDebugFunction** ppFunction)
-	{
-		printf("CordbModule - GetFunctionFromRVA - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetClassFromToken(
-		/* [in] */ mdTypeDef typeDef,
-		/* [out] */ ICorDebugClass** ppClass)
-	{
-		printf("CordbModule - GetClassFromToken - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE CreateBreakpoint(
-		/* [out] */ ICorDebugModuleBreakpoint** ppBreakpoint)
-	{
-		printf("CordbModule - CreateBreakpoint - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetEditAndContinueSnapshot(
-		/* [out] */ ICorDebugEditAndContinueSnapshot** ppEditAndContinueSnapshot)
-	{
-		printf("CordbModule - GetEditAndContinueSnapshot - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetMetaDataInterface(
-		/* [in] */ REFIID riid,
-		/* [out] */ IUnknown** ppObj)
-	{
-		if (pCordbSymbol == NULL)
-			pCordbSymbol = new CordbSymbol(pAssembly);
-		pCordbSymbol->QueryInterface(riid, (void**)ppObj);
-		printf("CordbModule - GetMetaDataInterface - IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetToken(
-		/* [out] */ mdModule* pToken)
-	{
-		printf("CordbModule - GetToken - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE IsDynamic(
-		/* [out] */ BOOL* pDynamic)
-	{
-		printf("CordbModule - IsDynamic - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetGlobalVariableValue(
-		/* [in] */ mdFieldDef fieldDef,
-		/* [out] */ ICorDebugValue** ppValue)
-	{
-		printf("CordbModule - GetGlobalVariableValue - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetSize(
-		/* [out] */ ULONG32* pcBytes)
-	{
-		printf("CordbModule - GetSize - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE IsInMemory(
-		/* [out] */ BOOL* pInMemory)
-	{
-		printf("CordbModule - IsInMemory - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-};
-
-class CordbAssembly :
-	public ICorDebugAssembly, 
-	public ICorDebugAssembly2
+HRESULT CordbModule::EnableJITDebugging(
+	/* [in] */ BOOL bTrackJITInfo,
+	/* [in] */ BOOL bAllowJitOpts)
 {
-public:
-	CordbProcess* pProcess;
-	CordbAppDomain* pAppDomain;
-	int id;
-	CordbAssembly(CordbProcess* process, CordbAppDomain* appDomain, int id_assembly)
-	{
-		pProcess = process;
-		pAppDomain = appDomain;
-		id = id_assembly;
-	}
-	virtual HRESULT STDMETHODCALLTYPE IsFullyTrusted(
-		/* [out] */ BOOL* pbFullyTrusted)
-	{
-		printf("CorDebugAssembly - IsFullyTrusted - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-	virtual HRESULT STDMETHODCALLTYPE GetProcess(
-		/* [out] */ ICorDebugProcess** ppProcess);
+	printf("CordbModule - EnableJITDebugging - NOT IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE GetAppDomain(
-		/* [out] */ ICorDebugAppDomain** ppAppDomain)
-	{
-		printf("CorDebugAssembly - GetAppDomain - NOT IMPLEMENTED\n");
-		*ppAppDomain = static_cast<ICorDebugAppDomain*>(pAppDomain);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumerateModules(
-		/* [out] */ ICorDebugModuleEnum** ppModules)
-	{
-		printf("CorDebugAssembly - EnumerateModules - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetCodeBase(
-		/* [in] */ ULONG32 cchName,
-		/* [out] */ ULONG32* pcchName,
-		/* [length_is][size_is][out] */ WCHAR szName[])
-	{
-		printf("CorDebugAssembly - GetCodeBase - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetName(
-		/* [in] */ ULONG32 cchName,
-		/* [out] */ ULONG32* pcchName,
-		/* [length_is][size_is][out] */ WCHAR szName[])
-	{
-		printf("CorDebugAssembly - GetName - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(
-		/* [in] */ REFIID id,
-		/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppInterface)
-	{
-		if (id == IID_ICorDebugAssembly)
-			*ppInterface = static_cast<ICorDebugAssembly*>(this);
-		else if (id == IID_ICorDebugAssembly2)
-			*ppInterface = static_cast<ICorDebugAssembly2*>(this);
-		else if (id == IID_IUnknown)
-			*ppInterface = static_cast<IUnknown*>(static_cast<ICorDebugAssembly*>(this));
-		else
-		{
-			printf("CordbAssembly - QueryInterface - E_NOTIMPL - %x - %x - %x - %x\n", ((unsigned long*)&id)[0], ((unsigned long*)&id)[1], ((unsigned long*)&id)[2], ((unsigned long*)&id)[3]);
-			fflush(stdout);
-
-			*ppInterface = NULL;
-			return E_NOINTERFACE;
-		}
-
-		return S_OK;
-	}
-
-	virtual ULONG STDMETHODCALLTYPE AddRef(void)
-	{
-		printf("CordbAssembly - AddRef - NOT IMPLEMENTED\n"); 
-		return S_OK;
-	}
-
-	virtual ULONG STDMETHODCALLTYPE Release(void)
-	{
-		printf("CordbAssembly - Release - NOT IMPLEMENTED\n");
-		return S_OK;
-	}
-
-};
-
-class CordbProcess :
-	public ICorDebugProcess,
-	public ICorDebugProcess2,
-	public ICorDebugProcess3,
-	public ICorDebugProcess4,
-	public ICorDebugProcess5,
-	public ICorDebugProcess7,
-	public ICorDebugProcess8,
-	public ICorDebugProcess10,
-	public ICorDebugProcess11
+HRESULT CordbModule::EnableClassLoadCallbacks(
+	/* [in] */ BOOL bClassLoadCallbacks)
 {
-public:
-	Cordb* cordb;
-	virtual HRESULT STDMETHODCALLTYPE EnumerateLoaderHeapMemoryRegions(
-		/* [out] */ ICorDebugMemoryRangeEnum** ppRanges) {
-		printf("CordbProcess - EnumerateLoaderHeapMemoryRegions - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-	virtual HRESULT STDMETHODCALLTYPE EnableGCNotificationEvents(
-		BOOL fEnable) {
-		printf("CordbProcess - EnableGCNotificationEvents - NOT IMPLEMENTED\n"); 
-		fflush(stdout);
-		return S_OK;
-	}
-	virtual HRESULT STDMETHODCALLTYPE EnableExceptionCallbacksOutsideOfMyCode(
-		/* [in] */ BOOL enableExceptionsOutsideOfJMC) {
-		printf("CordbProcess - EnableExceptionCallbacksOutsideOfMyCode - NOT IMPLEMENTED\n"); 
-		fflush(stdout);
-		return S_OK;
-	}
-	virtual HRESULT STDMETHODCALLTYPE SetWriteableMetadataUpdateMode(
-		WriteableMetadataUpdateMode flags) {
-		printf("CordbProcess - SetWriteableMetadataUpdateMode - NOT IMPLEMENTED\n"); 
-		fflush(stdout);
-		return S_OK;
-	}
-	virtual HRESULT STDMETHODCALLTYPE GetGCHeapInformation(
-		/* [out] */ COR_HEAPINFO* pHeapInfo) {
-		printf("CordbProcess - GetGCHeapInformation - NOT IMPLEMENTED\n"); 
-		fflush(stdout);
-		return S_OK;
-	}
+	printf("CordbModule - EnableClassLoadCallbacks - NOT IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE EnumerateHeap(
-		/* [out] */ ICorDebugHeapEnum** ppObjects) {
-		printf("CordbProcess - EnumerateHeap - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT CordbModule::GetFunctionFromToken(
+	/* [in] */ mdMethodDef methodDef,
+	/* [out] */ ICorDebugFunction** ppFunction)
+{
+	printf("CordbModule - GetFunctionFromToken - NOT IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE EnumerateHeapRegions(
-		/* [out] */ ICorDebugHeapSegmentEnum** ppRegions) {
-		printf("CordbProcess - EnumerateHeapRegions - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT CordbModule::GetFunctionFromRVA(
+	/* [in] */ CORDB_ADDRESS rva,
+	/* [out] */ ICorDebugFunction** ppFunction)
+{
+	printf("CordbModule - GetFunctionFromRVA - NOT IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE GetObject(
-		/* [in] */ CORDB_ADDRESS addr,
-		/* [out] */ ICorDebugObjectValue** pObject) {
-		printf("CordbProcess - GetObject - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT CordbModule::GetClassFromToken(
+	/* [in] */ mdTypeDef typeDef,
+	/* [out] */ ICorDebugClass** ppClass)
+{
+	printf("CordbModule - GetClassFromToken - NOT IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE EnumerateGCReferences(
-		/* [in] */ BOOL enumerateWeakReferences,
-		/* [out] */ ICorDebugGCReferenceEnum** ppEnum) {
-		printf("CordbProcess - EnumerateGCReferences - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT CordbModule::CreateBreakpoint(
+	/* [out] */ ICorDebugModuleBreakpoint** ppBreakpoint)
+{
+	printf("CordbModule - CreateBreakpoint - NOT IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE EnumerateHandles(
-		/* [in] */ CorGCReferenceType types,
-		/* [out] */ ICorDebugGCReferenceEnum** ppEnum) {
-		printf("CordbProcess - EnumerateHandles - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT CordbModule::GetEditAndContinueSnapshot(
+	/* [out] */ ICorDebugEditAndContinueSnapshot** ppEditAndContinueSnapshot)
+{
+	printf("CordbModule - GetEditAndContinueSnapshot - NOT IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE GetTypeID(
-		/* [in] */ CORDB_ADDRESS obj,
-		/* [out] */ COR_TYPEID* pId) {
-		printf("CordbProcess - GetTypeID - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT CordbModule::GetMetaDataInterface(
+	/* [in] */ REFIID riid,
+	/* [out] */ IUnknown** ppObj)
+{
+	if (pCordbSymbol == NULL)
+		pCordbSymbol = new CordbSymbol(pAssembly);
+	pCordbSymbol->QueryInterface(riid, (void**)ppObj);
+	printf("CordbModule - GetMetaDataInterface - IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE GetTypeForTypeID(
-		/* [in] */ COR_TYPEID id,
-		/* [out] */ ICorDebugType** ppType) {
-		printf("CordbProcess - GetTypeForTypeID - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT CordbModule::GetToken(
+	/* [out] */ mdModule* pToken)
+{
+	printf("CordbModule - GetToken - NOT IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE GetArrayLayout(
-		/* [in] */ COR_TYPEID id,
-		/* [out] */ COR_ARRAY_LAYOUT* pLayout) {
-		printf("CordbProcess - GetArrayLayout - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT CordbModule::IsDynamic(
+	/* [out] */ BOOL* pDynamic)
+{
+	printf("CordbModule - IsDynamic - NOT IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE GetTypeLayout(
-		/* [in] */ COR_TYPEID id,
-		/* [out] */ COR_TYPE_LAYOUT* pLayout) {
-		printf("CordbProcess - GetTypeLayout - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT CordbModule::GetGlobalVariableValue(
+	/* [in] */ mdFieldDef fieldDef,
+	/* [out] */ ICorDebugValue** ppValue)
+{
+	printf("CordbModule - GetGlobalVariableValue - NOT IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE GetTypeFields(
-		/* [in] */ COR_TYPEID id,
-		ULONG32 celt,
-		COR_FIELD fields[],
-		ULONG32* pceltNeeded) {
-		printf("CordbProcess - GetTypeFields - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT CordbModule::GetSize(
+	/* [out] */ ULONG32* pcBytes)
+{
+	printf("CordbModule - GetSize - NOT IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE EnableNGENPolicy(
-		/* [in] */ CorDebugNGENPolicy ePolicy) {
-		printf("CordbProcess - EnableNGENPolicy - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-	virtual HRESULT STDMETHODCALLTYPE Filter(
-		/* [size_is][length_is][in] */ const BYTE pRecord[],
-		/* [in] */ DWORD countBytes,
-		/* [in] */ CorDebugRecordFormat format,
-		/* [in] */ DWORD dwFlags,
-		/* [in] */ DWORD dwThreadId,
-		/* [in] */ ICorDebugManagedCallback* pCallback,
-		/* [out][in] */ CORDB_CONTINUE_STATUS* pContinueStatus) {
-		printf("CordbProcess - Filter - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT CordbModule::IsInMemory(
+	/* [out] */ BOOL* pInMemory)
+{
+	printf("CordbModule - IsInMemory - NOT IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE ProcessStateChanged(
-		/* [in] */ CorDebugStateChange eChange) {
-		printf("CordbProcess - ProcessStateChanged - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-	virtual HRESULT STDMETHODCALLTYPE SetEnableCustomNotification(
-		ICorDebugClass* pClass,
-		BOOL fEnable) {
-		printf("CordbProcess - SetEnableCustomNotification - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-	virtual HRESULT STDMETHODCALLTYPE GetID(
-		/* [out] */ DWORD* pdwProcessId) {
-		printf("CordbProcess - GetID - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+CordbAssembly::CordbAssembly(CordbProcess* process, CordbAppDomain* appDomain, int id_assembly)
+{
+	pProcess = process;
+	pAppDomain = appDomain;
+	id = id_assembly;
+}
+	HRESULT CordbAssembly::IsFullyTrusted(
+	/* [out] */ BOOL* pbFullyTrusted)
+{
+	printf("CorDebugAssembly - IsFullyTrusted - NOT IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE GetHandle(
-		/* [out] */ HPROCESS* phProcessHandle) {
-		printf("CordbProcess - GetHandle - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+	HRESULT CordbAssembly::GetAppDomain(
+	/* [out] */ ICorDebugAppDomain** ppAppDomain)
+{
+	printf("CorDebugAssembly - GetAppDomain - NOT IMPLEMENTED\n");
+	*ppAppDomain = static_cast<ICorDebugAppDomain*>(pAppDomain);
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE GetThread(
-		/* [in] */ DWORD dwThreadId,
-		/* [out] */ ICorDebugThread** ppThread) {
-		printf("CordbProcess - GetThread - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+	HRESULT CordbAssembly::EnumerateModules(
+	/* [out] */ ICorDebugModuleEnum** ppModules)
+{
+	printf("CorDebugAssembly - EnumerateModules - NOT IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE EnumerateObjects(
-		/* [out] */ ICorDebugObjectEnum** ppObjects) {
-		printf("CordbProcess - EnumerateObjects - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+	HRESULT CordbAssembly::GetCodeBase(
+	/* [in] */ ULONG32 cchName,
+	/* [out] */ ULONG32* pcchName,
+	/* [length_is][size_is][out] */ WCHAR szName[])
+{
+	printf("CorDebugAssembly - GetCodeBase - NOT IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE IsTransitionStub(
-		/* [in] */ CORDB_ADDRESS address,
-		/* [out] */ BOOL* pbTransitionStub) {
-		printf("CordbProcess - IsTransitionStub - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+	HRESULT CordbAssembly::GetName(
+	/* [in] */ ULONG32 cchName,
+	/* [out] */ ULONG32* pcchName,
+	/* [length_is][size_is][out] */ WCHAR szName[])
+{
+	printf("CorDebugAssembly - GetName - NOT IMPLEMENTED\n");
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE IsOSSuspended(
-		/* [in] */ DWORD threadID,
-		/* [out] */ BOOL* pbSuspended) {
-		printf("CordbProcess - IsOSSuspended - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetThreadContext(
-		/* [in] */ DWORD threadID,
-		/* [in] */ ULONG32 contextSize,
-		/* [size_is][length_is][out][in] */ BYTE context[]) {
-		printf("CordbProcess - GetThreadContext - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE SetThreadContext(
-		/* [in] */ DWORD threadID,
-		/* [in] */ ULONG32 contextSize,
-		/* [size_is][length_is][in] */ BYTE context[]) {
-		printf("CordbProcess - SetThreadContext - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE ReadMemory(
-		/* [in] */ CORDB_ADDRESS address,
-		/* [in] */ DWORD size,
-		/* [length_is][size_is][out] */ BYTE buffer[],
-		/* [out] */ SIZE_T* read) {
-		printf("CordbProcess - ReadMemory - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE WriteMemory(
-		/* [in] */ CORDB_ADDRESS address,
-		/* [in] */ DWORD size,
-		/* [size_is][in] */ BYTE buffer[],
-		/* [out] */ SIZE_T* written) {
-		printf("CordbProcess - WriteMemory - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE ClearCurrentException(
-		/* [in] */ DWORD threadID) {
-		printf("CordbProcess - ClearCurrentException - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnableLogMessages(
-		/* [in] */ BOOL fOnOff) {
-		printf("CordbProcess - EnableLogMessages - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE ModifyLogSwitch(
-		/* [annotation][in] */
-		_In_  WCHAR* pLogSwitchName,
-		/* [in] */ LONG lLevel) {
-		printf("CordbProcess - ModifyLogSwitch - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE EnumerateAppDomains(
-		/* [out] */ ICorDebugAppDomainEnum** ppAppDomains) {
-		printf("CordbProcess - EnumerateAppDomains - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetObject(
-		/* [out] */ ICorDebugValue** ppObject) {
-		printf("CordbProcess - GetObject - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE ThreadForFiberCookie(
-		/* [in] */ DWORD fiberCookie,
-		/* [out] */ ICorDebugThread** ppThread) {
-		printf("CordbProcess - ThreadForFiberCookie - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetHelperThreadID(
-		/* [out] */ DWORD* pThreadID) {
-		printf("GetHelperThreadID - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-	virtual HRESULT STDMETHODCALLTYPE GetThreadForTaskID(
-		/* [in] */ TASKID taskid,
-		/* [out] */ ICorDebugThread2** ppThread) {
-		printf("CordbProcess - GetHelperThreadID - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetVersion(
-		/* [out] */ COR_VERSION* version) {
-		printf("CordbProcess - GetVersion - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE SetUnmanagedBreakpoint(
-		/* [in] */ CORDB_ADDRESS address,
-		/* [in] */ ULONG32 bufsize,
-		/* [length_is][size_is][out] */ BYTE buffer[],
-		/* [out] */ ULONG32* bufLen) {
-		printf("CordbProcess - SetUnmanagedBreakpoint - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE ClearUnmanagedBreakpoint(
-		/* [in] */ CORDB_ADDRESS address) {
-		printf("CordbProcess - ClearUnmanagedBreakpoint - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE SetDesiredNGENCompilerFlags(
-		/* [in] */ DWORD pdwFlags) {
-		printf("CordbProcess - SetDesiredNGENCompilerFlags - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE GetDesiredNGENCompilerFlags(
-		/* [out] */ DWORD* pdwFlags)
+	HRESULT CordbAssembly::QueryInterface(
+	/* [in] */ REFIID id,
+	/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppInterface)
+{
+	if (id == IID_ICorDebugAssembly)
+		*ppInterface = static_cast<ICorDebugAssembly*>(this);
+	else if (id == IID_ICorDebugAssembly2)
+		*ppInterface = static_cast<ICorDebugAssembly2*>(this);
+	else if (id == IID_IUnknown)
+		*ppInterface = static_cast<IUnknown*>(static_cast<ICorDebugAssembly*>(this));
+	else
 	{
-		printf("CordbProcess - GetDesiredNGENCompilerFlags - NOT IMPLEMENTED\n");
+		printf("CordbAssembly - QueryInterface - E_NOTIMPL - %x - %x - %x - %x\n", ((unsigned long*)&id)[0], ((unsigned long*)&id)[1], ((unsigned long*)&id)[2], ((unsigned long*)&id)[3]);
 		fflush(stdout);
-		return S_OK;
+
+		*ppInterface = NULL;
+		return E_NOINTERFACE;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE GetReferenceValueFromGCHandle(
-		/* [in] */ UINT_PTR handle,
-		/* [out] */ ICorDebugReferenceValue** pOutValue)
+	return S_OK;
+}
+
+	ULONG CordbAssembly::AddRef(void)
+{
+	printf("CordbAssembly - AddRef - NOT IMPLEMENTED\n"); 
+	return S_OK;
+}
+
+	ULONG CordbAssembly::Release(void)
+{
+	printf("CordbAssembly - Release - NOT IMPLEMENTED\n");
+	return S_OK;
+}
+
+	HRESULT CordbProcess::EnumerateLoaderHeapMemoryRegions(
+	/* [out] */ ICorDebugMemoryRangeEnum** ppRanges) {
+	printf("CordbProcess - EnumerateLoaderHeapMemoryRegions - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+	HRESULT CordbProcess::EnableGCNotificationEvents(
+	BOOL fEnable) {
+	printf("CordbProcess - EnableGCNotificationEvents - NOT IMPLEMENTED\n"); 
+	fflush(stdout);
+	return S_OK;
+}
+	HRESULT CordbProcess::EnableExceptionCallbacksOutsideOfMyCode(
+	/* [in] */ BOOL enableExceptionsOutsideOfJMC) {
+	printf("CordbProcess - EnableExceptionCallbacksOutsideOfMyCode - NOT IMPLEMENTED\n"); 
+	fflush(stdout);
+	return S_OK;
+}
+	HRESULT CordbProcess::SetWriteableMetadataUpdateMode(
+	WriteableMetadataUpdateMode flags) {
+	printf("CordbProcess - SetWriteableMetadataUpdateMode - NOT IMPLEMENTED\n"); 
+	fflush(stdout);
+	return S_OK;
+}
+	HRESULT CordbProcess::GetGCHeapInformation(
+	/* [out] */ COR_HEAPINFO* pHeapInfo) {
+	printf("CordbProcess - GetGCHeapInformation - NOT IMPLEMENTED\n"); 
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::EnumerateHeap(
+	/* [out] */ ICorDebugHeapEnum** ppObjects) {
+	printf("CordbProcess - EnumerateHeap - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::EnumerateHeapRegions(
+	/* [out] */ ICorDebugHeapSegmentEnum** ppRegions) {
+	printf("CordbProcess - EnumerateHeapRegions - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::GetObject(
+	/* [in] */ CORDB_ADDRESS addr,
+	/* [out] */ ICorDebugObjectValue** pObject) {
+	printf("CordbProcess - GetObject - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::EnumerateGCReferences(
+	/* [in] */ BOOL enumerateWeakReferences,
+	/* [out] */ ICorDebugGCReferenceEnum** ppEnum) {
+	printf("CordbProcess - EnumerateGCReferences - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::EnumerateHandles(
+	/* [in] */ CorGCReferenceType types,
+	/* [out] */ ICorDebugGCReferenceEnum** ppEnum) {
+	printf("CordbProcess - EnumerateHandles - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::GetTypeID(
+	/* [in] */ CORDB_ADDRESS obj,
+	/* [out] */ COR_TYPEID* pId) {
+	printf("CordbProcess - GetTypeID - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::GetTypeForTypeID(
+	/* [in] */ COR_TYPEID id,
+	/* [out] */ ICorDebugType** ppType) {
+	printf("CordbProcess - GetTypeForTypeID - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::GetArrayLayout(
+	/* [in] */ COR_TYPEID id,
+	/* [out] */ COR_ARRAY_LAYOUT* pLayout) {
+	printf("CordbProcess - GetArrayLayout - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::GetTypeLayout(
+	/* [in] */ COR_TYPEID id,
+	/* [out] */ COR_TYPE_LAYOUT* pLayout) {
+	printf("CordbProcess - GetTypeLayout - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::GetTypeFields(
+	/* [in] */ COR_TYPEID id,
+	ULONG32 celt,
+	COR_FIELD fields[],
+	ULONG32* pceltNeeded) {
+	printf("CordbProcess - GetTypeFields - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::EnableNGENPolicy(
+	/* [in] */ CorDebugNGENPolicy ePolicy) {
+	printf("CordbProcess - EnableNGENPolicy - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+	HRESULT CordbProcess::Filter(
+	/* [size_is][length_is][in] */ const BYTE pRecord[],
+	/* [in] */ DWORD countBytes,
+	/* [in] */ CorDebugRecordFormat format,
+	/* [in] */ DWORD dwFlags,
+	/* [in] */ DWORD dwThreadId,
+	/* [in] */ ICorDebugManagedCallback* pCallback,
+	/* [out][in] */ CORDB_CONTINUE_STATUS* pContinueStatus) {
+	printf("CordbProcess - Filter - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::ProcessStateChanged(
+	/* [in] */ CorDebugStateChange eChange) {
+	printf("CordbProcess - ProcessStateChanged - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+	HRESULT CordbProcess::SetEnableCustomNotification(
+	ICorDebugClass* pClass,
+	BOOL fEnable) {
+	printf("CordbProcess - SetEnableCustomNotification - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+	HRESULT CordbProcess::GetID(
+	/* [out] */ DWORD* pdwProcessId) {
+	printf("CordbProcess - GetID - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::GetHandle(
+	/* [out] */ HPROCESS* phProcessHandle) {
+	printf("CordbProcess - GetHandle - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::GetThread(
+	/* [in] */ DWORD dwThreadId,
+	/* [out] */ ICorDebugThread** ppThread) {
+	printf("CordbProcess - GetThread - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::EnumerateObjects(
+	/* [out] */ ICorDebugObjectEnum** ppObjects) {
+	printf("CordbProcess - EnumerateObjects - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::IsTransitionStub(
+	/* [in] */ CORDB_ADDRESS address,
+	/* [out] */ BOOL* pbTransitionStub) {
+	printf("CordbProcess - IsTransitionStub - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::IsOSSuspended(
+	/* [in] */ DWORD threadID,
+	/* [out] */ BOOL* pbSuspended) {
+	printf("CordbProcess - IsOSSuspended - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::GetThreadContext(
+	/* [in] */ DWORD threadID,
+	/* [in] */ ULONG32 contextSize,
+	/* [size_is][length_is][out][in] */ BYTE context[]) {
+	printf("CordbProcess - GetThreadContext - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::SetThreadContext(
+	/* [in] */ DWORD threadID,
+	/* [in] */ ULONG32 contextSize,
+	/* [size_is][length_is][in] */ BYTE context[]) {
+	printf("CordbProcess - SetThreadContext - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::ReadMemory(
+	/* [in] */ CORDB_ADDRESS address,
+	/* [in] */ DWORD size,
+	/* [length_is][size_is][out] */ BYTE buffer[],
+	/* [out] */ SIZE_T* read) {
+	printf("CordbProcess - ReadMemory - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::WriteMemory(
+	/* [in] */ CORDB_ADDRESS address,
+	/* [in] */ DWORD size,
+	/* [size_is][in] */ BYTE buffer[],
+	/* [out] */ SIZE_T* written) {
+	printf("CordbProcess - WriteMemory - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::ClearCurrentException(
+	/* [in] */ DWORD threadID) {
+	printf("CordbProcess - ClearCurrentException - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::EnableLogMessages(
+	/* [in] */ BOOL fOnOff) {
+	printf("CordbProcess - EnableLogMessages - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::ModifyLogSwitch(
+	/* [annotation][in] */
+	_In_  WCHAR* pLogSwitchName,
+	/* [in] */ LONG lLevel) {
+	printf("CordbProcess - ModifyLogSwitch - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::EnumerateAppDomains(
+	/* [out] */ ICorDebugAppDomainEnum** ppAppDomains) {
+	printf("CordbProcess - EnumerateAppDomains - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::GetObject(
+	/* [out] */ ICorDebugValue** ppObject) {
+	printf("CordbProcess - GetObject - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::ThreadForFiberCookie(
+	/* [in] */ DWORD fiberCookie,
+	/* [out] */ ICorDebugThread** ppThread) {
+	printf("CordbProcess - ThreadForFiberCookie - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::GetHelperThreadID(
+	/* [out] */ DWORD* pThreadID) {
+	printf("GetHelperThreadID - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+	HRESULT CordbProcess::GetThreadForTaskID(
+	/* [in] */ TASKID taskid,
+	/* [out] */ ICorDebugThread2** ppThread) {
+	printf("CordbProcess - GetHelperThreadID - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::GetVersion(
+	/* [out] */ COR_VERSION* version) {
+	printf("CordbProcess - GetVersion - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::SetUnmanagedBreakpoint(
+	/* [in] */ CORDB_ADDRESS address,
+	/* [in] */ ULONG32 bufsize,
+	/* [length_is][size_is][out] */ BYTE buffer[],
+	/* [out] */ ULONG32* bufLen) {
+	printf("CordbProcess - SetUnmanagedBreakpoint - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::ClearUnmanagedBreakpoint(
+	/* [in] */ CORDB_ADDRESS address) {
+	printf("CordbProcess - ClearUnmanagedBreakpoint - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::SetDesiredNGENCompilerFlags(
+	/* [in] */ DWORD pdwFlags) {
+	printf("CordbProcess - SetDesiredNGENCompilerFlags - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::GetDesiredNGENCompilerFlags(
+	/* [out] */ DWORD* pdwFlags)
+{
+	printf("CordbProcess - GetDesiredNGENCompilerFlags - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::GetReferenceValueFromGCHandle(
+	/* [in] */ UINT_PTR handle,
+	/* [out] */ ICorDebugReferenceValue** pOutValue)
+{
+	printf("CordbProcess - GetReferenceValueFromGCHandle - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+	HRESULT CordbProcess::QueryInterface(
+	/* [in] */ REFIID id,
+	/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface)
+{
+	if (id == IID_ICorDebugProcess)
 	{
-		printf("CordbProcess - GetReferenceValueFromGCHandle - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
+		*pInterface = static_cast<ICorDebugProcess*>(this);
 	}
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(
-		/* [in] */ REFIID id,
-		/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface)
+	else if (id == IID_ICorDebugController)
 	{
-		if (id == IID_ICorDebugProcess)
-		{
-			*pInterface = static_cast<ICorDebugProcess*>(this);
-		}
-		else if (id == IID_ICorDebugController)
-		{
-			*pInterface = static_cast<ICorDebugController*>(static_cast<ICorDebugProcess*>(this));
-		}
-		else if (id == IID_ICorDebugProcess2)
-
-		{
-			*pInterface = static_cast<ICorDebugProcess2*>(this);
-		}
-		else if (id == IID_ICorDebugProcess3)
-		{
-			*pInterface = static_cast<ICorDebugProcess3*>(this);
-		}
-		else if (id == IID_ICorDebugProcess4)
-		{
-			*pInterface = static_cast<ICorDebugProcess4*>(this);
-		}
-		else if (id == IID_ICorDebugProcess5)
-		{
-			*pInterface = static_cast<ICorDebugProcess5*>(this);
-		}
-		else if (id == IID_ICorDebugProcess7)
-		{
-			*pInterface = static_cast<ICorDebugProcess7*>(this);
-		}
-		else if (id == IID_ICorDebugProcess8)
-		{
-			*pInterface = static_cast<ICorDebugProcess8*>(this);
-		}
-		else if (id == IID_ICorDebugProcess10)
-		{
-			*pInterface = static_cast<ICorDebugProcess10*>(this);
-		}
-		else if (id == IID_ICorDebugProcess11)
-		{
-			*pInterface = static_cast<ICorDebugProcess11*>(this);
-		}
-		else if (id == IID_IUnknown)
-		{
-			*pInterface = static_cast<IUnknown*>(static_cast<ICorDebugProcess*>(this));
-		}
-
-		else
-		{
-			printf("CordbProcess - QueryInterface - E_NOTIMPL - %x - %x - %x - %x\n", ((unsigned long*)&id)[0], ((unsigned long*)&id)[1], ((unsigned long*)&id)[2], ((unsigned long*)&id)[3]);
-			fflush(stdout);
-
-			*pInterface = NULL;
-			return E_NOINTERFACE;
-		}
-
-		return S_OK;
+		*pInterface = static_cast<ICorDebugController*>(static_cast<ICorDebugProcess*>(this));
 	}
+	else if (id == IID_ICorDebugProcess2)
 
-	virtual ULONG STDMETHODCALLTYPE AddRef(void)
 	{
-		printf("CordbProcess - AddRef - NOT IMPLEMENTED\n");		
-		fflush(stdout);
-		return S_OK;
+		*pInterface = static_cast<ICorDebugProcess2*>(this);
 	}
-
-	virtual ULONG STDMETHODCALLTYPE Release(void)
+	else if (id == IID_ICorDebugProcess3)
 	{
-		printf("CordbProcess - Release - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
+		*pInterface = static_cast<ICorDebugProcess3*>(this);
 	}
-	virtual HRESULT STDMETHODCALLTYPE Stop(
-		/* [in] */ DWORD dwTimeoutIgnored) {
-		printf("CordbProcess - Stop - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE Continue(
-		/* [in] */ BOOL fIsOutOfBand)
+	else if (id == IID_ICorDebugProcess4)
 	{
-		printf("CordbProcess - Continue - IMPLEMENTED\n");
-		fflush(stdout);
-		Buffer sendbuf;
-		buffer_init(&sendbuf, 128);
-		connection->send_event(CMD_SET_VM, CMD_VM_RESUME, &sendbuf);
-		return S_OK;
+		*pInterface = static_cast<ICorDebugProcess4*>(this);
+	}
+	else if (id == IID_ICorDebugProcess5)
+	{
+		*pInterface = static_cast<ICorDebugProcess5*>(this);
+	}
+	else if (id == IID_ICorDebugProcess7)
+	{
+		*pInterface = static_cast<ICorDebugProcess7*>(this);
+	}
+	else if (id == IID_ICorDebugProcess8)
+	{
+		*pInterface = static_cast<ICorDebugProcess8*>(this);
+	}
+	else if (id == IID_ICorDebugProcess10)
+	{
+		*pInterface = static_cast<ICorDebugProcess10*>(this);
+	}
+	else if (id == IID_ICorDebugProcess11)
+	{
+		*pInterface = static_cast<ICorDebugProcess11*>(this);
+	}
+	else if (id == IID_IUnknown)
+	{
+		*pInterface = static_cast<IUnknown*>(static_cast<ICorDebugProcess*>(this));
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE IsRunning(
-		/* [out] */ BOOL* pbRunning) {
-		printf("CordbProcess - IsRunning - NOT IMPLEMENTED\n");
+	else
+	{
+		printf("CordbProcess - QueryInterface - E_NOTIMPL - %x - %x - %x - %x\n", ((unsigned long*)&id)[0], ((unsigned long*)&id)[1], ((unsigned long*)&id)[2], ((unsigned long*)&id)[3]);
 		fflush(stdout);
-		return S_OK;
+
+		*pInterface = NULL;
+		return E_NOINTERFACE;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE HasQueuedCallbacks(
-		/* [in] */ ICorDebugThread* pThread,
-		/* [out] */ BOOL* pbQueued) {
-		printf("CordbProcess - HasQueuedCallbacks - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE EnumerateThreads(
-		/* [out] */ ICorDebugThreadEnum** ppThreads) {
-		printf("CordbProcess - EnumerateThreads - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+	ULONG CordbProcess::AddRef(void)
+{
+	printf("CordbProcess - AddRef - NOT IMPLEMENTED\n");		
+	fflush(stdout);
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE SetAllThreadsDebugState(
-		/* [in] */ CorDebugThreadState state,
-		/* [in] */ ICorDebugThread* pExceptThisThread) {
-		printf("CordbProcess - SetAllThreadsDebugState - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+	ULONG CordbProcess::Release(void)
+{
+	printf("CordbProcess - Release - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+	HRESULT CordbProcess::Stop(
+	/* [in] */ DWORD dwTimeoutIgnored) {
+	printf("CordbProcess - Stop - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE Detach(void) {
-		printf("CordbProcess - Detach - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+	HRESULT CordbProcess::Continue(
+	/* [in] */ BOOL fIsOutOfBand)
+{
+	printf("CordbProcess - Continue - IMPLEMENTED\n");
+	fflush(stdout);
+	Buffer sendbuf;
+	buffer_init(&sendbuf, 128);
+	connection->send_event(CMD_SET_VM, CMD_VM_RESUME, &sendbuf);
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE Terminate(
-		/* [in] */ UINT exitCode) {
-		printf("CordbProcess - Terminate - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+	HRESULT CordbProcess::IsRunning(
+	/* [out] */ BOOL* pbRunning) {
+	printf("CordbProcess - IsRunning - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE CanCommitChanges(
-		/* [in] */ ULONG cSnapshots,
-		/* [size_is][in] */ ICorDebugEditAndContinueSnapshot* pSnapshots[],
-		/* [out] */ ICorDebugErrorInfoEnum** pError) {
-		printf("CordbProcess - CanCommitChanges - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+	HRESULT CordbProcess::HasQueuedCallbacks(
+	/* [in] */ ICorDebugThread* pThread,
+	/* [out] */ BOOL* pbQueued) {
+	printf("CordbProcess - HasQueuedCallbacks - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
 
-	virtual HRESULT STDMETHODCALLTYPE CommitChanges(
-		/* [in] */ ULONG cSnapshots,
-		/* [size_is][in] */ ICorDebugEditAndContinueSnapshot* pSnapshots[],
-		/* [out] */ ICorDebugErrorInfoEnum** pError) {
-		printf("CordbProcess - CommitChanges - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-};
+	HRESULT CordbProcess::EnumerateThreads(
+	/* [out] */ ICorDebugThreadEnum** ppThreads) {
+	printf("CordbProcess - EnumerateThreads - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::SetAllThreadsDebugState(
+	/* [in] */ CorDebugThreadState state,
+	/* [in] */ ICorDebugThread* pExceptThisThread) {
+	printf("CordbProcess - SetAllThreadsDebugState - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::Detach(void) {
+	printf("CordbProcess - Detach - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::Terminate(
+	/* [in] */ UINT exitCode) {
+	printf("CordbProcess - Terminate - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::CanCommitChanges(
+	/* [in] */ ULONG cSnapshots,
+	/* [size_is][in] */ ICorDebugEditAndContinueSnapshot* pSnapshots[],
+	/* [out] */ ICorDebugErrorInfoEnum** pError) {
+	printf("CordbProcess - CanCommitChanges - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+	HRESULT CordbProcess::CommitChanges(
+	/* [in] */ ULONG cSnapshots,
+	/* [size_is][in] */ ICorDebugEditAndContinueSnapshot* pSnapshots[],
+	/* [out] */ ICorDebugErrorInfoEnum** pError) {
+	printf("CordbProcess - CommitChanges - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
 
 MONO_API HRESULT CoreCLRCreateCordbObjectEx(int iDebuggerVersion, DWORD pid, LPCWSTR lpApplicationGroupId, HMODULE hmodTargetCLR, void** ppCordb)
 {
@@ -2296,21 +2171,21 @@ class Cordb : public ICorDebug, public ICorDebugRemote
 {
 public:
 	ICorDebugManagedCallback* pCallback;
-	virtual HRESULT STDMETHODCALLTYPE Initialize(void)
+	 HRESULT Cordb::Initialize(void)
 	{
 		printf("Cordb - Initialize - NOT IMPLEMENTED\n");
 		fflush(stdout);
 		return S_OK;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE Terminate(void)
+	 HRESULT Cordb::Terminate(void)
 	{
 		printf("Cordb - Terminate - NOT IMPLEMENTED\n");
 		fflush(stdout);
 		return S_OK;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE SetManagedHandler(
+	 HRESULT Cordb::SetManagedHandler(
 		/* [in] */ ICorDebugManagedCallback* pCallback)
 	{
 		printf("Cordb - SetManagedHandler - IMPLEMENTED\n");
@@ -2320,7 +2195,7 @@ public:
 		return S_OK;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE SetUnmanagedHandler(
+	 HRESULT Cordb::SetUnmanagedHandler(
 		/* [in] */ ICorDebugUnmanagedCallback* pCallback)
 	{
 		printf("Cordb - SetUnmanagedHandler - NOT IMPLEMENTED\n");
@@ -2328,7 +2203,7 @@ public:
 		return S_OK;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE CreateProcess(
+	 HRESULT Cordb::CreateProcess(
 		/* [in] */ LPCWSTR lpApplicationName,
 		/* [in] */ LPWSTR lpCommandLine,
 		/* [in] */ LPSECURITY_ATTRIBUTES lpProcessAttributes,
@@ -2347,7 +2222,7 @@ public:
 		return S_OK;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE DebugActiveProcess(
+	 HRESULT Cordb::DebugActiveProcess(
 		/* [in] */ DWORD id,
 		/* [in] */ BOOL win32Attach,
 		/* [out] */ ICorDebugProcess** ppProcess)
@@ -2363,7 +2238,7 @@ public:
 		return S_OK;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE EnumerateProcesses(
+	 HRESULT Cordb::EnumerateProcesses(
 		/* [out] */ ICorDebugProcessEnum** ppProcess)
 	{
 		printf("Cordb - EnumerateProcesses - NOT IMPLEMENTED\n");
@@ -2371,7 +2246,7 @@ public:
 		return S_OK;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE GetProcess(
+	 HRESULT Cordb::GetProcess(
 		/* [in] */ DWORD dwProcessId,
 		/* [out] */ ICorDebugProcess** ppProcess)
 	{
@@ -2380,7 +2255,7 @@ public:
 		return S_OK;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE CanLaunchOrAttach(
+	 HRESULT Cordb::CanLaunchOrAttach(
 		/* [in] */ DWORD dwProcessId,
 		/* [in] */ BOOL win32DebuggingEnabled)
 	{
@@ -2388,7 +2263,7 @@ public:
 		fflush(stdout);
 		return S_OK;
 	}
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(
+	 HRESULT Cordb::QueryInterface(
 		/* [in] */ REFIID riid,
 		/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject)
 	{
@@ -2397,20 +2272,20 @@ public:
 		return S_OK;
 	}
 
-	virtual ULONG STDMETHODCALLTYPE AddRef(void)
+	 ULONG Cordb::AddRef(void)
 	{
 		printf("Cordb - AddRef - NOT IMPLEMENTED\n");
 		fflush(stdout);
 		return S_OK;
 	}
 
-	virtual ULONG STDMETHODCALLTYPE Release(void)
+	 ULONG Cordb::Release(void)
 	{
 		printf("Cordb - Release - NOT IMPLEMENTED\n");
 		fflush(stdout);
 		return S_OK;
 	}
-	virtual HRESULT STDMETHODCALLTYPE CreateProcessEx(
+	 HRESULT Cordb::CreateProcessEx(
 		/* [in] */ ICorDebugRemoteTarget* pRemoteTarget,
 		/* [in] */ LPCWSTR lpApplicationName,
 		/* [annotation][in] */
@@ -2431,7 +2306,7 @@ public:
 		return S_OK;
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE DebugActiveProcessEx(
+	 HRESULT Cordb::DebugActiveProcessEx(
 		/* [in] */ ICorDebugRemoteTarget* pRemoteTarget,
 		/* [in] */ DWORD dwProcessId,
 		/* [in] */ BOOL fWin32Attach,
@@ -2752,7 +2627,7 @@ MONO_API HRESULT CreateCordbObject(int iDebuggerVersion, void** ppCordb)
 }
 
 
-HRESULT STDMETHODCALLTYPE CordbModule::GetAssembly(
+HRESULT CordbModule::GetAssembly(
 	/* [out] */ ICorDebugAssembly** ppAssembly)
 {
 	printf("CordbModule - GetAssembly\n");
@@ -2760,7 +2635,7 @@ HRESULT STDMETHODCALLTYPE CordbModule::GetAssembly(
 	return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE CordbAssembly::GetProcess(
+HRESULT CordbAssembly::GetProcess(
 	/* [out] */ ICorDebugProcess** ppProcess)
 {
 	printf("CorDebugAssembly - GetProcess\n");
