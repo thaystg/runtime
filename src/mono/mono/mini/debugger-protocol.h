@@ -257,6 +257,7 @@ int decode_int (guint8 *buf, guint8 **endbuf, guint8 *limit);
 gint64 decode_long (guint8 *buf, guint8 **endbuf, guint8 *limit);
 int decode_id (guint8 *buf, guint8 **endbuf, guint8 *limit);
 char* decode_string (guint8 *buf, guint8 **endbuf, guint8 *limit);
+guint8* decode_byte_array(guint8* buf, guint8** endbuf, guint8* limit, guint32* len);
 
 /*
  * Functions to encode protocol data

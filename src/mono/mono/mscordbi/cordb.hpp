@@ -38,6 +38,86 @@ class Cordb;
 class CordbProcess;
 class CordbAppDomain;
 class CordbAssembly;
+class CordbCode;
+class CordbThread;
+class CordbFunction;
+
+class Cordb : public ICorDebug, public ICorDebugRemote
+{
+public:
+    GPtrArray* breakpoints;
+    GPtrArray* threads;
+    GPtrArray* functions;
+    ICorDebugManagedCallback* pCallback;
+    Cordb();
+
+    CordbFunction* findFunction(int id);
+    HRESULT Initialize(void);
+
+    HRESULT Terminate(void);
+
+    HRESULT SetManagedHandler(
+        /* [in] */ ICorDebugManagedCallback* pCallback);
+
+    HRESULT SetUnmanagedHandler(
+        /* [in] */ ICorDebugUnmanagedCallback* pCallback);
+
+    HRESULT CreateProcess(
+        /* [in] */ LPCWSTR lpApplicationName,
+        /* [in] */ LPWSTR lpCommandLine,
+        /* [in] */ LPSECURITY_ATTRIBUTES lpProcessAttributes,
+        /* [in] */ LPSECURITY_ATTRIBUTES lpThreadAttributes,
+        /* [in] */ BOOL bInheritHandles,
+        /* [in] */ DWORD dwCreationFlags,
+        /* [in] */ PVOID lpEnvironment,
+        /* [in] */ LPCWSTR lpCurrentDirectory,
+        /* [in] */ LPSTARTUPINFOW lpStartupInfo,
+        /* [in] */ LPPROCESS_INFORMATION lpProcessInformation,
+        /* [in] */ CorDebugCreateProcessFlags debuggingFlags,
+        /* [out] */ ICorDebugProcess** ppProcess);
+
+    HRESULT DebugActiveProcess(
+        /* [in] */ DWORD id,
+        /* [in] */ BOOL win32Attach,
+        /* [out] */ ICorDebugProcess** ppProcess);
+    HRESULT EnumerateProcesses(
+        /* [out] */ ICorDebugProcessEnum** ppProcess);
+
+    HRESULT GetProcess(
+        /* [in] */ DWORD dwProcessId,
+        /* [out] */ ICorDebugProcess** ppProcess);
+
+    HRESULT CanLaunchOrAttach(
+        /* [in] */ DWORD dwProcessId,
+        /* [in] */ BOOL win32DebuggingEnabled);
+    HRESULT QueryInterface(
+        /* [in] */ REFIID riid,
+        /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject);
+
+    ULONG AddRef(void);
+    ULONG Release(void);
+    HRESULT CreateProcessEx(
+        /* [in] */ ICorDebugRemoteTarget* pRemoteTarget,
+        /* [in] */ LPCWSTR lpApplicationName,
+        /* [annotation][in] */
+        _In_  LPWSTR lpCommandLine,
+        /* [in] */ LPSECURITY_ATTRIBUTES lpProcessAttributes,
+        /* [in] */ LPSECURITY_ATTRIBUTES lpThreadAttributes,
+        /* [in] */ BOOL bInheritHandles,
+        /* [in] */ DWORD dwCreationFlags,
+        /* [in] */ PVOID lpEnvironment,
+        /* [in] */ LPCWSTR lpCurrentDirectory,
+        /* [in] */ LPSTARTUPINFOW lpStartupInfo,
+        /* [in] */ LPPROCESS_INFORMATION lpProcessInformation,
+        /* [in] */ CorDebugCreateProcessFlags debuggingFlags,
+        /* [out] */ ICorDebugProcess** ppProcess);
+
+    HRESULT DebugActiveProcessEx(
+        /* [in] */ ICorDebugRemoteTarget* pRemoteTarget,
+        /* [in] */ DWORD dwProcessId,
+        /* [in] */ BOOL fWin32Attach,
+        /* [out] */ ICorDebugProcess** ppProcess);
+};
 
 class Connection
 {
@@ -60,7 +140,8 @@ public:
 	void receive_packet(Buffer& b, int len);
 	void receive_header(Header* header);
 	int send_event(int cmd_set, int cmd, Buffer* sendbuf);
-	int process_packet();
+	int process_packet(bool is_answer = false);
+    CordbThread* findThread(GPtrArray *threads, long thread_id);
 };
 
 static Connection* connection;
@@ -845,6 +926,9 @@ public:
 	CordbProcess* pProcess;
 	CordbSymbol* pCordbSymbol;
 	CordbAssembly* pAssembly;
+    guint8* assembly_metadata_blob;
+    guint32 assembly_metadata_len;
+
     CordbModule(CordbProcess* process, CordbAssembly* assembly, int id_assembly);
 
     HRESULT CordbModule::QueryInterface(REFIID id, void** pInterface);
@@ -989,7 +1073,12 @@ class CordbProcess :
 	public ICorDebugProcess11
 {
 public:
+    int suspended;
 	Cordb* cordb;
+    CordbProcess()
+    {
+        suspended = 0;
+    }
      HRESULT STDMETHODCALLTYPE EnumerateLoaderHeapMemoryRegions(
         /* [out] */ ICorDebugMemoryRangeEnum** ppRanges);
      HRESULT STDMETHODCALLTYPE EnableGCNotificationEvents(
@@ -1151,6 +1240,309 @@ public:
         /* [in] */ ULONG cSnapshots,
         /* [size_is][in] */ ICorDebugEditAndContinueSnapshot* pSnapshots[],
         /* [out] */ ICorDebugErrorInfoEnum** pError);
+};
+
+class CordbFunction :
+    public ICorDebugFunction,
+    public ICorDebugFunction2,
+    public ICorDebugFunction3,
+    public ICorDebugFunction4
+{
+public:
+    int id;
+    mdToken token;
+    CordbCode* code;
+    CordbModule* module;
+
+    CordbFunction(mdToken token, int id, CordbModule *module);
+    HRESULT STDMETHODCALLTYPE QueryInterface(
+        /* [in] */ REFIID id,
+        /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface);
+    ULONG STDMETHODCALLTYPE AddRef(void);
+    ULONG STDMETHODCALLTYPE Release(void);
+    HRESULT STDMETHODCALLTYPE GetModule(
+        /* [out] */ ICorDebugModule** ppModule);
+
+    HRESULT STDMETHODCALLTYPE GetClass(
+        /* [out] */ ICorDebugClass** ppClass);
+
+    HRESULT STDMETHODCALLTYPE GetToken(
+        /* [out] */ mdMethodDef* pMethodDef);
+
+    HRESULT STDMETHODCALLTYPE GetILCode(
+        /* [out] */ ICorDebugCode** ppCode);
+
+    HRESULT STDMETHODCALLTYPE GetNativeCode(
+        /* [out] */ ICorDebugCode** ppCode);
+
+    HRESULT STDMETHODCALLTYPE CreateBreakpoint(
+        /* [out] */ ICorDebugFunctionBreakpoint** ppBreakpoint);
+
+    HRESULT STDMETHODCALLTYPE GetLocalVarSigToken(
+        /* [out] */ mdSignature* pmdSig);
+
+    HRESULT STDMETHODCALLTYPE GetCurrentVersionNumber(
+        /* [out] */ ULONG32* pnCurrentVersion);
+    HRESULT STDMETHODCALLTYPE SetJMCStatus(
+        /* [in] */ BOOL bIsJustMyCode);
+
+    HRESULT STDMETHODCALLTYPE GetJMCStatus(
+        /* [out] */ BOOL* pbIsJustMyCode);
+
+    HRESULT STDMETHODCALLTYPE EnumerateNativeCode(
+        /* [out] */ ICorDebugCodeEnum** ppCodeEnum);
+
+    HRESULT STDMETHODCALLTYPE GetVersionNumber(
+        /* [out] */ ULONG32* pnVersion);
+    HRESULT STDMETHODCALLTYPE GetActiveReJitRequestILCode(
+        ICorDebugILCode** ppReJitedILCode);
+    HRESULT STDMETHODCALLTYPE CreateNativeBreakpoint(
+        ICorDebugFunctionBreakpoint** ppBreakpoint);
+};
+
+class CordbCode :
+    public ICorDebugCode
+{
+public:
+    CordbFunction* func;
+    CordbCode(CordbFunction* func);
+    HRESULT STDMETHODCALLTYPE IsIL(
+        /* [out] */ BOOL* pbIL);
+
+    HRESULT STDMETHODCALLTYPE GetFunction(
+        /* [out] */ ICorDebugFunction** ppFunction);
+
+    HRESULT STDMETHODCALLTYPE GetAddress(
+        /* [out] */ CORDB_ADDRESS* pStart);
+
+    HRESULT STDMETHODCALLTYPE GetSize(
+        /* [out] */ ULONG32* pcBytes);
+
+    HRESULT STDMETHODCALLTYPE CreateBreakpoint(
+        /* [in] */ ULONG32 offset,
+        /* [out] */ ICorDebugFunctionBreakpoint** ppBreakpoint);
+
+    HRESULT STDMETHODCALLTYPE GetCode(
+        /* [in] */ ULONG32 startOffset,
+        /* [in] */ ULONG32 endOffset,
+        /* [in] */ ULONG32 cBufferAlloc,
+        /* [length_is][size_is][out] */ BYTE buffer[],
+        /* [out] */ ULONG32* pcBufferSize);
+
+    HRESULT STDMETHODCALLTYPE GetVersionNumber(
+        /* [out] */ ULONG32* nVersion);
+
+    HRESULT STDMETHODCALLTYPE GetILToNativeMapping(
+        /* [in] */ ULONG32 cMap,
+        /* [out] */ ULONG32* pcMap,
+        /* [length_is][size_is][out] */ COR_DEBUG_IL_TO_NATIVE_MAP map[]);
+
+    HRESULT STDMETHODCALLTYPE GetEnCRemapSequencePoints(
+        /* [in] */ ULONG32 cMap,
+        /* [out] */ ULONG32* pcMap,
+        /* [length_is][size_is][out] */ ULONG32 offsets[]);
+
+    HRESULT STDMETHODCALLTYPE QueryInterface(
+        /* [in] */ REFIID id,
+        /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface);
+    ULONG STDMETHODCALLTYPE AddRef(void);
+    ULONG STDMETHODCALLTYPE Release(void);
+};
+
+class CordbFunctionBreakpoint :
+    public ICorDebugFunctionBreakpoint
+{
+public:
+    CordbCode* code;
+    ULONG32 offset;
+    CordbFunctionBreakpoint(CordbCode* code, ULONG32 offset);
+    HRESULT STDMETHODCALLTYPE GetFunction(
+        /* [out] */ ICorDebugFunction** ppFunction);
+
+    HRESULT STDMETHODCALLTYPE GetOffset(
+        /* [out] */ ULONG32* pnOffset);
+
+    HRESULT STDMETHODCALLTYPE Activate(
+        /* [in] */ BOOL bActive);
+
+    HRESULT STDMETHODCALLTYPE IsActive(
+        /* [out] */ BOOL* pbActive);
+
+    HRESULT STDMETHODCALLTYPE QueryInterface(
+        /* [in] */ REFIID id,
+        /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface);
+    ULONG STDMETHODCALLTYPE AddRef(void);
+    ULONG STDMETHODCALLTYPE Release(void);
+};
+
+class CordbThread :
+    public ICorDebugThread,
+    public ICorDebugThread2,
+    public ICorDebugThread3,
+    public ICorDebugThread4
+{
+public:
+    long thread_id;
+    CordbProcess* ppProcess;
+    CordbThread(CordbProcess *ppProcess, long thread_id);
+    HRESULT STDMETHODCALLTYPE HasUnhandledException(void);
+
+    HRESULT STDMETHODCALLTYPE GetBlockingObjects(
+        /* [out] */ ICorDebugBlockingObjectEnum** ppBlockingObjectEnum);
+
+    HRESULT STDMETHODCALLTYPE GetCurrentCustomDebuggerNotification(
+        /* [out] */ ICorDebugValue** ppNotificationObject);
+
+    HRESULT STDMETHODCALLTYPE CreateStackWalk(
+        /* [out] */ ICorDebugStackWalk** ppStackWalk);
+
+    HRESULT STDMETHODCALLTYPE GetActiveInternalFrames(
+        /* [in] */ ULONG32 cInternalFrames,
+        /* [out] */ ULONG32* pcInternalFrames,
+        /* [length_is][size_is][out][in] */ ICorDebugInternalFrame2* ppInternalFrames[]);
+
+    HRESULT STDMETHODCALLTYPE GetActiveFunctions(
+        /* [in] */ ULONG32 cFunctions,
+        /* [out] */ ULONG32* pcFunctions,
+        /* [length_is][size_is][out][in] */ COR_ACTIVE_FUNCTION pFunctions[]);
+
+    HRESULT STDMETHODCALLTYPE GetConnectionID(
+        /* [out] */ CONNID* pdwConnectionId);
+
+    HRESULT STDMETHODCALLTYPE GetTaskID(
+        /* [out] */ TASKID* pTaskId);
+
+    HRESULT STDMETHODCALLTYPE GetVolatileOSThreadID(
+        /* [out] */ DWORD* pdwTid);
+
+    HRESULT STDMETHODCALLTYPE InterceptCurrentException(
+
+        /* [in] */ ICorDebugFrame* pFrame);
+    HRESULT STDMETHODCALLTYPE GetProcess(
+        /* [out] */ ICorDebugProcess** ppProcess);
+
+    HRESULT STDMETHODCALLTYPE GetID(
+        /* [out] */ DWORD* pdwThreadId);
+
+    HRESULT STDMETHODCALLTYPE GetHandle(
+        /* [out] */ HTHREAD* phThreadHandle);
+
+    HRESULT STDMETHODCALLTYPE GetAppDomain(
+        /* [out] */ ICorDebugAppDomain** ppAppDomain);
+
+    HRESULT STDMETHODCALLTYPE SetDebugState(
+        /* [in] */ CorDebugThreadState state);
+
+    HRESULT STDMETHODCALLTYPE GetDebugState(
+        /* [out] */ CorDebugThreadState* pState);
+
+    HRESULT STDMETHODCALLTYPE GetUserState(
+        /* [out] */ CorDebugUserState* pState);
+
+    HRESULT STDMETHODCALLTYPE GetCurrentException(
+        /* [out] */ ICorDebugValue** ppExceptionObject);
+
+    HRESULT STDMETHODCALLTYPE ClearCurrentException(void);
+
+    HRESULT STDMETHODCALLTYPE CreateStepper(
+        /* [out] */ ICorDebugStepper** ppStepper);
+
+    HRESULT STDMETHODCALLTYPE EnumerateChains(
+        /* [out] */ ICorDebugChainEnum** ppChains);
+
+    HRESULT STDMETHODCALLTYPE GetActiveChain(
+        /* [out] */ ICorDebugChain** ppChain);
+
+    HRESULT STDMETHODCALLTYPE GetActiveFrame(
+        /* [out] */ ICorDebugFrame** ppFrame);
+
+    HRESULT STDMETHODCALLTYPE GetRegisterSet(
+        /* [out] */ ICorDebugRegisterSet** ppRegisters);
+
+    HRESULT STDMETHODCALLTYPE CreateEval(
+        /* [out] */ ICorDebugEval** ppEval);
+
+    HRESULT STDMETHODCALLTYPE GetObject(
+        /* [out] */ ICorDebugValue** ppObject);
+    HRESULT STDMETHODCALLTYPE QueryInterface(
+        /* [in] */ REFIID id,
+        /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface);
+    ULONG STDMETHODCALLTYPE AddRef(void);
+    ULONG STDMETHODCALLTYPE Release(void);
+
+};
+
+class CordbFrame:
+    public ICorDebugILFrame
+{
+public:
+    int frameid;
+    int methoid;
+    int il_offset;
+    int flags;
+    CordbThread* thread;
+    CordbFrame(int frameid, int methoid, int il_offset, int flags, CordbThread* thread);
+    HRESULT STDMETHODCALLTYPE GetChain(
+        /* [out] */ ICorDebugChain** ppChain);
+
+    HRESULT STDMETHODCALLTYPE GetCode(
+        /* [out] */ ICorDebugCode** ppCode);
+
+    HRESULT STDMETHODCALLTYPE GetFunction(
+        /* [out] */ ICorDebugFunction** ppFunction);
+
+    HRESULT STDMETHODCALLTYPE GetFunctionToken(
+        /* [out] */ mdMethodDef* pToken);
+
+    HRESULT STDMETHODCALLTYPE GetStackRange(
+        /* [out] */ CORDB_ADDRESS* pStart,
+        /* [out] */ CORDB_ADDRESS* pEnd);
+
+    HRESULT STDMETHODCALLTYPE GetCaller(
+        /* [out] */ ICorDebugFrame** ppFrame);
+
+    HRESULT STDMETHODCALLTYPE GetCallee(
+        /* [out] */ ICorDebugFrame** ppFrame);
+
+    HRESULT STDMETHODCALLTYPE CreateStepper(
+        /* [out] */ ICorDebugStepper** ppStepper);
+    HRESULT STDMETHODCALLTYPE QueryInterface(
+        /* [in] */ REFIID id,
+        /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface);
+    ULONG STDMETHODCALLTYPE AddRef(void);
+    ULONG STDMETHODCALLTYPE Release(void);
+
+    HRESULT STDMETHODCALLTYPE GetIP(
+        /* [out] */ ULONG32* pnOffset,
+        /* [out] */ CorDebugMappingResult* pMappingResult);
+
+    HRESULT STDMETHODCALLTYPE SetIP(
+        /* [in] */ ULONG32 nOffset);
+
+    HRESULT STDMETHODCALLTYPE EnumerateLocalVariables(
+        /* [out] */ ICorDebugValueEnum** ppValueEnum);
+
+    HRESULT STDMETHODCALLTYPE GetLocalVariable(
+        /* [in] */ DWORD dwIndex,
+        /* [out] */ ICorDebugValue** ppValue);
+
+    HRESULT STDMETHODCALLTYPE EnumerateArguments(
+        /* [out] */ ICorDebugValueEnum** ppValueEnum);
+
+    HRESULT STDMETHODCALLTYPE GetArgument(
+        /* [in] */ DWORD dwIndex,
+        /* [out] */ ICorDebugValue** ppValue);
+
+    HRESULT STDMETHODCALLTYPE GetStackDepth(
+        /* [out] */ ULONG32* pDepth);
+
+    HRESULT STDMETHODCALLTYPE GetStackValue(
+        /* [in] */ DWORD dwIndex,
+        /* [out] */ ICorDebugValue** ppValue);
+
+    HRESULT STDMETHODCALLTYPE CanSetIP(
+        /* [in] */ ULONG32 nOffset);
+
 };
 
 #endif

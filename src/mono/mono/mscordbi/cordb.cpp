@@ -259,16 +259,12 @@ HRESULT CordbSymbol::QueryInterface(REFIID riid, LPVOID* ppvObj)
 	return S_OK;
 }
 
-	ULONG CordbSymbol::AddRef()
+ULONG CordbSymbol::AddRef()
 {
-	printf("CordbSymbol - AddRef - NOT IMPLEMENTED\n");
-	fflush(stdout);
 	return S_OK;
 }
 ULONG CordbSymbol::Release()
 {
-	printf("CordbSymbol - Release - NOT IMPLEMENTED\n");
-	fflush(stdout);
 	return S_OK;
 }
 
@@ -999,6 +995,11 @@ HRESULT CordbSymbol::ResetEnum(HCORENUM hEnum, ULONG ulPos)
 {
 	printf("CordbSymbol - GetCustomAttributeByName - IMPLEMENTED\n");
 	fflush(stdout);
+	if (!wcscmp(szName, L"System.Diagnostics.DebuggerNonUserCodeAttribute") || !wcscmp(szName, L"System.Diagnostics.DebuggerStepThroughAttribute"))
+		return S_OK;
+	if (!wcscmp(szName, L"System.Diagnostics.DebuggerHiddenAttribute"))
+		return S_FALSE;
+
 	byte *ret = new byte[6];
 	ret[0] = 1;
 	ret[1] = 0;
@@ -1065,7 +1066,7 @@ CordbAppDomain::CordbAppDomain(ICorDebugProcess* ppProcess)
 	HRESULT CordbAppDomain::Continue(
 	/* [in] */ BOOL fIsOutOfBand)
 {
-	printf("CordbAppDomain - Continue - IMPLEMENTED\n");
+	printf("CordbAppDomain - Continue - NOT IMPLEMENTED\n");
 	fflush(stdout);
 	pProcess->Continue(fIsOutOfBand);
 	return S_OK;
@@ -1174,22 +1175,18 @@ CordbAppDomain::CordbAppDomain(ICorDebugProcess* ppProcess)
 	return S_OK;
 }
 
-	ULONG CordbAppDomain::AddRef(void)
+ULONG CordbAppDomain::AddRef(void)
 {
-	printf("CordbAppDomain - AddRef - NOT IMPLEMENTED\n");
-	fflush(stdout);
 	return S_OK;
 }
 
-	ULONG CordbAppDomain::Release(void)
+ULONG CordbAppDomain::Release(void)
 {
-	printf("CordbAppDomain - Release - NOT IMPLEMENTED\n");
-	fflush(stdout);
 	return S_OK;
 }
 
-	HRESULT CordbAppDomain::GetProcess(
-	/* [out] */ ICorDebugProcess** ppProcess)
+HRESULT CordbAppDomain::GetProcess(
+/* [out] */ ICorDebugProcess** ppProcess)
 {
 	printf("CordbAppDomain - GetProcess - NOT IMPLEMENTED\n");
 	fflush(stdout);
@@ -1378,19 +1375,18 @@ HRESULT CordbModule::QueryInterface(REFIID id, void** pInterface)
 
 ULONG CordbModule::AddRef(void)
 {
-	printf("CordbModule -AddRef - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 ULONG CordbModule::Release(void)
 {
-	printf("CordbModule - Release - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 HRESULT CordbModule::IsMappedLayout(
 	/* [out] */ BOOL* pIsMapped)
 {
-	printf("CordbModule - IsMappedLayout - NOT IMPLEMENTED\n");
+	*pIsMapped = FALSE;
+	printf("CordbModule - IsMappedLayout - IMPLEMENTED\n");
 	return S_OK;
 }
 HRESULT CordbModule::CreateReaderForInMemorySymbols(
@@ -1452,7 +1448,23 @@ HRESULT CordbModule::GetProcess(
 HRESULT CordbModule::GetBaseAddress(
 	/* [out] */ CORDB_ADDRESS* pAddress)
 {
-	printf("CordbModule - GetBaseAddress - NOT IMPLEMENTED\n");
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, id);
+	int cmdId = connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_METADATA_BLOB, &localbuf);
+	buffer_free(&localbuf);
+
+	Buffer* localbuf2 = NULL;
+	while (!localbuf2) {
+		connection->process_packet(true);
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+
+	assembly_metadata_blob = decode_byte_array(localbuf2->buf, &localbuf2->buf, localbuf2->end, &assembly_metadata_len);
+
+	printf("CordbModule - GetBaseAddress - %x - %d - IMPLEMENTED\n", assembly_metadata_blob, assembly_metadata_len);
+	fflush(stdout);
+	*pAddress = (CORDB_ADDRESS)assembly_metadata_blob;
 	return S_OK;
 }
 
@@ -1464,12 +1476,12 @@ HRESULT CordbModule::GetName(
 	Buffer localbuf;
 	buffer_init(&localbuf, 128);
 	buffer_add_id(&localbuf, id);
-	int cmdId = connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_NAME, &localbuf);
+	int cmdId = connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_LOCATION, &localbuf);
 	buffer_free(&localbuf);
 
 	Buffer* localbuf2 = NULL;
 	while (!localbuf2) {
-		connection->process_packet();
+		connection->process_packet(true);
 		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
 	}
 
@@ -1505,7 +1517,31 @@ HRESULT CordbModule::GetFunctionFromToken(
 	/* [in] */ mdMethodDef methodDef,
 	/* [out] */ ICorDebugFunction** ppFunction)
 {
-	printf("CordbModule - GetFunctionFromToken - NOT IMPLEMENTED\n");
+	//check in a cache before talk to mono runtime to get info
+	printf("CordbModule - GetFunctionFromToken - %d - IMPLEMENTED\n", methodDef);
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, id);
+	buffer_add_int(&localbuf, methodDef);
+	int cmdId = connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_METHOD_FROM_TOKEN, &localbuf);
+	buffer_free(&localbuf);
+
+	Buffer* localbuf2 = NULL;
+	while (!localbuf2) {
+		connection->process_packet(true);
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+
+	int id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	CordbFunction* func = NULL;
+	func = pProcess->cordb->findFunction(id);
+	if (func == NULL)
+	{
+		printf("CRIANDO FUNCAO - %d\n", id);
+		func = new CordbFunction(methodDef, id, this);
+		g_ptr_array_add(pProcess->cordb->functions, func);
+	}
+	*ppFunction = func;
 	return S_OK;
 }
 
@@ -1575,7 +1611,8 @@ HRESULT CordbModule::GetGlobalVariableValue(
 HRESULT CordbModule::GetSize(
 	/* [out] */ ULONG32* pcBytes)
 {
-	printf("CordbModule - GetSize - NOT IMPLEMENTED\n");
+	printf("CordbModule - GetSize - %d - IMPLEMENTED\n", assembly_metadata_len);
+	*pcBytes = assembly_metadata_len;
 	return S_OK;
 }
 
@@ -1654,15 +1691,13 @@ CordbAssembly::CordbAssembly(CordbProcess* process, CordbAppDomain* appDomain, i
 	return S_OK;
 }
 
-	ULONG CordbAssembly::AddRef(void)
+ULONG CordbAssembly::AddRef(void)
 {
-	printf("CordbAssembly - AddRef - NOT IMPLEMENTED\n"); 
 	return S_OK;
 }
 
-	ULONG CordbAssembly::Release(void)
+ULONG CordbAssembly::Release(void)
 {
-	printf("CordbAssembly - Release - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1872,12 +1907,15 @@ CordbAssembly::CordbAssembly(CordbProcess* process, CordbAppDomain* appDomain, i
 	return S_OK;
 }
 
-	HRESULT CordbProcess::ReadMemory(
-	/* [in] */ CORDB_ADDRESS address,
-	/* [in] */ DWORD size,
-	/* [length_is][size_is][out] */ BYTE buffer[],
-	/* [out] */ SIZE_T* read) {
-	printf("CordbProcess - ReadMemory - NOT IMPLEMENTED\n");
+HRESULT CordbProcess::ReadMemory(
+/* [in] */ CORDB_ADDRESS address,
+/* [in] */ DWORD size,
+/* [length_is][size_is][out] */ BYTE buffer[],
+/* [out] */ SIZE_T* read) {
+	memcpy(buffer, (void*)address, size);
+	if (read != NULL)
+		*read = size;
+	printf("CordbProcess - ReadMemory - IMPLEMENTED\n");
 	fflush(stdout);
 	return S_OK;
 }
@@ -2060,29 +2098,34 @@ CordbAssembly::CordbAssembly(CordbProcess* process, CordbAppDomain* appDomain, i
 	return S_OK;
 }
 
-	ULONG CordbProcess::AddRef(void)
+ULONG CordbProcess::AddRef(void)
 {
-	printf("CordbProcess - AddRef - NOT IMPLEMENTED\n");		
-	fflush(stdout);
 	return S_OK;
 }
 
-	ULONG CordbProcess::Release(void)
+ULONG CordbProcess::Release(void)
 {
-	printf("CordbProcess - Release - NOT IMPLEMENTED\n");
-	fflush(stdout);
 	return S_OK;
 }
-	HRESULT CordbProcess::Stop(
-	/* [in] */ DWORD dwTimeoutIgnored) {
+
+HRESULT CordbProcess::Stop(
+/* [in] */ DWORD dwTimeoutIgnored) {
 	printf("CordbProcess - Stop - NOT IMPLEMENTED\n");
 	fflush(stdout);
+	Buffer sendbuf;
+	buffer_init(&sendbuf, 128);
+	connection->send_event(CMD_SET_VM, CMD_VM_SUSPEND, &sendbuf);
+	suspended++;
 	return S_OK;
 }
 
 	HRESULT CordbProcess::Continue(
 	/* [in] */ BOOL fIsOutOfBand)
 {
+	if (suspended == 0) {
+		printf("RESUME SEM ESTAR SUSPENSO\n");
+	}
+	suspended--;
 	printf("CordbProcess - Continue - IMPLEMENTED\n");
 	fflush(stdout);
 	Buffer sendbuf;
@@ -2101,6 +2144,7 @@ CordbAssembly::CordbAssembly(CordbProcess* process, CordbAppDomain* appDomain, i
 	HRESULT CordbProcess::HasQueuedCallbacks(
 	/* [in] */ ICorDebugThread* pThread,
 	/* [out] */ BOOL* pbQueued) {
+	//connection->process_packet_from_queue();
 	printf("CordbProcess - HasQueuedCallbacks - NOT IMPLEMENTED\n");
 	fflush(stdout);
 	return S_OK;
@@ -2167,156 +2211,172 @@ static void debugger_thread(void* ppProcess)
 	connection->close_connection();
 }
 
-class Cordb : public ICorDebug, public ICorDebugRemote
+
+HRESULT Cordb::Initialize(void)
 {
-public:
-	ICorDebugManagedCallback* pCallback;
-	 HRESULT Cordb::Initialize(void)
-	{
-		printf("Cordb - Initialize - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+	printf("Cordb - Initialize - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
 
-	 HRESULT Cordb::Terminate(void)
-	{
-		printf("Cordb - Terminate - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT Cordb::Terminate(void)
+{
+	printf("Cordb - Terminate - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
 
-	 HRESULT Cordb::SetManagedHandler(
-		/* [in] */ ICorDebugManagedCallback* pCallback)
-	{
-		printf("Cordb - SetManagedHandler - IMPLEMENTED\n");
-		this->pCallback = pCallback;
-		this->pCallback->AddRef();
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT Cordb::SetManagedHandler(
+/* [in] */ ICorDebugManagedCallback* pCallback)
+{
+	printf("Cordb - SetManagedHandler - IMPLEMENTED\n");
+	this->pCallback = pCallback;
+	this->pCallback->AddRef();
+	fflush(stdout);
+	return S_OK;
+}
 
-	 HRESULT Cordb::SetUnmanagedHandler(
-		/* [in] */ ICorDebugUnmanagedCallback* pCallback)
-	{
-		printf("Cordb - SetUnmanagedHandler - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT Cordb::SetUnmanagedHandler(
+/* [in] */ ICorDebugUnmanagedCallback* pCallback)
+{
+	printf("Cordb - SetUnmanagedHandler - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
 
-	 HRESULT Cordb::CreateProcess(
-		/* [in] */ LPCWSTR lpApplicationName,
-		/* [in] */ LPWSTR lpCommandLine,
-		/* [in] */ LPSECURITY_ATTRIBUTES lpProcessAttributes,
-		/* [in] */ LPSECURITY_ATTRIBUTES lpThreadAttributes,
-		/* [in] */ BOOL bInheritHandles,
-		/* [in] */ DWORD dwCreationFlags,
-		/* [in] */ PVOID lpEnvironment,
-		/* [in] */ LPCWSTR lpCurrentDirectory,
-		/* [in] */ LPSTARTUPINFOW lpStartupInfo,
-		/* [in] */ LPPROCESS_INFORMATION lpProcessInformation,
-		/* [in] */ CorDebugCreateProcessFlags debuggingFlags,
-		/* [out] */ ICorDebugProcess** ppProcess)
-	{
-		printf("Cordb - CreateProcess - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT Cordb::CreateProcess(
+/* [in] */ LPCWSTR lpApplicationName,
+/* [in] */ LPWSTR lpCommandLine,
+/* [in] */ LPSECURITY_ATTRIBUTES lpProcessAttributes,
+/* [in] */ LPSECURITY_ATTRIBUTES lpThreadAttributes,
+/* [in] */ BOOL bInheritHandles,
+/* [in] */ DWORD dwCreationFlags,
+/* [in] */ PVOID lpEnvironment,
+/* [in] */ LPCWSTR lpCurrentDirectory,
+/* [in] */ LPSTARTUPINFOW lpStartupInfo,
+/* [in] */ LPPROCESS_INFORMATION lpProcessInformation,
+/* [in] */ CorDebugCreateProcessFlags debuggingFlags,
+/* [out] */ ICorDebugProcess** ppProcess)
+{
+	printf("Cordb - CreateProcess - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
 
-	 HRESULT Cordb::DebugActiveProcess(
-		/* [in] */ DWORD id,
-		/* [in] */ BOOL win32Attach,
-		/* [out] */ ICorDebugProcess** ppProcess)
-	{
-		printf("Cordb - DebugActiveProcess - IMPLEMENTED\n");
-		*ppProcess = new CordbProcess;
-		((CordbProcess*)*ppProcess)->cordb = this;
+HRESULT Cordb::DebugActiveProcess(
+/* [in] */ DWORD id,
+/* [in] */ BOOL win32Attach,
+/* [out] */ ICorDebugProcess** ppProcess)
+{
+	printf("Cordb - DebugActiveProcess - IMPLEMENTED\n");
+	*ppProcess = new CordbProcess;
+	((CordbProcess*)*ppProcess)->cordb = this;
 		
-		DWORD thread_id;
-		CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)debugger_thread, ((CordbProcess*)*ppProcess), 0, &thread_id);
+	DWORD thread_id;
+	CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)debugger_thread, ((CordbProcess*)*ppProcess), 0, &thread_id);
 
-		fflush(stdout);
-		return S_OK;
-	}
+	fflush(stdout);
+	return S_OK;
+}
 
-	 HRESULT Cordb::EnumerateProcesses(
-		/* [out] */ ICorDebugProcessEnum** ppProcess)
-	{
-		printf("Cordb - EnumerateProcesses - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT Cordb::EnumerateProcesses(
+/* [out] */ ICorDebugProcessEnum** ppProcess)
+{
+	printf("Cordb - EnumerateProcesses - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
 
-	 HRESULT Cordb::GetProcess(
-		/* [in] */ DWORD dwProcessId,
-		/* [out] */ ICorDebugProcess** ppProcess)
-	{
-		printf("Cordb - GetProcess - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT Cordb::GetProcess(
+/* [in] */ DWORD dwProcessId,
+/* [out] */ ICorDebugProcess** ppProcess)
+{
+	printf("Cordb - GetProcess - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
 
-	 HRESULT Cordb::CanLaunchOrAttach(
-		/* [in] */ DWORD dwProcessId,
-		/* [in] */ BOOL win32DebuggingEnabled)
-	{
-		printf("Cordb - CanLaunchOrAttach - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-	 HRESULT Cordb::QueryInterface(
-		/* [in] */ REFIID riid,
-		/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject)
-	{
-		printf("Cordb - QueryInterface - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+HRESULT Cordb::CanLaunchOrAttach(
+/* [in] */ DWORD dwProcessId,
+/* [in] */ BOOL win32DebuggingEnabled)
+{
+	printf("Cordb - CanLaunchOrAttach - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
 
-	 ULONG Cordb::AddRef(void)
-	{
-		printf("Cordb - AddRef - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+Cordb::Cordb()
+{
+	pCallback = NULL;
+	breakpoints = g_ptr_array_new();
+	threads = g_ptr_array_new();
+	functions = g_ptr_array_new();
+}
 
-	 ULONG Cordb::Release(void)
-	{
-		printf("Cordb - Release - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
+CordbFunction* Cordb::findFunction(int id)
+{
+	int i = 0;
+	while (i < functions->len) {
+		CordbFunction* function = (CordbFunction*)g_ptr_array_index(functions, i);
+		if (function->id == id) {
+			return function;
+		}
+		i++;
 	}
-	 HRESULT Cordb::CreateProcessEx(
-		/* [in] */ ICorDebugRemoteTarget* pRemoteTarget,
-		/* [in] */ LPCWSTR lpApplicationName,
-		/* [annotation][in] */
-		_In_  LPWSTR lpCommandLine,
-		/* [in] */ LPSECURITY_ATTRIBUTES lpProcessAttributes,
-		/* [in] */ LPSECURITY_ATTRIBUTES lpThreadAttributes,
-		/* [in] */ BOOL bInheritHandles,
-		/* [in] */ DWORD dwCreationFlags,
-		/* [in] */ PVOID lpEnvironment,
-		/* [in] */ LPCWSTR lpCurrentDirectory,
-		/* [in] */ LPSTARTUPINFOW lpStartupInfo,
-		/* [in] */ LPPROCESS_INFORMATION lpProcessInformation,
-		/* [in] */ CorDebugCreateProcessFlags debuggingFlags,
-		/* [out] */ ICorDebugProcess** ppProcess)
-	{
-		printf("Cordb - CreateProcessEx - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
+	return NULL;
+}
 
-	 HRESULT Cordb::DebugActiveProcessEx(
-		/* [in] */ ICorDebugRemoteTarget* pRemoteTarget,
-		/* [in] */ DWORD dwProcessId,
-		/* [in] */ BOOL fWin32Attach,
-		/* [out] */ ICorDebugProcess** ppProcess)
-	{
-		printf("Cordb - DebugActiveProcessEx - NOT IMPLEMENTED\n");
-		fflush(stdout);
-		return S_OK;
-	}
-};
+HRESULT Cordb::QueryInterface(
+/* [in] */ REFIID riid,
+/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject)
+{
+	printf("Cordb - QueryInterface - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+ULONG Cordb::AddRef(void)
+{
+	return S_OK;
+}
+
+ULONG Cordb::Release(void)
+{
+	return S_OK;
+}
+
+HRESULT Cordb::CreateProcessEx(
+/* [in] */ ICorDebugRemoteTarget* pRemoteTarget,
+/* [in] */ LPCWSTR lpApplicationName,
+/* [annotation][in] */
+_In_  LPWSTR lpCommandLine,
+/* [in] */ LPSECURITY_ATTRIBUTES lpProcessAttributes,
+/* [in] */ LPSECURITY_ATTRIBUTES lpThreadAttributes,
+/* [in] */ BOOL bInheritHandles,
+/* [in] */ DWORD dwCreationFlags,
+/* [in] */ PVOID lpEnvironment,
+/* [in] */ LPCWSTR lpCurrentDirectory,
+/* [in] */ LPSTARTUPINFOW lpStartupInfo,
+/* [in] */ LPPROCESS_INFORMATION lpProcessInformation,
+/* [in] */ CorDebugCreateProcessFlags debuggingFlags,
+/* [out] */ ICorDebugProcess** ppProcess)
+{
+	printf("Cordb - CreateProcessEx - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT Cordb::DebugActiveProcessEx(
+/* [in] */ ICorDebugRemoteTarget* pRemoteTarget,
+/* [in] */ DWORD dwProcessId,
+/* [in] */ BOOL fWin32Attach,
+/* [out] */ ICorDebugProcess** ppProcess)
+{
+	printf("Cordb - DebugActiveProcessEx - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
 
 
 Connection::Connection(CordbProcess* proc, Cordb* cordb)
@@ -2326,6 +2386,19 @@ Connection::Connection(CordbProcess* proc, Cordb* cordb)
 	pCorDebugAppDomain = NULL;
 	received_replies = g_hash_table_new(NULL, NULL);
 	received_replies_to_process = g_ptr_array_new();
+}
+
+CordbThread* Connection::findThread(GPtrArray* threads, long thread_id)
+{
+	int i = 0;
+	while (i < threads->len) {
+		CordbThread *thread = (CordbThread*)g_ptr_array_index(threads, i);
+		if (thread->thread_id == thread_id) {
+			return thread;
+		}
+		i++;
+	}
+	return NULL;
 }
 
 void Connection::process_packet_internal(Buffer *recvbuf)
@@ -2343,6 +2416,7 @@ void Connection::process_packet_internal(Buffer *recvbuf)
 		long thread_id = decode_id(recvbuf->buf, &recvbuf->buf, recvbuf->end);
 
 		printf("Received %d events %s(%d), suspend=%d.\n", nevents, event_to_string(etype), etype, spolicy);
+		ppProcess->suspended++;
 		fflush(stdout);
 		switch (etype)
 		{
@@ -2356,26 +2430,53 @@ void Connection::process_packet_internal(Buffer *recvbuf)
 		break;
 		case EVENT_KIND_ASSEMBLY_LOAD:
 		{
-			int req_id = decode_id(recvbuf->buf, &recvbuf->buf, recvbuf->end);
+			int assembly_id = decode_id(recvbuf->buf, &recvbuf->buf, recvbuf->end);
 			if (pCorDebugAppDomain == NULL) {
 				pCorDebugAppDomain = new CordbAppDomain(static_cast<ICorDebugProcess*>(ppProcess));
 				ppCordb->pCallback->CreateAppDomain(static_cast<ICorDebugProcess*>(ppProcess), pCorDebugAppDomain);
 			}
 
-			ICorDebugAssembly* pAssembly = new CordbAssembly(ppProcess, pCorDebugAppDomain, req_id);
+			ICorDebugAssembly* pAssembly = new CordbAssembly(ppProcess, pCorDebugAppDomain, assembly_id);
 			ppCordb->pCallback->LoadAssembly(pCorDebugAppDomain, pAssembly);
 
-			ICorDebugModule* pModule = new CordbModule(ppProcess, (CordbAssembly*)pAssembly, req_id);
+			ICorDebugModule* pModule = new CordbModule(ppProcess, (CordbAssembly*)pAssembly, assembly_id);
 			ppCordb->pCallback->LoadModule(pCorDebugAppDomain, pModule);
+		}
+		break;
+		case EVENT_KIND_BREAKPOINT:
+		{
+			int method_id = decode_id(recvbuf->buf, &recvbuf->buf, recvbuf->end);
+			long offset = decode_long(recvbuf->buf, &recvbuf->buf, recvbuf->end);
+			CordbThread* thread = findThread(ppCordb->threads, thread_id);
+			if (thread == NULL)
+			{ 
+				thread = new CordbThread(ppProcess, thread_id);
+				g_ptr_array_add(ppCordb->threads, thread);
+				ppCordb->pCallback->CreateThread(pCorDebugAppDomain, thread);
+			}
+			
+
+			Buffer sendbuf;
+			buffer_init(&sendbuf, 128);
+			send_event(0, 0, &sendbuf);
+			int i = 0;
+			CordbFunctionBreakpoint* breakpoint;
+			while (i < ppCordb->breakpoints->len) {
+				breakpoint = (CordbFunctionBreakpoint*)g_ptr_array_index(ppCordb->breakpoints, i);
+				if (breakpoint->offset == offset && breakpoint->code->func->id == method_id) {
+					ppCordb->pCallback->Breakpoint(pCorDebugAppDomain, thread, breakpoint);
+					break;
+				}
+				i++;
+			}
 		}
 		break;
 		}
 	}
-	dbg_unlock();
 	//buffer_free(&recvbuf);
 }
 
-int Connection::process_packet()
+int Connection::process_packet(bool is_answer)
 {
 	int iResult;
 	Buffer sendbuf, recvbufheader;
@@ -2420,7 +2521,7 @@ int Connection::process_packet()
 
 
 	if (header.command_set == CMD_SET_EVENT && header.command == CMD_COMPOSITE) {
-		if (dbg_lock() != 0)
+		if (is_answer)
 		{
 			g_ptr_array_add(received_replies_to_process, recvbuf);
 			return iResult;
@@ -2437,8 +2538,6 @@ void Connection::process_packet_from_queue()
 	int i = 0;
 	while (i < received_replies_to_process->len) {
 		Buffer* req = (Buffer*)g_ptr_array_index(received_replies_to_process, i);
-		if (dbg_lock() != 0)
-			return;
 		process_packet_internal(req);
 		g_ptr_array_remove_index_fast(received_replies_to_process, i);
 		g_free(req);
@@ -2509,7 +2608,7 @@ void Connection::start_connection()
 	hints.ai_protocol = IPPROTO_TCP;
 
 	// Resolve the server address and port
-	iResult = getaddrinfo("127.0.0.1", "3001", &hints, &result);
+	iResult = getaddrinfo("127.0.0.1", "3000", &hints, &result);
 	if (iResult != 0) {
 		printf("getaddrinfo failed with error: %d\n", iResult);
 		WSACleanup();
@@ -2616,14 +2715,12 @@ int Connection::send_event(int cmd_set, int cmd, Buffer *sendbuf)
 MONO_API HRESULT CoreCLRCreateCordbObject(int iDebuggerVersion, DWORD pid, HMODULE hmodTargetCLR, void** ppCordb)
 {
 	*ppCordb = new Cordb();
-	printf("CoreCLRCreateCordbObject - cheguei aqui hein thays\n");
-	return 1;
+	return S_OK;
 }
 
 MONO_API HRESULT CreateCordbObject(int iDebuggerVersion, void** ppCordb)
 {
-	printf("CreateCordbObject - cheguei aqui hein thays\n");
-	return 1;
+	return S_OK;
 }
 
 
@@ -2650,3 +2747,785 @@ HRESULT CordbSymbol::GetAssemblyFromScope(mdAssembly* ptkAssembly)
 	fflush(stdout);
 	return S_OK;
 }    // [OUT] Put token here.
+
+CordbFunction::CordbFunction(mdToken token, int id, CordbModule* module)
+{
+	this->token = token;
+	this->id = id;
+	code = NULL;
+	this->module = module;
+}
+
+HRESULT __stdcall CordbFunction::QueryInterface(REFIID id, void** pInterface)
+{
+	if (id == IID_ICorDebugFunction)
+	{
+		*pInterface = static_cast<ICorDebugFunction*>(this);
+	}
+	else if (id == IID_ICorDebugFunction2)
+	{
+		*pInterface = static_cast<ICorDebugFunction2*>(this);
+	}
+	else if (id == IID_ICorDebugFunction3)
+	{
+		*pInterface = static_cast<ICorDebugFunction3*>(this);
+	}
+	else if (id == IID_ICorDebugFunction4)
+	{
+		*pInterface = static_cast<ICorDebugFunction4*>(this);
+	}
+	else if (id == IID_IUnknown)
+	{
+		*pInterface = static_cast<IUnknown*>(static_cast<ICorDebugFunction*>(this));
+	}
+	else
+	{
+		*pInterface = NULL;
+		return E_NOINTERFACE;
+	}
+
+	return S_OK;
+}
+
+ULONG __stdcall CordbFunction::AddRef(void)
+{
+	return 0;
+}
+
+ULONG __stdcall CordbFunction::Release(void)
+{
+	return 0;
+}
+
+HRESULT __stdcall CordbFunction::GetModule(ICorDebugModule** ppModule)
+{
+	*ppModule = static_cast<ICorDebugModule*>(this->module);
+	printf("CordbFunction - GetModule - IMPLEMENTED\n");
+	fflush(stdout);
+	if (!*ppModule)
+		return S_FALSE;
+	return S_OK;
+}
+
+HRESULT __stdcall CordbFunction::GetClass(ICorDebugClass** ppClass)
+{
+	printf("CordbFunction - GetClass - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbFunction::GetToken(mdMethodDef* pMethodDef)
+{
+	*pMethodDef = this->token;
+	printf("CordbFunction - GetToken - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT __stdcall CordbFunction::GetILCode(ICorDebugCode** ppCode)
+{
+	if (code == NULL)
+		code = new CordbCode(this); 
+	*ppCode = static_cast<ICorDebugCode*>(code);
+	printf("CordbFunction - GetILCode - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT __stdcall CordbFunction::GetNativeCode(ICorDebugCode** ppCode)
+{
+	printf("CordbFunction - GetNativeCode - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbFunction::CreateBreakpoint(ICorDebugFunctionBreakpoint** ppBreakpoint)
+{
+	printf("CordbFunction - CreateBreakpoint - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbFunction::GetLocalVarSigToken(mdSignature* pmdSig)
+{
+	printf("CordbFunction - GetLocalVarSigToken - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbFunction::GetCurrentVersionNumber(ULONG32* pnCurrentVersion)
+{
+	printf("CordbFunction - GetCurrentVersionNumber - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbFunction::SetJMCStatus(BOOL bIsJustMyCode)
+{
+	printf("CordbFunction - SetJMCStatus - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbFunction::GetJMCStatus(BOOL* pbIsJustMyCode)
+{
+	printf("CordbFunction - GetJMCStatus - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbFunction::EnumerateNativeCode(ICorDebugCodeEnum** ppCodeEnum)
+{
+	printf("CordbFunction - EnumerateNativeCode - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbFunction::GetVersionNumber(ULONG32* pnVersion)
+{
+	*pnVersion = 0;
+	printf("CordbFunction - GetVersionNumber - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT __stdcall CordbFunction::GetActiveReJitRequestILCode(ICorDebugILCode** ppReJitedILCode)
+{
+	printf("CordbFunction - GetActiveReJitRequestILCode - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbFunction::CreateNativeBreakpoint(ICorDebugFunctionBreakpoint** ppBreakpoint)
+{
+	printf("CordbFunction - CreateNativeBreakpoint - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+CordbCode::CordbCode(CordbFunction* func)
+{
+	this->func = func;
+}
+
+HRESULT __stdcall CordbCode::IsIL(BOOL* pbIL)
+{
+	printf("CordbCode - IsIL - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbCode::GetFunction(ICorDebugFunction** ppFunction)
+{
+	printf("CordbCode - GetFunction - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbCode::GetAddress(CORDB_ADDRESS* pStart)
+{
+	printf("CordbCode - GetAddress - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbCode::GetSize(ULONG32* pcBytes)
+{
+	printf("CordbCode - GetSize - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbCode::CreateBreakpoint(ULONG32 offset, ICorDebugFunctionBreakpoint** ppBreakpoint)
+{
+	//add it in a list to not recreate a already created breakpoint
+	CordbFunctionBreakpoint* bp = new CordbFunctionBreakpoint(this, offset);
+	*ppBreakpoint = static_cast<ICorDebugFunctionBreakpoint*>(bp);
+	g_ptr_array_add(this->func->module->pProcess->cordb->breakpoints, bp);
+	printf("CordbCode - CreateBreakpoint - %ld - IMPLEMENTED\n", offset);
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT __stdcall CordbCode::GetCode(ULONG32 startOffset, ULONG32 endOffset, ULONG32 cBufferAlloc, BYTE buffer[], ULONG32* pcBufferSize)
+{
+	printf("CordbCode - GetCode - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbCode::GetVersionNumber(ULONG32* nVersion)
+{
+	printf("CordbCode - GetVersionNumber - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbCode::GetILToNativeMapping(ULONG32 cMap, ULONG32* pcMap, COR_DEBUG_IL_TO_NATIVE_MAP map[])
+{
+	printf("CordbCode - GetILToNativeMapping - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbCode::GetEnCRemapSequencePoints(ULONG32 cMap, ULONG32* pcMap, ULONG32 offsets[])
+{
+	printf("CordbCode - GetEnCRemapSequencePoints - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbCode::QueryInterface(REFIID id, void** pInterface)
+{
+	if (id == IID_ICorDebugCode)
+	{
+		*pInterface = static_cast<ICorDebugCode*>(this);
+	}
+	else if (id == IID_IUnknown)
+	{
+		*pInterface = static_cast<IUnknown*>(static_cast<ICorDebugCode*>(this));
+	}
+	else
+	{
+		*pInterface = NULL;
+		return E_NOINTERFACE;
+	}
+	return S_OK;
+}
+
+ULONG __stdcall CordbCode::AddRef(void)
+{
+	return 0;
+}
+
+ULONG __stdcall CordbCode::Release(void)
+{
+	return 0;
+}
+
+CordbFunctionBreakpoint::CordbFunctionBreakpoint(CordbCode* code, ULONG32 offset)
+{
+	this->code = code;
+	this->offset = offset;
+}
+
+HRESULT __stdcall CordbFunctionBreakpoint::GetFunction(ICorDebugFunction** ppFunction)
+{
+	*ppFunction = static_cast<ICorDebugFunction*>(code->func) ;
+	printf("CordbFunctionBreakpoint - GetFunction - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT __stdcall CordbFunctionBreakpoint::GetOffset(ULONG32* pnOffset)
+{
+	printf("CordbFunctionBreakpoint - GetOffset - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbFunctionBreakpoint::Activate(BOOL bActive)
+{
+	if (bActive && offset != 0)
+	{
+		Buffer sendbuf;
+		int buflen = 128;
+		buffer_init(&sendbuf, buflen);
+		buffer_add_byte(&sendbuf, EVENT_KIND_BREAKPOINT);
+		buffer_add_byte(&sendbuf, SUSPEND_POLICY_ALL);
+		buffer_add_byte(&sendbuf, 1); //modifiers
+		buffer_add_byte(&sendbuf, MOD_KIND_LOCATION_ONLY);
+		buffer_add_id(&sendbuf, this->code->func->id);
+		buffer_add_long(&sendbuf, offset);
+		connection->send_event(CMD_SET_EVENT_REQUEST, CMD_EVENT_REQUEST_SET, &sendbuf);
+		buffer_free(&sendbuf);
+
+		printf("CordbFunctionBreakpoint - Activate - %d - %ld - IMPLEMENTED\n", this->code->func->id, offset);
+		fflush(stdout);
+	}
+	return S_OK;
+}
+
+HRESULT __stdcall CordbFunctionBreakpoint::IsActive(BOOL* pbActive)
+{
+	printf("CordbFunctionBreakpoint - IsActive - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbFunctionBreakpoint::QueryInterface(REFIID id, void** pInterface)
+{
+	printf("CordbFunctionBreakpoint - QueryInterface - IMPLEMENTED\n");
+	fflush(stdout);
+	if (id == IID_ICorDebugFunctionBreakpoint)
+	{
+		*pInterface = static_cast<ICorDebugFunctionBreakpoint*>(this);
+	}
+	else
+	{
+		// Not looking for a function breakpoint? See if the base class handles
+		// this interface. (issue 143976)
+		printf("return CordbBreakpoint::QueryInterface(id, pInterface);\n");
+		fflush(stdout);
+		//return CordbBreakpoint::QueryInterface(id, pInterface);
+	}
+	return S_OK;
+}
+
+ULONG __stdcall CordbFunctionBreakpoint::AddRef(void)
+{
+	return 0;
+}
+
+ULONG __stdcall CordbFunctionBreakpoint::Release(void)
+{
+	return 0;
+}
+
+CordbThread::CordbThread(CordbProcess* ppProcess, long thread_id)
+{
+	this->ppProcess = ppProcess;
+	this->thread_id = thread_id;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::HasUnhandledException(void)
+{
+	printf("CordbThread - HasUnhandledException - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetBlockingObjects(
+	/* [out] */ ICorDebugBlockingObjectEnum** ppBlockingObjectEnum)
+{
+	printf("CordbThread - GetBlockingObjects - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetCurrentCustomDebuggerNotification(
+	/* [out] */ ICorDebugValue** ppNotificationObject)
+{
+	printf("CordbThread - GetCurrentCustomDebuggerNotification - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::CreateStackWalk(
+	/* [out] */ ICorDebugStackWalk** ppStackWalk)
+{
+	printf("CordbThread - CreateStackWalk - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetActiveInternalFrames(
+	/* [in] */ ULONG32 cInternalFrames,
+	/* [out] */ ULONG32* pcInternalFrames,
+	/* [length_is][size_is][out][in] */ ICorDebugInternalFrame2* ppInternalFrames[])
+{
+	printf("CordbThread - GetActiveInternalFrames - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetActiveFunctions(
+	/* [in] */ ULONG32 cFunctions,
+	/* [out] */ ULONG32* pcFunctions,
+	/* [length_is][size_is][out][in] */ COR_ACTIVE_FUNCTION pFunctions[])
+{
+	printf("CordbThread - GetActiveFunctions - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetConnectionID(
+	/* [out] */ CONNID* pdwConnectionId)
+{
+	printf("CordbThread - GetConnectionID - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetTaskID(
+	/* [out] */ TASKID* pTaskId)
+{
+	printf("CordbThread - GetTaskID - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetVolatileOSThreadID(
+	/* [out] */ DWORD* pdwTid)
+{
+	printf("CordbThread - GetVolatileOSThreadID - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::InterceptCurrentException(
+
+	/* [in] */ ICorDebugFrame* pFrame)
+{
+	printf("CordbThread - InterceptCurrentException - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+HRESULT STDMETHODCALLTYPE CordbThread::GetProcess(
+	/* [out] */ ICorDebugProcess** ppProcess)
+{
+	printf("CordbThread - GetProcess - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetID(
+	/* [out] */ DWORD* pdwThreadId)
+{
+	*pdwThreadId = thread_id;
+	printf("CordbThread - GetID - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetHandle(
+	/* [out] */ HTHREAD* phThreadHandle)
+{
+	printf("CordbThread - GetHandle - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetAppDomain(
+	/* [out] */ ICorDebugAppDomain** ppAppDomain)
+{
+	printf("CordbThread - GetAppDomain - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::SetDebugState(
+	/* [in] */ CorDebugThreadState state)
+{
+	printf("CordbThread - SetDebugState - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetDebugState(
+	/* [out] */ CorDebugThreadState* pState)
+{
+	printf("CordbThread - GetDebugState - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetUserState(
+	/* [out] */ CorDebugUserState* pState)
+{
+	printf("CordbThread - GetUserState - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetCurrentException(
+	/* [out] */ ICorDebugValue** ppExceptionObject)
+{
+	printf("CordbThread - GetCurrentException - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::ClearCurrentException(void)
+{
+	printf("CordbThread - ClearCurrentException - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::CreateStepper(
+	/* [out] */ ICorDebugStepper** ppStepper)
+{
+	printf("CordbThread - CreateStepper - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::EnumerateChains(
+	/* [out] */ ICorDebugChainEnum** ppChains)
+{
+	printf("CordbThread - EnumerateChains - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetActiveChain(
+	/* [out] */ ICorDebugChain** ppChain)
+{
+	printf("CordbThread - GetActiveChain - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetActiveFrame(
+	/* [out] */ ICorDebugFrame** ppFrame)
+{
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, thread_id);
+	buffer_add_int(&localbuf, 0);
+	buffer_add_int(&localbuf, -1);
+
+	int cmdId = connection->send_event(CMD_SET_THREAD, CMD_THREAD_GET_FRAME_INFO, &localbuf);
+	buffer_free(&localbuf);
+
+	Buffer* localbuf2 = NULL;
+	while (!localbuf2) {
+		connection->process_packet(true);
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+	int nframes = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int frameid = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int methoid = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int il_offset = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int flags = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	/*
+	* buffer_add_int (buf, tls->frames [i]->id);
+	buffer_add_methodid (buf, tls->frames [i]->de.domain, tls->frames [i]->actual_method);
+	buffer_add_int (buf, tls->frames [i]->il_offset);
+	buffer_add_byte(buf, tls->frames[i]->flags);
+	*/
+	printf("CordbThread - GetActiveFrame - IMPLEMENTED - %d\n", nframes);
+
+	CordbFrame* frame = new CordbFrame(frameid, methoid, il_offset, flags, this);
+	*ppFrame = static_cast<ICorDebugFrame*>(frame);
+	
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetRegisterSet(
+	/* [out] */ ICorDebugRegisterSet** ppRegisters)
+{
+	printf("CordbThread - GetRegisterSet - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::CreateEval(
+	/* [out] */ ICorDebugEval** ppEval)
+{
+	printf("CordbThread - CreateEval - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbThread::GetObject(
+	/* [out] */ ICorDebugValue** ppObject)
+{
+	printf("CordbThread - GetObject - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+HRESULT STDMETHODCALLTYPE CordbThread::QueryInterface(
+	/* [in] */ REFIID id,
+	/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface)
+{
+	printf("CordbThread - QueryInterface - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+ULONG STDMETHODCALLTYPE CordbThread::AddRef(void)
+{
+	return 0;
+}
+ULONG STDMETHODCALLTYPE CordbThread::Release(void)
+{
+	return 0;
+}
+
+
+CordbFrame::CordbFrame(int frameid, int methoid, int il_offset, int flags, CordbThread* thread)
+{
+	this->frameid = frameid;
+	this->methoid = methoid;
+	this->il_offset = il_offset;
+	this->flags = flags;
+	this->thread = thread;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrame::GetChain(
+	/* [out] */ ICorDebugChain** ppChain)
+{
+	printf("CordbFrame - GetChain - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrame::GetCode(
+	/* [out] */ ICorDebugCode** ppCode)
+{
+	printf("CordbFrame - GetCode - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrame::GetFunction(
+	/* [out] */ ICorDebugFunction** ppFunction)
+{
+	CordbFunction *func = thread->ppProcess->cordb->findFunction(methoid);
+	if (!func)
+	{
+		func = new CordbFunction(0, methoid, NULL);
+		g_ptr_array_add(thread->ppProcess->cordb->functions, func);
+	}
+
+	*ppFunction = static_cast<ICorDebugFunction*>(func);
+	printf("CordbFrame - GetFunction - %x - %d - IMPLEMENTED\n", func, methoid);
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrame::GetFunctionToken(
+	/* [out] */ mdMethodDef* pToken)
+{
+	printf("CordbFrame - GetFunctionToken - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrame::GetStackRange(
+	/* [out] */ CORDB_ADDRESS* pStart,
+	/* [out] */ CORDB_ADDRESS* pEnd)
+{
+	printf("CordbFrame - GetStackRange - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrame::GetCaller(
+	/* [out] */ ICorDebugFrame** ppFrame)
+{
+	printf("CordbFrame - GetCaller - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrame::GetCallee(
+	/* [out] */ ICorDebugFrame** ppFrame)
+{
+	printf("CordbFrame - GetCallee - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrame::CreateStepper(
+	/* [out] */ ICorDebugStepper** ppStepper)
+{
+	printf("CordbFrame - CreateStepper - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+HRESULT STDMETHODCALLTYPE CordbFrame::QueryInterface(
+	/* [in] */ REFIID id,
+	/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface)
+{
+	if (id == IID_ICorDebugILFrame)
+	{
+		*pInterface = static_cast<ICorDebugILFrame*>(this);
+	}
+	else
+	{
+		*pInterface = NULL;
+		printf("CordbFrame - QueryInterface - NOT IMPLEMENTED\n");
+		return E_NOINTERFACE;
+	}
+	printf("CordbFrame - QueryInterface - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+ULONG STDMETHODCALLTYPE CordbFrame::AddRef(void)
+{
+	return 0;
+}
+ULONG STDMETHODCALLTYPE CordbFrame::Release(void)
+{
+	return 0;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrame::GetIP(
+	/* [out] */ ULONG32* pnOffset,
+	/* [out] */ CorDebugMappingResult* pMappingResult)
+{
+	*pnOffset = il_offset;
+	*pMappingResult = MAPPING_EXACT;
+	printf("CordbFrame - GetIP - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+HRESULT STDMETHODCALLTYPE CordbFrame::SetIP(
+	/* [in] */ ULONG32 nOffset)
+{
+	printf("CordbFrame - SetIP - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrame::EnumerateLocalVariables(
+	/* [out] */ ICorDebugValueEnum** ppValueEnum)
+{
+	printf("CordbFrame - EnumerateLocalVariables - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrame::GetLocalVariable(
+	/* [in] */ DWORD dwIndex,
+	/* [out] */ ICorDebugValue** ppValue)
+{
+	printf("CordbFrame - GetLocalVariable - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrame::EnumerateArguments(
+	/* [out] */ ICorDebugValueEnum** ppValueEnum)
+{
+	printf("CordbFrame - EnumerateArguments - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrame::GetArgument(
+	/* [in] */ DWORD dwIndex,
+	/* [out] */ ICorDebugValue** ppValue)
+{
+	printf("CordbFrame - GetArgument - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrame::GetStackDepth(
+	/* [out] */ ULONG32* pDepth)
+{
+	printf("CordbFrame - GetStackDepth - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrame::GetStackValue(
+	/* [in] */ DWORD dwIndex,
+	/* [out] */ ICorDebugValue** ppValue)
+{
+	printf("CordbFrame - GetStackValue - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrame::CanSetIP(
+	/* [in] */ ULONG32 nOffset)
+{
+	printf("CordbFrame - CanSetIP - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}

@@ -953,13 +953,9 @@ set_keepalive (void)
 static int
 socket_transport_accept (int socket_fd)
 {
-	printf("socket_transport_accept\n");
-	fflush(stdout);
 	MONO_ENTER_GC_SAFE;
 	conn_fd = accept (socket_fd, NULL, NULL);
 	MONO_EXIT_GC_SAFE;
-	printf("accepted\n");
-	fflush(stdout);
 
 	if (conn_fd == -1) {
 		g_printerr ("debugger-agent: Unable to listen on %d\n", socket_fd);
@@ -6773,7 +6769,6 @@ event_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 
 	switch (command) {
 	case CMD_EVENT_REQUEST_SET: {
-		printf("CMD_EVENT_REQUEST_SET\n");
 		EventRequest *req;
 		int i, event_kind, suspend_policy, nmodifiers;
 		ModifierKind mod;
@@ -6790,9 +6785,6 @@ event_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		event_kind = decode_byte (p, &p, end);
 		suspend_policy = decode_byte (p, &p, end);
 		nmodifiers = decode_byte (p, &p, end);
-
-
-		printf("CMD_EVENT_REQUEST_SET - %d - %d - %d\n", event_kind, suspend_policy, nmodifiers);
 
 		req = (EventRequest *)g_malloc0 (sizeof (EventRequest) + (nmodifiers * sizeof (Modifier)));
 		req->id = mono_atomic_inc_i32 (&event_request_id);
@@ -6966,7 +6958,6 @@ event_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 				break;
 			case EVENT_KIND_ASSEMBLY_LOAD:
 				/* Emit load events for currently loaded assemblies */
-				printf("EVENT_KIND_ASSEMBLY_LOAD\n");
 				mono_domain_foreach (send_assemblies_for_domain, NULL);
 				break;
 			case EVENT_KIND_THREAD_START:
@@ -7280,13 +7271,14 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		break;
 	}
     case CMD_ASSEMBLY_GET_METADATA_BLOB: {
-        MonoImage* image = ass->image;
+		MonoImage* image = ass->image;
         if (ass->dynamic) {
             return ERR_NOT_IMPLEMENTED;
         }
         buffer_add_byte_array (buf, (guint8*)image->raw_data, image->raw_data_len);
         break;
     }
+
     case CMD_ASSEMBLY_GET_IS_DYNAMIC: {
         buffer_add_byte (buf, ass->dynamic);
         break;
@@ -7345,13 +7337,13 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		break;
 	}
 	case CMD_ASSEMBLY_GET_CUSTOM_ATTRIBUTES: {
-		ERROR_DECL (error);
+		/*ERROR_DECL (error);
         error_init (error);
 		char *name_space = decode_string (p, &p, end);
 		char *name = decode_string (p, &p, end);
 		MonoClass *attr = mono_class_try_load_from_name (mono_defaults.corlib, name_space, name);
 		MonoCustomAttrInfo *ainfo = mono_custom_attrs_from_assembly_checked (ass, error);
-		mono_error_cleanup (error); /* FIXME don't swallow the error? */
+		mono_error_cleanup (error);
 		if (ainfo && attr) {
 			MonoObject* attr_obj = mono_custom_attrs_get_attr(ainfo, attr);
 			MonoArrayHandleOut typed_args_h, named_args_h;
@@ -7363,7 +7355,7 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 
 			mono_reflection_create_custom_attr_data_args (ass->image, attr->ctor, attr->data, attr->data_size, typed_args_h, named_args_h, &arginfo, error);
 		}
-		mono_custom_attrs_free (ainfo);
+		mono_custom_attrs_free (ainfo);*/
 		break;
 	}
 	default:
@@ -9435,7 +9427,13 @@ static const char* assembly_cmds_str[] = {
 	"GET_TYPE",
 	"GET_NAME",
 	"GET_DOMAIN",
-	"HAS_DEBUG_INFO"
+	"GET_METADATA_BLOB",
+	"GET_IS_DYNAMIC",
+	"GET_PDB_BLOB",
+	"GET_TYPE_FROM_TOKEN", 
+	"GET_METHOD_FROM_TOKEN",
+	"HAS_DEBUG_INFO",
+	"GET_CUSTOM_ATTRIBUTES",
 };
 
 static const char* module_cmds_str[] = {

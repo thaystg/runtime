@@ -138,6 +138,27 @@ decode_string (guint8 *buf, guint8 **endbuf, guint8 *limit)
 	return s;
 }
 
+guint8*
+decode_byte_array(guint8* buf, guint8** endbuf, guint8* limit, guint32* len)
+{
+	*len = decode_int(buf, &buf, limit);
+	guint8* s;
+
+	if (len < 0) {
+		*endbuf = buf;
+		return NULL;
+	}
+
+	s = (guint8*)g_malloc(*len);
+	g_assert(s);
+
+	memcpy(s, buf, *len);
+	buf += *len;
+	*endbuf = buf;
+
+	return s;
+}
+
 /*
  * Functions to encode protocol data
  */
