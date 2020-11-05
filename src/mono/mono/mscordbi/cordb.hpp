@@ -1077,7 +1077,7 @@ public:
 	Cordb* cordb;
     CordbProcess()
     {
-        suspended = 0;
+        suspended = false;
     }
      HRESULT STDMETHODCALLTYPE EnumerateLoaderHeapMemoryRegions(
         /* [out] */ ICorDebugMemoryRangeEnum** ppRanges);
@@ -1544,5 +1544,64 @@ public:
         /* [in] */ ULONG32 nOffset);
 
 };
+class CordbRegisteSet:
+    public ICorDebugRegisterSet {
+
+    HRESULT STDMETHODCALLTYPE QueryInterface(
+        /* [in] */ REFIID id,
+        /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface);
+    ULONG STDMETHODCALLTYPE AddRef(void);
+    ULONG STDMETHODCALLTYPE Release(void);
+
+    HRESULT STDMETHODCALLTYPE GetRegistersAvailable(
+        /* [out] */ ULONG64* pAvailable);
+
+    HRESULT STDMETHODCALLTYPE GetRegisters(
+        /* [in] */ ULONG64 mask,
+        /* [in] */ ULONG32 regCount,
+        /* [length_is][size_is][out] */ CORDB_REGISTER regBuffer[]);
+
+    HRESULT STDMETHODCALLTYPE SetRegisters(
+        /* [in] */ ULONG64 mask,
+        /* [in] */ ULONG32 regCount,
+        /* [size_is][in] */ CORDB_REGISTER regBuffer[]);
+
+    HRESULT STDMETHODCALLTYPE GetThreadContext(
+        /* [in] */ ULONG32 contextSize,
+        /* [size_is][length_is][out][in] */ BYTE context[]);
+
+    HRESULT STDMETHODCALLTYPE SetThreadContext(
+        /* [in] */ ULONG32 contextSize,
+        /* [size_is][length_is][in] */ BYTE context[]);
+};
+
+class CordbChainEnum: 
+public ICorDebugChainEnum
+{
+
+    HRESULT STDMETHODCALLTYPE QueryInterface(
+        /* [in] */ REFIID id,
+        /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface);
+    ULONG STDMETHODCALLTYPE AddRef(void);
+    ULONG STDMETHODCALLTYPE Release(void);
+
+    HRESULT STDMETHODCALLTYPE Skip(
+        /* [in] */ ULONG celt);
+
+    HRESULT STDMETHODCALLTYPE Reset(void);
+
+    HRESULT STDMETHODCALLTYPE Clone(
+        /* [out] */ ICorDebugEnum** ppEnum);
+
+    HRESULT STDMETHODCALLTYPE GetCount(
+        /* [out] */ ULONG* pcelt);
+
+    HRESULT STDMETHODCALLTYPE Next(
+        /* [in] */ ULONG celt,
+        /* [length_is][size_is][out] */ ICorDebugChain* chains[],
+        /* [out] */ ULONG* pceltFetched);
+};
+
+
 
 #endif

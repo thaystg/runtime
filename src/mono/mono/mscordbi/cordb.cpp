@@ -1493,7 +1493,7 @@ HRESULT CordbModule::GetName(
 		g_free(assembly_name);
 		return S_OK;
 	}
-	mbstowcs(szName, assembly_name, strlen(assembly_name));
+	mbstowcs(szName, assembly_name, strlen(assembly_name)+1);
 	g_free(assembly_name);
 	return S_OK;
 }
@@ -2110,22 +2110,29 @@ ULONG CordbProcess::Release(void)
 
 HRESULT CordbProcess::Stop(
 /* [in] */ DWORD dwTimeoutIgnored) {
-	printf("CordbProcess - Stop - NOT IMPLEMENTED\n");
+	if (suspended)
+	{
+		printf("CordbProcess - Stop - ALREADY SUSPENDED\n");
+		fflush(stdout);
+		return S_OK;
+	}
+	printf("CordbProcess - Stop - IMPLEMENTED\n");
 	fflush(stdout);
 	Buffer sendbuf;
 	buffer_init(&sendbuf, 128);
 	connection->send_event(CMD_SET_VM, CMD_VM_SUSPEND, &sendbuf);
-	suspended++;
+	suspended = true;
 	return S_OK;
 }
 
 	HRESULT CordbProcess::Continue(
 	/* [in] */ BOOL fIsOutOfBand)
 {
-	if (suspended == 0) {
-		printf("RESUME SEM ESTAR SUSPENSO\n");
+	if (suspended == false) {
+		printf("RESUME SEM ESTAR SUSPENSO - fIsOutOfBand - %d\n", fIsOutOfBand);
+		return S_OK;
 	}
-	suspended--;
+	suspended = false;
 	printf("CordbProcess - Continue - IMPLEMENTED\n");
 	fflush(stdout);
 	Buffer sendbuf;
@@ -2416,12 +2423,12 @@ void Connection::process_packet_internal(Buffer *recvbuf)
 		long thread_id = decode_id(recvbuf->buf, &recvbuf->buf, recvbuf->end);
 
 		printf("Received %d events %s(%d), suspend=%d.\n", nevents, event_to_string(etype), etype, spolicy);
-		ppProcess->suspended++;
 		fflush(stdout);
 		switch (etype)
 		{
 		case EVENT_KIND_VM_START:
 		{
+			ppProcess->suspended = true;
 			Buffer sendbuf;
 			buffer_init(&sendbuf, 128);
 			send_event(0, 0, &sendbuf);
@@ -2430,6 +2437,7 @@ void Connection::process_packet_internal(Buffer *recvbuf)
 		break;
 		case EVENT_KIND_ASSEMBLY_LOAD:
 		{
+			// all the callbacks call a resume, in this case that we are faking 2 callbacks without receive command, we should not send the continue
 			int assembly_id = decode_id(recvbuf->buf, &recvbuf->buf, recvbuf->end);
 			if (pCorDebugAppDomain == NULL) {
 				pCorDebugAppDomain = new CordbAppDomain(static_cast<ICorDebugProcess*>(ppProcess));
@@ -2439,6 +2447,7 @@ void Connection::process_packet_internal(Buffer *recvbuf)
 			ICorDebugAssembly* pAssembly = new CordbAssembly(ppProcess, pCorDebugAppDomain, assembly_id);
 			ppCordb->pCallback->LoadAssembly(pCorDebugAppDomain, pAssembly);
 
+			ppProcess->suspended = true;
 			ICorDebugModule* pModule = new CordbModule(ppProcess, (CordbAssembly*)pAssembly, assembly_id);
 			ppCordb->pCallback->LoadModule(pCorDebugAppDomain, pModule);
 		}
@@ -2462,9 +2471,11 @@ void Connection::process_packet_internal(Buffer *recvbuf)
 			int i = 0;
 			CordbFunctionBreakpoint* breakpoint;
 			while (i < ppCordb->breakpoints->len) {
+				ppProcess->suspended = true;
 				breakpoint = (CordbFunctionBreakpoint*)g_ptr_array_index(ppCordb->breakpoints, i);
 				if (breakpoint->offset == offset && breakpoint->code->func->id == method_id) {
-					ppCordb->pCallback->Breakpoint(pCorDebugAppDomain, thread, breakpoint);
+					printf("CHEGOU O BREAKPOINT = %d - %d - %d - %d - %x", method_id, offset, breakpoint->offset, breakpoint->code->func->id, static_cast<ICorDebugFunctionBreakpoint*>(breakpoint));
+					ppCordb->pCallback->Breakpoint(pCorDebugAppDomain, thread, static_cast<ICorDebugFunctionBreakpoint*>(breakpoint));
 					break;
 				}
 				i++;
@@ -2478,6 +2489,9 @@ void Connection::process_packet_internal(Buffer *recvbuf)
 
 int Connection::process_packet(bool is_answer)
 {
+	if (!is_answer)
+		process_packet_from_queue();
+
 	int iResult;
 	Buffer sendbuf, recvbufheader;
 	Buffer* recvbuf;
@@ -2485,8 +2499,10 @@ int Connection::process_packet(bool is_answer)
 
 	buffer_init(&sendbuf, 128);
 	buffer_init(&recvbufheader, HEADER_LEN);
-
+	
+	printf("esperando pacote? - 2\n");
 	iResult = recv(connect_socket, (char*)recvbufheader.buf, HEADER_LEN, 0);
+	printf("achei - 2\n");
 	if (iResult > 0)
 		printf("");
 	else if (iResult == 0)
@@ -2500,17 +2516,23 @@ int Connection::process_packet(bool is_answer)
 
 	if (header.flags == REPLY_PACKET) //add to the dictionary of messages
 	{
+		printf("achei - 3\n");
 		Buffer *recvbuf2;
 		recvbuf2 = new Buffer();
 		buffer_init(recvbuf2, header.len - HEADER_LEN);
-		iResult = recv(connect_socket, (char*)recvbuf2->buf, header.len - HEADER_LEN, 0);
-		g_hash_table_insert(received_replies, (gpointer)(gssize)(header.id), recvbuf2);
+		printf("header.len - HEADER_LEN - %d - CMDID - %d\n", header.len - HEADER_LEN, header.id);
+		if (header.len - HEADER_LEN != 0)
+		{
+			iResult = recv(connect_socket, (char*)recvbuf2->buf, header.len - HEADER_LEN, 0);
+			g_hash_table_insert(received_replies, (gpointer)(gssize)(header.id), recvbuf2);
+		}
 		return 0;
 	}
 
-
+	printf("achei - 4\n");
 	buffer_init(recvbuf, header.len - HEADER_LEN);
 	iResult = recv(connect_socket, (char*)recvbuf->buf, header.len - HEADER_LEN, 0);
+	printf("achei - 5\n");
 
 	if (iResult > 0)
 		printf("");
@@ -2519,14 +2541,12 @@ int Connection::process_packet(bool is_answer)
 	else
 		printf("recv failed with error: %d\n", WSAGetLastError());
 
-
 	if (header.command_set == CMD_SET_EVENT && header.command == CMD_COMPOSITE) {
 		if (is_answer)
 		{
 			g_ptr_array_add(received_replies_to_process, recvbuf);
 			return iResult;
 		}
-		process_packet_from_queue();
 		process_packet_internal(recvbuf);
 	}
 
@@ -2562,6 +2582,7 @@ void Connection::loop_send_receive()
 	Buffer recvbuf, recvbufheader;
 	// Receive until the peer closes the connection
 	do {
+		printf("esperando pacote? - 1\n");
 		iResult = process_packet();
 		Sleep(100);
 	} while (iResult >= 0);
@@ -2834,9 +2855,10 @@ HRESULT __stdcall CordbFunction::GetILCode(ICorDebugCode** ppCode)
 
 HRESULT __stdcall CordbFunction::GetNativeCode(ICorDebugCode** ppCode)
 {
-	printf("CordbFunction - GetNativeCode - NOT IMPLEMENTED\n");
+	*ppCode = static_cast<ICorDebugCode*>(code);
+	printf("CordbFunction - GetNativeCode - IMPLEMENTED\n");
 	fflush(stdout);
-	return E_NOTIMPL;
+	return S_OK;
 }
 
 HRESULT __stdcall CordbFunction::CreateBreakpoint(ICorDebugFunctionBreakpoint** ppBreakpoint)
@@ -2943,6 +2965,7 @@ HRESULT __stdcall CordbCode::CreateBreakpoint(ULONG32 offset, ICorDebugFunctionB
 	*ppBreakpoint = static_cast<ICorDebugFunctionBreakpoint*>(bp);
 	g_ptr_array_add(this->func->module->pProcess->cordb->breakpoints, bp);
 	printf("CordbCode - CreateBreakpoint - %ld - IMPLEMENTED\n", offset);
+	printf("CreateBreakpoint - static_cast<ICorDebugFunctionBreakpoint*>(breakpoint) - %x", *ppBreakpoint);
 	fflush(stdout);
 	return S_OK;
 }
@@ -3026,7 +3049,7 @@ HRESULT __stdcall CordbFunctionBreakpoint::GetOffset(ULONG32* pnOffset)
 
 HRESULT __stdcall CordbFunctionBreakpoint::Activate(BOOL bActive)
 {
-	if (bActive && offset != 0)
+	if (bActive)
 	{
 		Buffer sendbuf;
 		int buflen = 128;
@@ -3254,9 +3277,11 @@ HRESULT STDMETHODCALLTYPE CordbThread::CreateStepper(
 HRESULT STDMETHODCALLTYPE CordbThread::EnumerateChains(
 	/* [out] */ ICorDebugChainEnum** ppChains)
 {
-	printf("CordbThread - EnumerateChains - NOT IMPLEMENTED\n");
+	CordbChainEnum* pChains = new CordbChainEnum();
+	*ppChains = static_cast<ICorDebugChainEnum*>(pChains);
+	printf("CordbThread - EnumerateChains - IMPLEMENTED\n");
 	fflush(stdout);
-	return E_NOTIMPL;
+	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::GetActiveChain(
@@ -3284,6 +3309,7 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetActiveFrame(
 		connection->process_packet(true);
 		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
 	}
+	printf("recebi resposta\n");
 	int nframes = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	int frameid = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	int methoid = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
@@ -3307,9 +3333,11 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetActiveFrame(
 HRESULT STDMETHODCALLTYPE CordbThread::GetRegisterSet(
 	/* [out] */ ICorDebugRegisterSet** ppRegisters)
 {
-	printf("CordbThread - GetRegisterSet - NOT IMPLEMENTED\n");
+	CordbRegisteSet* registerset = new CordbRegisteSet();
+	*ppRegisters = static_cast<ICorDebugRegisterSet*>(registerset);
+	printf("CordbThread - GetRegisterSet - IMPLEMENTED\n");
 	fflush(stdout);
-	return E_NOTIMPL;
+	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::CreateEval(
@@ -3528,4 +3556,94 @@ HRESULT STDMETHODCALLTYPE CordbFrame::CanSetIP(
 	printf("CordbFrame - CanSetIP - NOT IMPLEMENTED\n");
 	fflush(stdout);
 	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbRegisteSet::GetRegistersAvailable(ULONG64* pAvailable)
+{
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbRegisteSet::QueryInterface(REFIID id, void** pInterface)
+{
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbRegisteSet::GetRegisters(ULONG64 mask, ULONG32 regCount, CORDB_REGISTER regBuffer[])
+{
+	return E_NOTIMPL;
+}
+
+ULONG __stdcall CordbRegisteSet::Release(void)
+{
+	return 0;
+}
+
+ULONG __stdcall CordbRegisteSet::AddRef(void)
+{
+	return 0;
+}
+
+HRESULT STDMETHODCALLTYPE CordbRegisteSet::SetRegisters(
+	/* [in] */ ULONG64 mask,
+	/* [in] */ ULONG32 regCount,
+	/* [size_is][in] */ CORDB_REGISTER regBuffer[])
+{
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbRegisteSet::GetThreadContext(
+	/* [in] */ ULONG32 contextSize,
+	/* [size_is][length_is][out][in] */ BYTE context[])
+{
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbRegisteSet::SetThreadContext(
+	/* [in] */ ULONG32 contextSize,
+	/* [size_is][length_is][in] */ BYTE context[])
+{
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbChainEnum::Next(ULONG celt, ICorDebugChain* chains[], ULONG* pceltFetched)
+{
+	*pceltFetched = 0;
+	return S_OK;
+}
+
+HRESULT __stdcall CordbChainEnum::QueryInterface(REFIID id, void** pInterface)
+{
+	return E_NOTIMPL;
+}
+
+HRESULT __stdcall CordbChainEnum::Skip(ULONG celt)
+{
+	return E_NOTIMPL;
+}
+
+ULONG STDMETHODCALLTYPE CordbChainEnum::AddRef(void)
+{
+	return 0;
+}
+ULONG STDMETHODCALLTYPE CordbChainEnum::Release(void)
+{
+	return 0;
+}
+
+HRESULT STDMETHODCALLTYPE CordbChainEnum::Reset(void)
+{
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbChainEnum::Clone(
+	/* [out] */ ICorDebugEnum** ppEnum)
+{
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbChainEnum::GetCount(
+	/* [out] */ ULONG* pcelt)
+{
+	*pcelt = 0;
+	return S_OK;
 }
