@@ -22,7 +22,15 @@ namespace HelloWorld
                 Thread.Sleep(1000);
                 Console.WriteLine("Waiting for debugger to attach");
             }
+            AnotherFunctionCall(50);
             Console.WriteLine("Debugger attached");
+        }
+        private static void AnotherFunctionCall(int c)
+        {
+            int a = 10;
+            a = 10 + 20;
+            c = c + a;
+            Console.WriteLine("Debugger attached 2");
         }
     }
 }

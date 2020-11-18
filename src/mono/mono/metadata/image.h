@@ -71,6 +71,7 @@ MONO_API MONO_RT_EXTERNAL_ONLY MonoImage*    mono_image_load_module (MonoImage *
 MONO_API const char*   mono_image_get_name       (MonoImage *image);
 MONO_API const char*   mono_image_get_filename   (MonoImage *image);
 MONO_API const char *  mono_image_get_guid       (MonoImage *image);
+MONO_API const uint8_t *  mono_metadata_module_mvid (MonoImage *image);
 MONO_API MonoAssembly* mono_image_get_assembly   (MonoImage *image);
 MONO_API mono_bool     mono_image_is_dynamic     (MonoImage *image);
 MONO_API char*         mono_image_rva_map        (MonoImage *image, uint32_t rva);

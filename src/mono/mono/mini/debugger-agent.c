@@ -6958,6 +6958,7 @@ event_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 				break;
 			case EVENT_KIND_ASSEMBLY_LOAD:
 				/* Emit load events for currently loaded assemblies */
+				printf("EVENT_KIND_ASSEMBLY_LOAD - passei aqui Thays\n");
 				mono_domain_foreach (send_assemblies_for_domain, NULL);
 				break;
 			case EVENT_KIND_THREAD_START:
@@ -7305,6 +7306,8 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
         guint32 token = decode_int (p, &p, end);
         ERROR_DECL (error);
         error_init (error);
+		printf("token - %d\n", token);
+		fflush(stdout);
         MonoClass* mono_class = mono_class_get_checked (ass->image, token, error);
         if (!is_ok (error)) {
             add_error_string (buf, mono_error_get_message (error));
@@ -7385,10 +7388,14 @@ module_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		buffer_add_string (buf, image->name); // fqname
 		buffer_add_string (buf, mono_image_get_guid (image)); // guid
 		buffer_add_assemblyid (buf, domain, image->assembly); // assembly
-		if (CHECK_PROTOCOL_VERSION (2, 48))
+		if (CHECK_PROTOCOL_VERSION (2, 48)) {
+			printf("CHECK_PROTOCOL_VERSION (2, 48)\n");
+			fflush(stdout);
 			buffer_add_string (buf, sourcelink);
+		}
 		g_free (basename);
 		g_free (sourcelink);
+		buffer_add_byte_array(buf, mono_metadata_module_mvid (image), 16);
 		break;			
 	}
 	default:
@@ -8618,6 +8625,7 @@ thread_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 			 */
 			buffer_add_byte (buf, tls->frames [i]->flags);
 		}
+		buffer_add_byte_array(buf, ((guint8 *)&tls->context.ctx), (guint32)sizeof(MonoContext));
 
 		break;
 	}

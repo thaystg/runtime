@@ -20,7 +20,7 @@
 
 static MonoCoopMutex debug_mutex;
 
-#define dbg_lock() mono_os_mutex_trylock (&debug_mutex.m)
+#define dbg_lock() mono_os_mutex_lock (&debug_mutex.m)
 #define dbg_unlock() mono_os_mutex_unlock (&debug_mutex.m)
 
 #define return_if_nok(error) do { if (!is_ok ((error))) return S_FALSE; } while (0)
@@ -41,6 +41,150 @@ class CordbAssembly;
 class CordbCode;
 class CordbThread;
 class CordbFunction;
+class CordbStepper;
+class CordbRegisteSet;
+class CordbJITILFrame;
+
+struct M128BIT {
+    uint64_t Low;
+    int64_t  High;
+};
+
+
+struct AMD64_XMM_SAVE_AREA32 {
+    uint16_t ControlWord;
+    uint16_t StatusWord;
+    uint8_t  TagWord;
+    uint8_t  Reserved1;
+    uint16_t ErrorOpcode;
+    uint32_t ErrorOffset;
+    uint16_t ErrorSelector;
+    uint16_t Reserved2;
+    uint32_t DataOffset;
+    uint16_t DataSelector;
+    uint16_t Reserved3;
+    uint32_t MxCsr;
+    uint32_t MxCsr_Mask;
+    M128BIT  FloatRegisters[8];
+    M128BIT  XmmRegisters[16];
+    uint8_t  Reserved4[96];
+};
+
+struct AMD64_CONTEXT {
+
+    //
+    // Register parameter home addresses.
+    //
+
+    uint64_t P1Home;
+    uint64_t P2Home;
+    uint64_t P3Home;
+    uint64_t P4Home;
+    uint64_t P5Home;
+    uint64_t P6Home;
+
+    //
+    // Control flags.
+    //
+
+    uint32_t ContextFlags;
+    uint32_t MxCsr;
+
+    //
+    // Segment Registers and processor flags.
+    //
+
+    uint16_t SegCs;
+    uint16_t SegDs;
+    uint16_t SegEs;
+    uint16_t SegFs;
+    uint16_t SegGs;
+    uint16_t SegSs;
+    uint32_t EFlags;
+
+    //
+    // Debug registers
+    //
+
+    uint64_t Dr0;
+    uint64_t Dr1;
+    uint64_t Dr2;
+    uint64_t Dr3;
+    uint64_t Dr6;
+    uint64_t Dr7;
+
+    //
+    // Integer registers.
+    //
+
+    uint64_t Rax;
+    uint64_t Rcx;
+    uint64_t Rdx;
+    uint64_t Rbx;
+    uint64_t Rsp;
+    uint64_t Rbp;
+    uint64_t Rsi;
+    uint64_t Rdi;
+    uint64_t R8;
+    uint64_t R9;
+    uint64_t R10;
+    uint64_t R11;
+    uint64_t R12;
+    uint64_t R13;
+    uint64_t R14;
+    uint64_t R15;
+
+    //
+    // Program counter.
+    //
+
+    uint64_t Rip;
+
+    //
+    // Floating point state.
+    //
+
+    union {
+        AMD64_XMM_SAVE_AREA32 FltSave;
+        struct {
+            M128BIT Header[2];
+            M128BIT Legacy[8];
+            M128BIT Xmm0;
+            M128BIT Xmm1;
+            M128BIT Xmm2;
+            M128BIT Xmm3;
+            M128BIT Xmm4;
+            M128BIT Xmm5;
+            M128BIT Xmm6;
+            M128BIT Xmm7;
+            M128BIT Xmm8;
+            M128BIT Xmm9;
+            M128BIT Xmm10;
+            M128BIT Xmm11;
+            M128BIT Xmm12;
+            M128BIT Xmm13;
+            M128BIT Xmm14;
+            M128BIT Xmm15;
+        };
+    };
+
+    //
+    // Vector registers.
+    //
+
+    M128BIT VectorRegister[26];
+    uint64_t VectorControl;
+
+    //
+    // Special debug control registers.
+    //
+
+    uint64_t DebugControl;
+    uint64_t LastBranchToRip;
+    uint64_t LastBranchFromRip;
+    uint64_t LastExceptionToRip;
+    uint64_t LastExceptionFromRip;
+};
 
 class Cordb : public ICorDebug, public ICorDebugRemote
 {
@@ -52,6 +196,7 @@ public:
     Cordb();
 
     CordbFunction* findFunction(int id);
+    CordbFunction* findFunctionByToken(int token);
     HRESULT Initialize(void);
 
     HRESULT Terminate(void);
@@ -123,9 +268,10 @@ class Connection
 {
 	SOCKET connect_socket;
 	CordbProcess* ppProcess;
-	CordbAppDomain*pCorDebugAppDomain;
 	Cordb* ppCordb;
+    bool is_answer_pending;
 public:
+    CordbAppDomain* pCorDebugAppDomain;
 	GHashTable* received_replies;
 	GPtrArray* received_replies_to_process;
 	Connection(CordbProcess* proc, Cordb* cordb);
@@ -154,6 +300,7 @@ class CordbSymbol :
     public IMetaDataAssemblyImport
 {
     CordbAssembly* pCordbAssembly;
+    int module_id;
 public:
 
     CordbSymbol(CordbAssembly* cordbAssembly);
@@ -1384,6 +1531,8 @@ class CordbThread :
 public:
     long thread_id;
     CordbProcess* ppProcess;
+    CordbStepper* stepper;
+    CordbRegisteSet* registerset;
     CordbThread(CordbProcess *ppProcess, long thread_id);
     HRESULT STDMETHODCALLTYPE HasUnhandledException(void);
 
@@ -1472,8 +1621,90 @@ public:
 
 };
 
-class CordbFrame:
-    public ICorDebugILFrame
+class CordbNativeFrame :
+    public ICorDebugNativeFrame,
+    public ICorDebugNativeFrame2
+{
+    CordbJITILFrame* m_JITILFrame;
+public:
+    CordbThread* thread;
+    CordbNativeFrame(int frameid, int methoid, int il_offset, int flags, CordbThread* thread);
+
+    virtual HRESULT STDMETHODCALLTYPE GetIP(ULONG32* pnOffset);
+
+
+    virtual HRESULT STDMETHODCALLTYPE SetIP(ULONG32 nOffset);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetRegisterSet(ICorDebugRegisterSet** ppRegisters);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetLocalRegisterValue(CorDebugRegister reg, ULONG cbSigBlob, PCCOR_SIGNATURE pvSigBlob, ICorDebugValue** ppValue);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetLocalDoubleRegisterValue(CorDebugRegister highWordReg, CorDebugRegister lowWordReg, ULONG cbSigBlob, PCCOR_SIGNATURE pvSigBlob, ICorDebugValue** ppValue);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetLocalMemoryValue(CORDB_ADDRESS address, ULONG cbSigBlob, PCCOR_SIGNATURE pvSigBlob, ICorDebugValue** ppValue);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetLocalRegisterMemoryValue(CorDebugRegister highWordReg, CORDB_ADDRESS lowWordAddress, ULONG cbSigBlob, PCCOR_SIGNATURE pvSigBlob, ICorDebugValue** ppValue);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetLocalMemoryRegisterValue(CORDB_ADDRESS highWordAddress, CorDebugRegister lowWordRegister, ULONG cbSigBlob, PCCOR_SIGNATURE pvSigBlob, ICorDebugValue** ppValue);
+
+
+    virtual HRESULT STDMETHODCALLTYPE CanSetIP(ULONG32 nOffset);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetChain(ICorDebugChain** ppChain);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetCode(ICorDebugCode** ppCode);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetFunction(ICorDebugFunction** ppFunction);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetFunctionToken(mdMethodDef* pToken);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetStackRange(CORDB_ADDRESS* pStart, CORDB_ADDRESS* pEnd);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetCaller(ICorDebugFrame** ppFrame);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetCallee(ICorDebugFrame** ppFrame);
+
+
+    virtual HRESULT STDMETHODCALLTYPE CreateStepper(ICorDebugStepper** ppStepper);
+
+
+    virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject);
+
+
+    virtual ULONG STDMETHODCALLTYPE AddRef(void);
+
+
+    virtual ULONG STDMETHODCALLTYPE Release(void);
+
+
+    virtual HRESULT STDMETHODCALLTYPE IsChild(BOOL* pIsChild);
+
+
+    virtual HRESULT STDMETHODCALLTYPE IsMatchingParentFrame(ICorDebugNativeFrame2* pPotentialParentFrame, BOOL* pIsParent);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetStackParameterSize(ULONG32* pSize);
+
+};
+
+class CordbJITILFrame :
+    public ICorDebugILFrame,
+    public ICorDebugILFrame2,
+    public ICorDebugILFrame3,
+    public ICorDebugILFrame4
 {
 public:
     int frameid;
@@ -1481,7 +1712,7 @@ public:
     int il_offset;
     int flags;
     CordbThread* thread;
-    CordbFrame(int frameid, int methoid, int il_offset, int flags, CordbThread* thread);
+    CordbJITILFrame(int frameid, int methoid, int il_offset, int flags, CordbThread* thread);
     HRESULT STDMETHODCALLTYPE GetChain(
         /* [out] */ ICorDebugChain** ppChain);
 
@@ -1543,10 +1774,33 @@ public:
     HRESULT STDMETHODCALLTYPE CanSetIP(
         /* [in] */ ULONG32 nOffset);
 
+
+    virtual HRESULT STDMETHODCALLTYPE RemapFunction(ULONG32 newILOffset);
+
+
+    virtual HRESULT STDMETHODCALLTYPE EnumerateTypeParameters(ICorDebugTypeEnum** ppTyParEnum);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetReturnValueForILOffset(ULONG32 ILoffset, ICorDebugValue** ppReturnValue);
+
+
+    virtual HRESULT STDMETHODCALLTYPE EnumerateLocalVariablesEx(ILCodeKind flags, ICorDebugValueEnum** ppValueEnum);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetLocalVariableEx(ILCodeKind flags, DWORD dwIndex, ICorDebugValue** ppValue);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetCodeEx(ILCodeKind flags, ICorDebugCode** ppCode);
+
 };
+
 class CordbRegisteSet:
     public ICorDebugRegisterSet {
 
+    guint8* ctx;
+    guint32 ctx_len;
+public:
+    CordbRegisteSet(guint8* ctx, guint32 ctx_len);
     HRESULT STDMETHODCALLTYPE QueryInterface(
         /* [in] */ REFIID id,
         /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface);
@@ -1578,7 +1832,9 @@ class CordbRegisteSet:
 class CordbChainEnum: 
 public ICorDebugChainEnum
 {
-
+public:
+    CordbThread* thread;
+    CordbChainEnum(CordbThread* thread);
     HRESULT STDMETHODCALLTYPE QueryInterface(
         /* [in] */ REFIID id,
         /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface);
@@ -1602,6 +1858,298 @@ public ICorDebugChainEnum
         /* [out] */ ULONG* pceltFetched);
 };
 
+class CordbChain :
+    public ICorDebugChain
+{
+public:
+    CordbThread* thread;
+    CorDebugChainReason chain_reason;
+    bool is_managed;
+    CordbChain(CordbThread* thread, CorDebugChainReason chain_reason, bool is_managed);
+
+    HRESULT STDMETHODCALLTYPE GetThread(
+        /* [out] */ ICorDebugThread** ppThread);
+
+    HRESULT STDMETHODCALLTYPE GetStackRange(
+        /* [out] */ CORDB_ADDRESS* pStart,
+        /* [out] */ CORDB_ADDRESS* pEnd);
+
+    HRESULT STDMETHODCALLTYPE GetContext(
+        /* [out] */ ICorDebugContext** ppContext);
+
+    HRESULT STDMETHODCALLTYPE GetCaller(
+        /* [out] */ ICorDebugChain** ppChain);
+
+    HRESULT STDMETHODCALLTYPE GetCallee(
+        /* [out] */ ICorDebugChain** ppChain);
+
+    HRESULT STDMETHODCALLTYPE GetPrevious(
+        /* [out] */ ICorDebugChain** ppChain);
+
+    HRESULT STDMETHODCALLTYPE GetNext(
+        /* [out] */ ICorDebugChain** ppChain);
+
+    HRESULT STDMETHODCALLTYPE IsManaged(
+        /* [out] */ BOOL* pManaged);
+
+    HRESULT STDMETHODCALLTYPE EnumerateFrames(
+        /* [out] */ ICorDebugFrameEnum** ppFrames);
+
+    HRESULT STDMETHODCALLTYPE GetActiveFrame(
+        /* [out] */ ICorDebugFrame** ppFrame);
+
+    HRESULT STDMETHODCALLTYPE GetRegisterSet(
+        /* [out] */ ICorDebugRegisterSet** ppRegisters);
+
+    HRESULT STDMETHODCALLTYPE GetReason(
+        /* [out] */ CorDebugChainReason* pReason);
+    
+    HRESULT STDMETHODCALLTYPE QueryInterface(
+        /* [in] */ REFIID id,
+        /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface);
+    ULONG STDMETHODCALLTYPE AddRef(void);
+    ULONG STDMETHODCALLTYPE Release(void);
+};
+
+class CordbFrameEnum :
+    public ICorDebugFrameEnum
+{
+public:
+    CordbThread* thread;
+    int nframes;
+    CordbNativeFrame** frames;
+    CordbFrameEnum(CordbThread* thread);
+    virtual HRESULT STDMETHODCALLTYPE Next(ULONG celt, ICorDebugFrame* frames[], ULONG* pceltFetched);
+    virtual HRESULT STDMETHODCALLTYPE Skip(ULONG celt);
+    virtual HRESULT STDMETHODCALLTYPE Reset(void);
+    virtual HRESULT STDMETHODCALLTYPE Clone(ICorDebugEnum** ppEnum);
+    virtual HRESULT STDMETHODCALLTYPE GetCount(ULONG* pcelt);
+    virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject);
+    virtual ULONG STDMETHODCALLTYPE AddRef(void);
+    virtual ULONG STDMETHODCALLTYPE Release(void);
+};
+
+class CordbBlockingObjectEnum :
+    public ICorDebugBlockingObjectEnum
+{
+
+public:
+    virtual HRESULT STDMETHODCALLTYPE Next(ULONG celt, CorDebugBlockingObject values[], ULONG* pceltFetched);
 
 
+    virtual HRESULT STDMETHODCALLTYPE Skip(ULONG celt);
+
+
+    virtual HRESULT STDMETHODCALLTYPE Reset(void);
+
+
+    virtual HRESULT STDMETHODCALLTYPE Clone(ICorDebugEnum** ppEnum);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetCount(ULONG* pcelt);
+
+
+    virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject);
+
+
+    virtual ULONG STDMETHODCALLTYPE AddRef(void);
+
+
+    virtual ULONG STDMETHODCALLTYPE Release(void);
+
+};
+
+class CordbStepper :
+    public ICorDebugStepper,
+    public ICorDebugStepper2
+{
+    CordbThread* thread;
+    boolean hasStepped;
+public:
+    CordbStepper(CordbThread* thread);
+    virtual HRESULT STDMETHODCALLTYPE IsActive(BOOL* pbActive);
+
+
+    virtual HRESULT STDMETHODCALLTYPE Deactivate(void);
+
+
+    virtual HRESULT STDMETHODCALLTYPE SetInterceptMask(CorDebugIntercept mask);
+
+
+    virtual HRESULT STDMETHODCALLTYPE SetUnmappedStopMask(CorDebugUnmappedStop mask);
+
+
+    virtual HRESULT STDMETHODCALLTYPE Step(BOOL bStepIn);
+
+
+    virtual HRESULT STDMETHODCALLTYPE StepRange(BOOL bStepIn, COR_DEBUG_STEP_RANGE ranges[], ULONG32 cRangeCount);
+
+
+    virtual HRESULT STDMETHODCALLTYPE StepOut(void);
+
+
+    virtual HRESULT STDMETHODCALLTYPE SetRangeIL(BOOL bIL);
+
+
+    virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject);
+
+
+    virtual ULONG STDMETHODCALLTYPE AddRef(void);
+
+
+    virtual ULONG STDMETHODCALLTYPE Release(void);
+
+
+    virtual HRESULT STDMETHODCALLTYPE SetJMC(BOOL fIsJMCStepper);
+
+};
+
+class CordbClass :
+    public ICorDebugClass,
+    public ICorDebugClass2
+{
+    mdToken token;
+public:
+    CordbClass(mdToken token);
+    virtual HRESULT STDMETHODCALLTYPE GetModule(ICorDebugModule** pModule);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetToken(mdTypeDef* pTypeDef);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetStaticFieldValue(mdFieldDef fieldDef, ICorDebugFrame* pFrame, ICorDebugValue** ppValue);
+
+
+    virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject);
+
+
+    virtual ULONG STDMETHODCALLTYPE AddRef(void);
+
+
+    virtual ULONG STDMETHODCALLTYPE Release(void);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetParameterizedType(CorElementType elementType, ULONG32 nTypeArgs, ICorDebugType* ppTypeArgs[], ICorDebugType** ppType);
+
+
+    virtual HRESULT STDMETHODCALLTYPE SetJMCStatus(BOOL bIsJustMyCode);
+
+};
+
+
+class CordbValue :
+    public ICorDebugValue,
+    public ICorDebugValue2, 
+    public ICorDebugValue3,
+    public ICorDebugGenericValue
+{
+    CorElementType type;
+    int value;
+    int size;
+public:
+    CordbValue(CorElementType type, int value, int size);
+    virtual HRESULT STDMETHODCALLTYPE GetType(CorElementType* pType);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetSize(ULONG32* pSize);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetAddress(CORDB_ADDRESS* pAddress);
+
+
+    virtual HRESULT STDMETHODCALLTYPE CreateBreakpoint(ICorDebugValueBreakpoint** ppBreakpoint);
+
+
+    virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject);
+
+
+    virtual ULONG STDMETHODCALLTYPE AddRef(void);
+
+
+    virtual ULONG STDMETHODCALLTYPE Release(void);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetExactType(ICorDebugType** ppType);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetSize64(ULONG64* pSize);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetValue(void* pTo);
+
+
+    virtual HRESULT STDMETHODCALLTYPE SetValue(void* pFrom);
+
+};
+
+class CordbType:
+    public ICorDebugType,
+    public ICorDebugType2
+{
+    CorElementType type;
+public:
+    CordbType(CorElementType type);
+    virtual HRESULT STDMETHODCALLTYPE GetType(CorElementType* ty);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetClass(ICorDebugClass** ppClass);
+
+
+    virtual HRESULT STDMETHODCALLTYPE EnumerateTypeParameters(ICorDebugTypeEnum** ppTyParEnum);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetFirstTypeParameter(ICorDebugType** value);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetBase(ICorDebugType** pBase);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetStaticFieldValue(mdFieldDef fieldDef, ICorDebugFrame* pFrame, ICorDebugValue** ppValue);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetRank(ULONG32* pnRank);
+
+
+    virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject);
+
+
+    virtual ULONG STDMETHODCALLTYPE AddRef(void);
+
+
+    virtual ULONG STDMETHODCALLTYPE Release(void);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetTypeID(COR_TYPEID* id);
+
+};
+
+class CordbTypeEnum :
+    public ICorDebugTypeEnum
+{
+
+public:
+    virtual HRESULT STDMETHODCALLTYPE Next(ULONG celt, ICorDebugType* values[], ULONG* pceltFetched);
+
+
+    virtual HRESULT STDMETHODCALLTYPE Skip(ULONG celt);
+
+
+    virtual HRESULT STDMETHODCALLTYPE Reset(void);
+
+
+    virtual HRESULT STDMETHODCALLTYPE Clone(ICorDebugEnum** ppEnum);
+
+
+    virtual HRESULT STDMETHODCALLTYPE GetCount(ULONG* pcelt);
+
+
+    virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject);
+
+
+    virtual ULONG STDMETHODCALLTYPE AddRef(void);
+
+
+    virtual ULONG STDMETHODCALLTYPE Release(void);
+
+};
 #endif

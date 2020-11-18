@@ -5,6 +5,7 @@
 
 CordbSymbol::CordbSymbol(CordbAssembly* cordbAssembly)
 {
+	module_id = -1;
 	pCordbAssembly = cordbAssembly;
 }
 
@@ -104,7 +105,12 @@ HRESULT CordbSymbol::GetAssemblyProps(            // S_OK or error.
 	ULONG* pchName,               // [OUT] Actual # of wide chars in name.
 	ASSEMBLYMETADATA* pMetaData,        // [OUT] Assembly MetaData.
 	DWORD* pdwAssemblyFlags) {
-	printf("CordbSymbol - GetAssemblyProps - NOT IMPLEMENTED\n");
+	printf("CordbSymbol - GetAssemblyProps - NOT IMPLEMENTED - %d - %d\n", cchName, mda);
+	*pchName = 23;
+	if (cchName >= 23)
+	{
+		mbstowcs(szName, "System.Private.CoreLib", strlen("System.Private.CoreLib") + 1);
+	}
 	fflush(stdout);
 	return S_OK;
 }   // [OUT] Flags.
@@ -277,12 +283,14 @@ void CordbSymbol::CloseEnum(HCORENUM hEnum)
 	fflush(stdout);
 	return;
 }
+
 HRESULT CordbSymbol::CountEnum(HCORENUM hEnum, ULONG* pulCount)
 {
 	printf("CordbSymbol - CountEnum - NOT IMPLEMENTED\n");
 	fflush(stdout);
 	return S_OK;
 }
+
 HRESULT CordbSymbol::ResetEnum(HCORENUM hEnum, ULONG ulPos)
 {
 	printf("CordbSymbol - ResetEnum - NOT IMPLEMENTED\n");
@@ -302,6 +310,7 @@ HRESULT CordbSymbol::ResetEnum(HCORENUM hEnum, ULONG ulPos)
 {
 	printf("CordbSymbol - EnumInterfaceImpls - NOT IMPLEMENTED\n");
 	fflush(stdout);
+	*pcImpls = 0;
 	return S_OK;
 }
 	HRESULT CordbSymbol::EnumTypeRefs(HCORENUM* phEnum, mdTypeRef rTypeRefs[],
@@ -312,24 +321,142 @@ HRESULT CordbSymbol::ResetEnum(HCORENUM hEnum, ULONG ulPos)
 	return S_OK;
 }
 
-	HRESULT CordbSymbol::FindTypeDefByName(           // S_OK or error.
-	LPCWSTR     szTypeDef,              // [IN] Name of the Type.
-	mdToken     tkEnclosingClass,       // [IN] TypeDef/TypeRef for Enclosing class.
-	mdTypeDef* ptd)             // [OUT] Put the TypeDef token here.
+HRESULT CordbSymbol::FindTypeDefByName(           // S_OK or error.
+LPCWSTR     szTypeDef,              // [IN] Name of the Type.
+mdToken     tkEnclosingClass,       // [IN] TypeDef/TypeRef for Enclosing class.
+mdTypeDef* ptd)             // [OUT] Put the TypeDef token here.
 {
-	printf("CordbSymbol - FindTypeDefByName - NOT IMPLEMENTED\n");
+
+	Buffer sendbuf;
+	buffer_init(&sendbuf, 128);
+
+	char output[256];
+	sprintf(output, "%ws", szTypeDef);
+
+	buffer_add_string(&sendbuf, output);
+	buffer_add_byte(&sendbuf, true);
+	int cmdId = connection->send_event(CMD_SET_VM, CMD_VM_GET_TYPES, &sendbuf);
+
+	buffer_free(&sendbuf);
+
+	Buffer* localbuf2 = NULL;
+	while (!localbuf2) {
+		connection->process_packet(true);
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+
+	int count_class = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int klass_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+
+	buffer_add_id(&localbuf, klass_id);
+	cmdId = connection->send_event(CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
+	buffer_free(&localbuf);
+
+	localbuf2 = NULL;
+	while (!localbuf2) {
+		connection->process_packet(true);
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+
+	char* namespace_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	char* class_name_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	char* class_fullname_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int assembly_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	module_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int type_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int type_id2 = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	*ptd = token;
+
+	printf("CordbSymbol - FindTypeDefByName - IMPLEMENTED - %d - %d - %s\n", count_class, token, class_name_str);
 	fflush(stdout);
 	return S_OK;
 }
 
-	HRESULT CordbSymbol::GetScopeProps(               // S_OK or error.
-	__out_ecount_part_opt(cchName, *pchName)
-	LPWSTR      szName,                 // [OUT] Put the name here.
-	ULONG       cchName,                // [IN] Size of name buffer in wide chars.
-	ULONG* pchName,               // [OUT] Put size of name (wide chars) here.
-	GUID* pmvid)           // [OUT, OPTIONAL] Put MVID here.
+HRESULT CordbSymbol::GetScopeProps(               // S_OK or error.
+__out_ecount_part_opt(cchName, *pchName)
+LPWSTR      szName,                 // [OUT] Put the name here.
+ULONG       cchName,                // [IN] Size of name buffer in wide chars.
+ULONG* pchName,               // [OUT] Put size of name (wide chars) here.
+GUID* pmvid)           // [OUT, OPTIONAL] Put MVID here.
 {
-	printf("CordbSymbol - GetScopeProps - NOT IMPLEMENTED\n");
+	if (module_id < 0) {
+		Buffer localbuf;
+		buffer_init(&localbuf, 128);
+		buffer_add_id(&localbuf, this->pCordbAssembly->id);
+		int cmdId = connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_MANIFEST_MODULE, &localbuf);
+		buffer_free(&localbuf);
+
+		Buffer* localbuf2 = NULL;
+		while (!localbuf2) {
+			connection->process_packet(true);
+			localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+		}
+
+		module_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	}
+
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, module_id);
+	int cmdId = connection->send_event(CMD_SET_MODULE, CMD_MODULE_GET_INFO, &localbuf);
+	buffer_free(&localbuf);
+
+	Buffer* localbuf2 = NULL;
+	while (!localbuf2) {
+		connection->process_packet(true);
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+
+	printf("CordbSymbol - GetScopeProps - IMPLEMENTED - 1\n");
+	fflush(stdout);
+	char* basename = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	printf("CordbSymbol - GetScopeProps - IMPLEMENTED - 2\n");
+	fflush(stdout);
+	char* module_name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	printf("CordbSymbol - GetScopeProps - IMPLEMENTED - 3\n");
+	fflush(stdout);
+	char* name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	printf("CordbSymbol - GetScopeProps - IMPLEMENTED - 4\n");
+	fflush(stdout);
+	char* guid = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	printf("CordbSymbol - GetScopeProps - IMPLEMENTED - 5\n");
+	fflush(stdout);
+	int assembly_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	printf("CordbSymbol - GetScopeProps - IMPLEMENTED - 6\n");
+	fflush(stdout);
+	/*char* sourcelink = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);*/
+	guint32 mvid_len;
+	printf("CordbSymbol - GetScopeProps - IMPLEMENTED - 7\n");
+	fflush(stdout);
+	guint8 *mvid = decode_byte_array(localbuf2->buf, &localbuf2->buf, localbuf2->end, &mvid_len);
+	printf("CordbSymbol - GetScopeProps - IMPLEMENTED - 8\n");
+	fflush(stdout);
+	memcpy(pmvid, mvid, mvid_len);
+	if (cchName > strlen(name))
+	{
+		mbstowcs(szName, name, strlen(name) + 1);
+		*pchName = strlen(name) + 1;
+	}
+	printf("CordbSymbol - GetScopeProps - IMPLEMENTED - %s - %s - %d\n", name, guid, mvid_len);
+
+	/*
+	* 
+	buffer_add_string (buf, basename); // name
+	buffer_add_string (buf, image->module_name); // scopename
+	buffer_add_string (buf, image->name); // fqname
+	buffer_add_string (buf, mono_image_get_guid (image)); // guid
+	buffer_add_assemblyid (buf, domain, image->assembly); // assembly
+	if (CHECK_PROTOCOL_VERSION (2, 48))
+		buffer_add_string (buf, sourcelink);
+	buffer_add_byte_array(buf, mono_metadata_module_mvid(image));
+	*/
+	
+
+	
 	fflush(stdout);
 	return S_OK;
 }
@@ -342,18 +469,92 @@ HRESULT CordbSymbol::ResetEnum(HCORENUM hEnum, ULONG ulPos)
 	return S_OK;
 }
 
-	HRESULT CordbSymbol::GetTypeDefProps(             // S_OK or error.
-	mdTypeDef   td,                     // [IN] TypeDef token for inquiry.
-	__out_ecount_part_opt(cchTypeDef, *pchTypeDef)
-	LPWSTR      szTypeDef,              // [OUT] Put name here.
-	ULONG       cchTypeDef,             // [IN] size of name buffer in wide chars.
-	ULONG* pchTypeDef,            // [OUT] put size of name (wide chars) here.
-	DWORD* pdwTypeDefFlags,       // [OUT] Put flags here.
-	mdToken* ptkExtends)     // [OUT] Put base class TypeDef/TypeRef here.
-
+HRESULT CordbSymbol::GetTypeDefProps(             // S_OK or error.
+mdTypeDef   td,                     // [IN] TypeDef token for inquiry.
+__out_ecount_part_opt(cchTypeDef, *pchTypeDef)
+LPWSTR      szTypeDef,              // [OUT] Put name here.
+ULONG       cchTypeDef,             // [IN] size of name buffer in wide chars.
+ULONG* pchTypeDef,            // [OUT] put size of name (wide chars) here.
+DWORD* pdwTypeDefFlags,       // [OUT] Put flags here.
+mdToken* ptkExtends)     // [OUT] Put base class TypeDef/TypeRef here.
 {
-	printf("CordbSymbol - GetTypeDefProps - NOT IMPLEMENTED\n");
+	if (td == 33554532)
+		return E_NOTIMPL;
+	if (td == 0)
+		return E_NOTIMPL;
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, this->pCordbAssembly->id);
+	buffer_add_int(&localbuf, td);
+	int cmdId = connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN, &localbuf);
+	buffer_free(&localbuf);
+
+	Buffer* localbuf2 = NULL;
+	while (!localbuf2) {
+		connection->process_packet(true);
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+	int klass_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+	buffer_init(&localbuf, 128);
+
+	buffer_add_id(&localbuf, klass_id);
+	cmdId = connection->send_event(CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
+	buffer_free(&localbuf);
+
+	localbuf2 = NULL;
+	while (!localbuf2) {
+		connection->process_packet(true);
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+
+	char* namespace_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	char* class_name_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	char* class_fullname_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int assembly_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	module_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int type_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int type_id2 = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int rank = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int flags = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	if (cchTypeDef > strlen(class_fullname_str)) {
+		mbstowcs(szTypeDef, class_fullname_str, strlen(class_fullname_str) + 1);
+	}
+	if (pchTypeDef)
+		*pchTypeDef = strlen(class_fullname_str) + 1;
+
+
+	printf("CordbSymbol - GetTypeDefProps - IMPLEMENTED\n");
 	fflush(stdout);
+	buffer_init(&localbuf, 128);
+
+	buffer_add_id(&localbuf, type_id);
+	cmdId = connection->send_event(CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
+	buffer_free(&localbuf);
+
+	localbuf2 = NULL;
+	while (!localbuf2) {
+		connection->process_packet(true);
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+	{
+		char* namespace_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		char* class_name_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		char* class_fullname_str2 = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int assembly_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		module_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int type_id2 = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int type_id3 = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int rank = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int flags2 = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+		if (pdwTypeDefFlags)
+			*pdwTypeDefFlags = flags;
+		if (ptkExtends)
+			*ptkExtends = token;
+	}
 	return S_OK;
 }
 
@@ -577,34 +778,109 @@ HRESULT CordbSymbol::ResetEnum(HCORENUM hEnum, ULONG ulPos)
 	return S_OK;
 }
 
-	HRESULT CordbSymbol::GetMethodProps(
-	mdMethodDef mb,                     // The method for which to get props.
-	mdTypeDef* pClass,                // Put method's class here.
-	__out_ecount_part_opt(cchMethod, *pchMethod)
-	LPWSTR      szMethod,               // Put method's name here.
-	ULONG       cchMethod,              // Size of szMethod buffer in wide chars.
-	ULONG* pchMethod,             // Put actual size here
-	DWORD* pdwAttr,               // Put flags here.
-	PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to the blob value of meta data
-	ULONG* pcbSigBlob,            // [OUT] actual size of signature blob
-	ULONG* pulCodeRVA,            // [OUT] codeRVA
-	DWORD* pdwImplFlags)    // [OUT] Impl. Flags
+HRESULT CordbSymbol::GetMethodProps(
+mdMethodDef mb,                     // The method for which to get props.
+mdTypeDef* pClass,                // Put method's class here.
+__out_ecount_part_opt(cchMethod, *pchMethod)
+LPWSTR      szMethod,               // Put method's name here.
+ULONG       cchMethod,              // Size of szMethod buffer in wide chars.
+ULONG* pchMethod,             // Put actual size here
+DWORD* pdwAttr,               // Put flags here.
+PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to the blob value of meta data
+ULONG* pcbSigBlob,            // [OUT] actual size of signature blob
+ULONG* pulCodeRVA,            // [OUT] codeRVA
+DWORD* pdwImplFlags)    // [OUT] Impl. Flags
 
 {
-	printf("CordbSymbol - GetMethodProps - NOT IMPLEMENTED\n");
+	CordbFunction* func = this->pCordbAssembly->pProcess->cordb->findFunctionByToken(mb);
+	int func_id = 0;
+	if (!func)
+	{
+		Buffer localbuf;
+		buffer_init(&localbuf, 128);
+		buffer_add_id(&localbuf, this->pCordbAssembly->id);
+		buffer_add_int(&localbuf, mb);
+		int cmdId = connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_METHOD_FROM_TOKEN, &localbuf);
+		buffer_free(&localbuf);
+
+		Buffer* localbuf2 = NULL;
+		while (!localbuf2) {
+			connection->process_packet(true);
+			localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+		}
+
+		func_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+	}
+	else
+		func_id = func->id;
+
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+
+	buffer_add_id(&localbuf, func_id);
+	int cmdId = connection->send_event(CMD_SET_METHOD, CMD_METHOD_GET_DECLARING_TYPE, &localbuf);
+	buffer_free(&localbuf);
+
+	Buffer* localbuf2 = NULL;
+	while (!localbuf2) {
+		connection->process_packet(true);
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+
+	int klass_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+	buffer_init(&localbuf, 128);
+
+	buffer_add_id(&localbuf, klass_id);
+	cmdId = connection->send_event(CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
+	buffer_free(&localbuf);
+	
+	localbuf2 = NULL;
+	while (!localbuf2) {
+		connection->process_packet(true);
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+
+	char* namespace_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	char* class_name_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	char* class_fullname_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int assembly_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	module_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int type_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int type_id2 = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	*pClass = token;
+	if (cchMethod > strlen(class_name_str)) {
+		mbstowcs(szMethod, class_name_str, strlen(class_name_str) + 1);
+	}
+	if (pchMethod)
+		*pchMethod = strlen(class_name_str) + 1;
+	COR_SIGNATURE tempSignature[4] = { 0, 1, 1, 8 };
+	if (ppvSigBlob)
+	{
+		*ppvSigBlob = new COR_SIGNATURE[4];
+		memcpy((void*)*ppvSigBlob, tempSignature, 4 * sizeof(COR_SIGNATURE));
+		*pcbSigBlob = 4;
+	}
+	if (pulCodeRVA)
+	{
+		*pulCodeRVA = 8460;
+	}
+	printf("CordbSymbol - GetMethodProps - IMPLEMENTED\n");
 	fflush(stdout);
 	return S_OK;
 }
 
-	HRESULT CordbSymbol::GetMemberRefProps(           // S_OK or error.
-	mdMemberRef mr,                     // [IN] given memberref
-	mdToken* ptk,                   // [OUT] Put classref or classdef here.
-	__out_ecount_part_opt(cchMember, *pchMember)
-	LPWSTR      szMember,               // [OUT] buffer to fill for member's name
-	ULONG       cchMember,              // [IN] the count of char of szMember
-	ULONG* pchMember,             // [OUT] actual count of char in member name
-	PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to meta data blob value
-	ULONG* pbSig)           // [OUT] actual size of signature blob
+HRESULT CordbSymbol::GetMemberRefProps(           // S_OK or error.
+mdMemberRef mr,                     // [IN] given memberref
+mdToken* ptk,                   // [OUT] Put classref or classdef here.
+__out_ecount_part_opt(cchMember, *pchMember)
+LPWSTR      szMember,               // [OUT] buffer to fill for member's name
+ULONG       cchMember,              // [IN] the count of char of szMember
+ULONG* pchMember,             // [OUT] actual count of char in member name
+PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to meta data blob value
+ULONG* pbSig)           // [OUT] actual size of signature blob
 
 {
 	printf("CordbSymbol - GetMemberRefProps - NOT IMPLEMENTED\n");
@@ -694,7 +970,7 @@ HRESULT CordbSymbol::ResetEnum(HCORENUM hEnum, ULONG ulPos)
 {
 	printf("CordbSymbol - GetClassLayout - NOT IMPLEMENTED\n");
 	fflush(stdout);
-	return S_OK;
+	return 0x80131130;
 }
 
 	HRESULT CordbSymbol::GetFieldMarshal(
@@ -737,8 +1013,17 @@ HRESULT CordbSymbol::ResetEnum(HCORENUM hEnum, ULONG ulPos)
 	ULONG* pcbSig)          // [OUT] return size of signature.
 
 {
-	printf("CordbSymbol - GetSigFromToken - NOT IMPLEMENTED\n");
+	printf("CordbSymbol - GetSigFromToken - NOT IMPLEMENTED - %d\n", mdSig);
 	fflush(stdout);
+
+	COR_SIGNATURE tempSignature[3] = { 7, 1, 8 };
+	if (ppvSig)
+	{
+		*ppvSig = new COR_SIGNATURE[4];
+		memcpy((void*)*ppvSig, tempSignature, 3 * sizeof(COR_SIGNATURE));
+	}
+
+	*pcbSig = 3;
 	return S_OK;
 }
 
@@ -996,8 +1281,12 @@ HRESULT CordbSymbol::ResetEnum(HCORENUM hEnum, ULONG ulPos)
 	printf("CordbSymbol - GetCustomAttributeByName - IMPLEMENTED\n");
 	fflush(stdout);
 	if (!wcscmp(szName, L"System.Diagnostics.DebuggerNonUserCodeAttribute") || !wcscmp(szName, L"System.Diagnostics.DebuggerStepThroughAttribute"))
-		return S_OK;
+		return S_FALSE;
 	if (!wcscmp(szName, L"System.Diagnostics.DebuggerHiddenAttribute"))
+		return S_FALSE;
+	if (!wcscmp(szName, L"System.Runtime.CompilerServices.AsyncStateMachineAttribute"))
+		return S_FALSE;
+	if (!wcscmp(szName, L"System.Diagnostics.DebuggerStepperBoundaryAttribute"))
 		return S_FALSE;
 
 	byte *ret = new byte[6];
@@ -1012,12 +1301,12 @@ HRESULT CordbSymbol::ResetEnum(HCORENUM hEnum, ULONG ulPos)
 	return S_OK;
 }
 
-	BOOL CordbSymbol::IsValidToken(         // True or False.
-	mdToken     tk)               // [IN] Given token.
+BOOL CordbSymbol::IsValidToken(         // True or False.
+mdToken     tk)               // [IN] Given token.
 {
-	printf("CordbSymbol - IsValidToken - NOT IMPLEMENTED\n");
+	printf("CordbSymbol - IsValidToken - IMPLEMENTED\n");
 	fflush(stdout);
-	return S_OK;
+	return 1;
 }
 
 	HRESULT CordbSymbol::GetNestedClassProps(         // S_OK or error.
@@ -1276,7 +1565,7 @@ HRESULT CordbAppDomain::GetProcess(
 	HRESULT CordbAppDomain::GetID(
 	/* [out] */ ULONG32* pId)
 {
-	printf("CordbAppDomain - GetID - NOT IMPLEMENTED\n");
+	printf("CordbAppDomain - GetID - IMPLEMENTED\n");
 	fflush(stdout);
 	return S_OK;
 }
@@ -1486,14 +1775,16 @@ HRESULT CordbModule::GetName(
 	}
 
 	char* assembly_name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	printf("CordbModule - GetName - %s - IMPLEMENTED\n", assembly_name);
 	fflush(stdout);
 	if (cchName < strlen(assembly_name) + 1) {
+		printf("CordbModule - GetName - %s - IMPLEMENTED - devolvi soh o tamanho\n", assembly_name);
 		*pcchName = strlen(assembly_name) + 1;
 		g_free(assembly_name);
 		return S_OK;
 	}
+	printf("CordbModule - GetName - %s - IMPLEMENTED - devolvi o tamanho e o valor\n", assembly_name);
 	mbstowcs(szName, assembly_name, strlen(assembly_name)+1);
+	*pcchName = strlen(assembly_name) + 1;
 	g_free(assembly_name);
 	return S_OK;
 }
@@ -1557,7 +1848,8 @@ HRESULT CordbModule::GetClassFromToken(
 	/* [in] */ mdTypeDef typeDef,
 	/* [out] */ ICorDebugClass** ppClass)
 {
-	printf("CordbModule - GetClassFromToken - NOT IMPLEMENTED\n");
+	CordbClass* pClass = new CordbClass(typeDef);
+	*ppClass = static_cast<ICorDebugClass*>(pClass);
 	return S_OK;
 }
 
@@ -1596,7 +1888,7 @@ HRESULT CordbModule::GetToken(
 HRESULT CordbModule::IsDynamic(
 	/* [out] */ BOOL* pDynamic)
 {
-	printf("CordbModule - IsDynamic - NOT IMPLEMENTED\n");
+	printf("CordbModule - IsDynamic - IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1619,7 +1911,7 @@ HRESULT CordbModule::GetSize(
 HRESULT CordbModule::IsInMemory(
 	/* [out] */ BOOL* pInMemory)
 {
-	printf("CordbModule - IsInMemory - NOT IMPLEMENTED\n");
+	printf("CordbModule - IsInMemory - IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1629,17 +1921,18 @@ CordbAssembly::CordbAssembly(CordbProcess* process, CordbAppDomain* appDomain, i
 	pAppDomain = appDomain;
 	id = id_assembly;
 }
-	HRESULT CordbAssembly::IsFullyTrusted(
-	/* [out] */ BOOL* pbFullyTrusted)
+HRESULT CordbAssembly::IsFullyTrusted(
+/* [out] */ BOOL* pbFullyTrusted)
 {
+	*pbFullyTrusted = true;
 	printf("CorDebugAssembly - IsFullyTrusted - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
-	HRESULT CordbAssembly::GetAppDomain(
-	/* [out] */ ICorDebugAppDomain** ppAppDomain)
+HRESULT CordbAssembly::GetAppDomain(
+/* [out] */ ICorDebugAppDomain** ppAppDomain)
 {
-	printf("CorDebugAssembly - GetAppDomain - NOT IMPLEMENTED\n");
+	printf("CorDebugAssembly - GetAppDomain - IMPLEMENTED\n");
 	*ppAppDomain = static_cast<ICorDebugAppDomain*>(pAppDomain);
 	return S_OK;
 }
@@ -2205,7 +2498,6 @@ HRESULT CordbProcess::Stop(
 
 MONO_API HRESULT CoreCLRCreateCordbObjectEx(int iDebuggerVersion, DWORD pid, LPCWSTR lpApplicationGroupId, HMODULE hmodTargetCLR, void** ppCordb)
 {
-	printf("CoreCLRCreateCordbObjectEx - cheguei aqui hein thays\n");
 	return 1;
 }
 
@@ -2333,6 +2625,19 @@ CordbFunction* Cordb::findFunction(int id)
 	return NULL;
 }
 
+CordbFunction* Cordb::findFunctionByToken(int token)
+{
+	int i = 0;
+	while (i < functions->len) {
+		CordbFunction* function = (CordbFunction*)g_ptr_array_index(functions, i);
+		if (function->token == token) {
+			return function;
+		}
+		i++;
+	}
+	return NULL;
+}
+
 HRESULT Cordb::QueryInterface(
 /* [in] */ REFIID riid,
 /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject)
@@ -2393,6 +2698,7 @@ Connection::Connection(CordbProcess* proc, Cordb* cordb)
 	pCorDebugAppDomain = NULL;
 	received_replies = g_hash_table_new(NULL, NULL);
 	received_replies_to_process = g_ptr_array_new();
+	is_answer_pending = false;
 }
 
 CordbThread* Connection::findThread(GPtrArray* threads, long thread_id)
@@ -2482,6 +2788,26 @@ void Connection::process_packet_internal(Buffer *recvbuf)
 			}
 		}
 		break;
+		case EVENT_KIND_STEP:
+		{
+			int method_id = decode_id(recvbuf->buf, &recvbuf->buf, recvbuf->end);
+			long offset = decode_long(recvbuf->buf, &recvbuf->buf, recvbuf->end);
+			CordbThread* thread = findThread(ppCordb->threads, thread_id);
+			if (thread == NULL)
+			{
+				thread = new CordbThread(ppProcess, thread_id);
+				g_ptr_array_add(ppCordb->threads, thread);
+				ppCordb->pCallback->CreateThread(pCorDebugAppDomain, thread);
+			}
+
+
+			Buffer sendbuf;
+			buffer_init(&sendbuf, 128);
+			send_event(0, 0, &sendbuf);
+			ppProcess->suspended = true;
+			ppCordb->pCallback->StepComplete(pCorDebugAppDomain, thread, thread->stepper, STEP_NORMAL);
+		}
+		break;
 		}
 	}
 	//buffer_free(&recvbuf);
@@ -2500,9 +2826,7 @@ int Connection::process_packet(bool is_answer)
 	buffer_init(&sendbuf, 128);
 	buffer_init(&recvbufheader, HEADER_LEN);
 	
-	printf("esperando pacote? - 2\n");
 	iResult = recv(connect_socket, (char*)recvbufheader.buf, HEADER_LEN, 0);
-	printf("achei - 2\n");
 	if (iResult > 0)
 		printf("");
 	else if (iResult == 0)
@@ -2512,27 +2836,34 @@ int Connection::process_packet(bool is_answer)
 
 	Header header;
 	decode_command_header(&recvbufheader, &header);
-
-
-	if (header.flags == REPLY_PACKET) //add to the dictionary of messages
-	{
-		printf("achei - 3\n");
-		Buffer *recvbuf2;
-		recvbuf2 = new Buffer();
-		buffer_init(recvbuf2, header.len - HEADER_LEN);
-		printf("header.len - HEADER_LEN - %d - CMDID - %d\n", header.len - HEADER_LEN, header.id);
-		if (header.len - HEADER_LEN != 0)
-		{
-			iResult = recv(connect_socket, (char*)recvbuf2->buf, header.len - HEADER_LEN, 0);
-			g_hash_table_insert(received_replies, (gpointer)(gssize)(header.id), recvbuf2);
-		}
+	
+	if (header.len < HEADER_LEN) {
+		fflush(stdout);
 		return 0;
 	}
 
-	printf("achei - 4\n");
+	if (header.flags == REPLY_PACKET) //add to the dictionary of messages
+	{
+		Buffer *recvbuf2;
+		recvbuf2 = new Buffer();
+		buffer_init(recvbuf2, header.len - HEADER_LEN);
+		if (header.len - HEADER_LEN != 0)
+		{
+			iResult = recv(connect_socket, (char*)recvbuf2->buf, header.len - HEADER_LEN, 0);
+			int totalRead = iResult;
+			while (totalRead < header.len - HEADER_LEN)
+			{
+				iResult = recv(connect_socket, (char*)recvbuf2->buf+ totalRead, (header.len - HEADER_LEN) - totalRead, 0);
+				fflush(stdout);
+				totalRead += iResult;
+			}
+		}
+		g_hash_table_insert(received_replies, (gpointer)(gssize)(header.id), recvbuf2);
+		return 0;
+	}
+
 	buffer_init(recvbuf, header.len - HEADER_LEN);
 	iResult = recv(connect_socket, (char*)recvbuf->buf, header.len - HEADER_LEN, 0);
-	printf("achei - 5\n");
 
 	if (iResult > 0)
 		printf("");
@@ -2549,7 +2880,6 @@ int Connection::process_packet(bool is_answer)
 		}
 		process_packet_internal(recvbuf);
 	}
-
 	return iResult;
 }
 
@@ -2581,9 +2911,10 @@ void Connection::loop_send_receive()
 	Buffer sendbuf;
 	Buffer recvbuf, recvbufheader;
 	// Receive until the peer closes the connection
+
 	do {
-		printf("esperando pacote? - 1\n");
-		iResult = process_packet();
+		if (!ppProcess->suspended)
+			iResult = process_packet();
 		Sleep(100);
 	} while (iResult >= 0);
 }
@@ -2629,7 +2960,7 @@ void Connection::start_connection()
 	hints.ai_protocol = IPPROTO_TCP;
 
 	// Resolve the server address and port
-	iResult = getaddrinfo("127.0.0.1", "3000", &hints, &result);
+	iResult = getaddrinfo("127.0.0.1", "3001", &hints, &result);
 	if (iResult != 0) {
 		printf("getaddrinfo failed with error: %d\n", iResult);
 		WSACleanup();
@@ -2642,6 +2973,7 @@ void Connection::start_connection()
 		// Create a SOCKET for connecting to server
 		connect_socket = socket(ptr->ai_family, ptr->ai_socktype,
 			ptr->ai_protocol);
+
 		if (connect_socket == INVALID_SOCKET) {
 			printf("socket failed with error: %ld\n", WSAGetLastError());
 			WSACleanup();
@@ -2655,6 +2987,13 @@ void Connection::start_connection()
 			connect_socket = INVALID_SOCKET;
 			continue;
 		}
+
+		int flag = 1;
+		int result = setsockopt(connect_socket,
+			IPPROTO_TCP,
+			TCP_NODELAY,
+			(char*)&flag,
+			sizeof(int));
 		break;
 	}
 
@@ -2665,7 +3004,7 @@ void Connection::start_connection()
 		WSACleanup();
 		return;
 	}
-	printf("connected\n");
+	
 }
 
 void Connection::transport_handshake()
@@ -2692,8 +3031,6 @@ void Connection::transport_handshake()
 
 void Connection::send_packet(Buffer& sendbuf)
 {
-	printf("send_packet - %d\n", buffer_len(&sendbuf));
-	fflush(stdout);
 	int iResult = send(connect_socket, (const char*)sendbuf.buf, buffer_len(&sendbuf), 0);
 	if (iResult == SOCKET_ERROR) {
 		printf("send failed with error: %d\n", WSAGetLastError());
@@ -2877,9 +3214,10 @@ HRESULT __stdcall CordbFunction::GetLocalVarSigToken(mdSignature* pmdSig)
 
 HRESULT __stdcall CordbFunction::GetCurrentVersionNumber(ULONG32* pnCurrentVersion)
 {
-	printf("CordbFunction - GetCurrentVersionNumber - NOT IMPLEMENTED\n");
+	*pnCurrentVersion = 1;
+	printf("CordbFunction - GetCurrentVersionNumber - IMPLEMENTED\n");
 	fflush(stdout);
-	return E_NOTIMPL;
+	return S_OK;
 }
 
 HRESULT __stdcall CordbFunction::SetJMCStatus(BOOL bIsJustMyCode)
@@ -2905,7 +3243,7 @@ HRESULT __stdcall CordbFunction::EnumerateNativeCode(ICorDebugCodeEnum** ppCodeE
 
 HRESULT __stdcall CordbFunction::GetVersionNumber(ULONG32* pnVersion)
 {
-	*pnVersion = 0;
+	*pnVersion = 1;
 	printf("CordbFunction - GetVersionNumber - IMPLEMENTED\n");
 	fflush(stdout);
 	return S_OK;
@@ -2953,9 +3291,24 @@ HRESULT __stdcall CordbCode::GetAddress(CORDB_ADDRESS* pStart)
 
 HRESULT __stdcall CordbCode::GetSize(ULONG32* pcBytes)
 {
-	printf("CordbCode - GetSize - NOT IMPLEMENTED\n");
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+
+	buffer_add_id(&localbuf, this->func->id);
+	int cmdId = connection->send_event(CMD_SET_METHOD, CMD_METHOD_GET_BODY, &localbuf);
+	buffer_free(&localbuf);
+
+	Buffer* localbuf2 = NULL;
+	while (!localbuf2) {
+		connection->process_packet(true);
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+
+	int code_size = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	*pcBytes = code_size;
+	printf("CordbCode - GetSize - IMPLEMENTED\n");
 	fflush(stdout);
-	return E_NOTIMPL;
+	return S_OK;
 }
 
 HRESULT __stdcall CordbCode::CreateBreakpoint(ULONG32 offset, ICorDebugFunctionBreakpoint** ppBreakpoint)
@@ -2972,16 +3325,32 @@ HRESULT __stdcall CordbCode::CreateBreakpoint(ULONG32 offset, ICorDebugFunctionB
 
 HRESULT __stdcall CordbCode::GetCode(ULONG32 startOffset, ULONG32 endOffset, ULONG32 cBufferAlloc, BYTE buffer[], ULONG32* pcBufferSize)
 {
-	printf("CordbCode - GetCode - NOT IMPLEMENTED\n");
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+
+	buffer_add_id(&localbuf, this->func->id);
+	int cmdId = connection->send_event(CMD_SET_METHOD, CMD_METHOD_GET_BODY, &localbuf);
+	buffer_free(&localbuf);
+
+	Buffer* localbuf2 = NULL;
+	while (!localbuf2) {
+		connection->process_packet(true);
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+	guint8*  code = decode_byte_array(localbuf2->buf, &localbuf2->buf, localbuf2->end, pcBufferSize);
+	
+	memcpy(buffer, code, *pcBufferSize);
+	printf("CordbCode - GetCode - IMPLEMENTED\n");
 	fflush(stdout);
-	return E_NOTIMPL;
+	return S_OK;
 }
 
 HRESULT __stdcall CordbCode::GetVersionNumber(ULONG32* nVersion)
 {
+	*nVersion = 1;
 	printf("CordbCode - GetVersionNumber - NOT IMPLEMENTED\n");
 	fflush(stdout);
-	return E_NOTIMPL;
+	return S_OK;
 }
 
 HRESULT __stdcall CordbCode::GetILToNativeMapping(ULONG32 cMap, ULONG32* pcMap, COR_DEBUG_IL_TO_NATIVE_MAP map[])
@@ -3109,6 +3478,7 @@ CordbThread::CordbThread(CordbProcess* ppProcess, long thread_id)
 {
 	this->ppProcess = ppProcess;
 	this->thread_id = thread_id;
+	stepper = NULL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::HasUnhandledException(void)
@@ -3121,9 +3491,11 @@ HRESULT STDMETHODCALLTYPE CordbThread::HasUnhandledException(void)
 HRESULT STDMETHODCALLTYPE CordbThread::GetBlockingObjects(
 	/* [out] */ ICorDebugBlockingObjectEnum** ppBlockingObjectEnum)
 {
-	printf("CordbThread - GetBlockingObjects - NOT IMPLEMENTED\n");
+	printf("CordbThread - GetBlockingObjects - IMPLEMENTED\n");
+	CordbBlockingObjectEnum* blockingObject = new CordbBlockingObjectEnum();
+	*ppBlockingObjectEnum = static_cast<ICorDebugBlockingObjectEnum*>(blockingObject);
 	fflush(stdout);
-	return E_NOTIMPL;
+	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::GetCurrentCustomDebuggerNotification(
@@ -3222,9 +3594,11 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetHandle(
 HRESULT STDMETHODCALLTYPE CordbThread::GetAppDomain(
 	/* [out] */ ICorDebugAppDomain** ppAppDomain)
 {
-	printf("CordbThread - GetAppDomain - NOT IMPLEMENTED\n");
+	*ppAppDomain = static_cast<ICorDebugAppDomain*>(connection->pCorDebugAppDomain);
+	printf("CordbThread - GetAppDomain - IMPLEMENTED\n");
 	fflush(stdout);
-	return E_NOTIMPL;
+	return S_OK;
+
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::SetDebugState(
@@ -3254,9 +3628,9 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetUserState(
 HRESULT STDMETHODCALLTYPE CordbThread::GetCurrentException(
 	/* [out] */ ICorDebugValue** ppExceptionObject)
 {
-	printf("CordbThread - GetCurrentException - NOT IMPLEMENTED\n");
+	printf("CordbThread - GetCurrentException - IMPLEMENTED\n");
 	fflush(stdout);
-	return E_NOTIMPL;
+	return S_FALSE;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::ClearCurrentException(void)
@@ -3269,15 +3643,22 @@ HRESULT STDMETHODCALLTYPE CordbThread::ClearCurrentException(void)
 HRESULT STDMETHODCALLTYPE CordbThread::CreateStepper(
 	/* [out] */ ICorDebugStepper** ppStepper)
 {
-	printf("CordbThread - CreateStepper - NOT IMPLEMENTED\n");
+	if (!this->stepper)
+	{
+		CordbStepper* stepper = new CordbStepper(this);
+		this->stepper = stepper;
+	}
+	*ppStepper = static_cast<ICorDebugStepper*>(stepper);
+
+	printf("CordbThread - CreateStepper - IMPLEMENTED\n");
 	fflush(stdout);
-	return E_NOTIMPL;
+	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::EnumerateChains(
 	/* [out] */ ICorDebugChainEnum** ppChains)
 {
-	CordbChainEnum* pChains = new CordbChainEnum();
+	CordbChainEnum* pChains = new CordbChainEnum(this);
 	*ppChains = static_cast<ICorDebugChainEnum*>(pChains);
 	printf("CordbThread - EnumerateChains - IMPLEMENTED\n");
 	fflush(stdout);
@@ -3309,22 +3690,25 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetActiveFrame(
 		connection->process_packet(true);
 		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
 	}
-	printf("recebi resposta\n");
+
 	int nframes = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int frameid = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int methoid = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int il_offset = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int flags = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	/*
-	* buffer_add_int (buf, tls->frames [i]->id);
-	buffer_add_methodid (buf, tls->frames [i]->de.domain, tls->frames [i]->actual_method);
-	buffer_add_int (buf, tls->frames [i]->il_offset);
-	buffer_add_byte(buf, tls->frames[i]->flags);
-	*/
+	for (int i = 0; i < nframes; i++)
+	{
+		int frameid = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int methoid = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int il_offset = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int flags = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		if (i == 0)
+		{
+			CordbNativeFrame* frame = new CordbNativeFrame(frameid, methoid, il_offset, flags, this);
+			*ppFrame = static_cast<ICorDebugFrame*>(frame);
+		}
+	}
+	guint32 ctx_len;
+	guint8 *ctx = decode_byte_array(localbuf2->buf, &localbuf2->buf, localbuf2->end, &ctx_len);
+	registerset = new CordbRegisteSet(ctx, ctx_len);
 	printf("CordbThread - GetActiveFrame - IMPLEMENTED - %d\n", nframes);
 
-	CordbFrame* frame = new CordbFrame(frameid, methoid, il_offset, flags, this);
-	*ppFrame = static_cast<ICorDebugFrame*>(frame);
 	
 	fflush(stdout);
 	return S_OK;
@@ -3333,7 +3717,7 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetActiveFrame(
 HRESULT STDMETHODCALLTYPE CordbThread::GetRegisterSet(
 	/* [out] */ ICorDebugRegisterSet** ppRegisters)
 {
-	CordbRegisteSet* registerset = new CordbRegisteSet();
+	
 	*ppRegisters = static_cast<ICorDebugRegisterSet*>(registerset);
 	printf("CordbThread - GetRegisterSet - IMPLEMENTED\n");
 	fflush(stdout);
@@ -3357,11 +3741,36 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetObject(
 }
 HRESULT STDMETHODCALLTYPE CordbThread::QueryInterface(
 	/* [in] */ REFIID id,
-	/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface)
+	/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppInterface)
 {
-	printf("CordbThread - QueryInterface - NOT IMPLEMENTED\n");
+	if (id == IID_ICorDebugThread)
+	{
+		*ppInterface = static_cast<ICorDebugThread*>(this);
+	}
+	else if (id == IID_ICorDebugThread2)
+	{
+		*ppInterface = static_cast<ICorDebugThread2*>(this);
+	}
+	else if (id == IID_ICorDebugThread3)
+	{
+		*ppInterface = static_cast<ICorDebugThread3*>(this);
+	}
+	else if (id == IID_ICorDebugThread4)
+	{
+		*ppInterface = static_cast<ICorDebugThread4*>(this);
+	}
+	else if (id == IID_IUnknown)
+	{
+		*ppInterface = static_cast<IUnknown*>(static_cast<ICorDebugThread*>(this));
+	}
+	else
+	{
+		*ppInterface = NULL;
+		return E_NOINTERFACE;
+	}
+	printf("CordbThread - QueryInterface - IMPLEMENTED\n");
 	fflush(stdout);
-	return E_NOTIMPL;
+	return S_OK;
 }
 ULONG STDMETHODCALLTYPE CordbThread::AddRef(void)
 {
@@ -3373,7 +3782,7 @@ ULONG STDMETHODCALLTYPE CordbThread::Release(void)
 }
 
 
-CordbFrame::CordbFrame(int frameid, int methoid, int il_offset, int flags, CordbThread* thread)
+CordbJITILFrame::CordbJITILFrame(int frameid, int methoid, int il_offset, int flags, CordbThread* thread)
 {
 	this->frameid = frameid;
 	this->methoid = methoid;
@@ -3382,7 +3791,7 @@ CordbFrame::CordbFrame(int frameid, int methoid, int il_offset, int flags, Cordb
 	this->thread = thread;
 }
 
-HRESULT STDMETHODCALLTYPE CordbFrame::GetChain(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetChain(
 	/* [out] */ ICorDebugChain** ppChain)
 {
 	printf("CordbFrame - GetChain - NOT IMPLEMENTED\n");
@@ -3390,7 +3799,7 @@ HRESULT STDMETHODCALLTYPE CordbFrame::GetChain(
 	return E_NOTIMPL;
 }
 
-HRESULT STDMETHODCALLTYPE CordbFrame::GetCode(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetCode(
 	/* [out] */ ICorDebugCode** ppCode)
 {
 	printf("CordbFrame - GetCode - NOT IMPLEMENTED\n");
@@ -3398,7 +3807,7 @@ HRESULT STDMETHODCALLTYPE CordbFrame::GetCode(
 	return E_NOTIMPL;
 }
 
-HRESULT STDMETHODCALLTYPE CordbFrame::GetFunction(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetFunction(
 	/* [out] */ ICorDebugFunction** ppFunction)
 {
 	CordbFunction *func = thread->ppProcess->cordb->findFunction(methoid);
@@ -3414,7 +3823,7 @@ HRESULT STDMETHODCALLTYPE CordbFrame::GetFunction(
 	return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE CordbFrame::GetFunctionToken(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetFunctionToken(
 	/* [out] */ mdMethodDef* pToken)
 {
 	printf("CordbFrame - GetFunctionToken - NOT IMPLEMENTED\n");
@@ -3422,16 +3831,18 @@ HRESULT STDMETHODCALLTYPE CordbFrame::GetFunctionToken(
 	return E_NOTIMPL;
 }
 
-HRESULT STDMETHODCALLTYPE CordbFrame::GetStackRange(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetStackRange(
 	/* [out] */ CORDB_ADDRESS* pStart,
 	/* [out] */ CORDB_ADDRESS* pEnd)
 {
-	printf("CordbFrame - GetStackRange - NOT IMPLEMENTED\n");
+	*pStart = 4096;
+	*pEnd = 8192;
+	printf("CordbFrame - GetStackRange - NOT IMPLEMENTED - we need id?\n");
 	fflush(stdout);
-	return E_NOTIMPL;
+	return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE CordbFrame::GetCaller(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetCaller(
 	/* [out] */ ICorDebugFrame** ppFrame)
 {
 	printf("CordbFrame - GetCaller - NOT IMPLEMENTED\n");
@@ -3439,7 +3850,7 @@ HRESULT STDMETHODCALLTYPE CordbFrame::GetCaller(
 	return E_NOTIMPL;
 }
 
-HRESULT STDMETHODCALLTYPE CordbFrame::GetCallee(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetCallee(
 	/* [out] */ ICorDebugFrame** ppFrame)
 {
 	printf("CordbFrame - GetCallee - NOT IMPLEMENTED\n");
@@ -3447,14 +3858,14 @@ HRESULT STDMETHODCALLTYPE CordbFrame::GetCallee(
 	return E_NOTIMPL;
 }
 
-HRESULT STDMETHODCALLTYPE CordbFrame::CreateStepper(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::CreateStepper(
 	/* [out] */ ICorDebugStepper** ppStepper)
 {
 	printf("CordbFrame - CreateStepper - NOT IMPLEMENTED\n");
 	fflush(stdout);
 	return E_NOTIMPL;
 }
-HRESULT STDMETHODCALLTYPE CordbFrame::QueryInterface(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::QueryInterface(
 	/* [in] */ REFIID id,
 	/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface)
 {
@@ -3462,26 +3873,88 @@ HRESULT STDMETHODCALLTYPE CordbFrame::QueryInterface(
 	{
 		*pInterface = static_cast<ICorDebugILFrame*>(this);
 	}
+	else if (id == IID_ICorDebugILFrame2)
+	{
+		*pInterface = static_cast<ICorDebugILFrame2*>(this);
+	}
+	else if (id == IID_ICorDebugILFrame3)
+	{
+		*pInterface = static_cast<ICorDebugILFrame3*>(this);
+	}
+	else if (id == IID_ICorDebugILFrame4)
+	{
+		*pInterface = static_cast<ICorDebugILFrame4*>(this);
+	}
 	else
 	{
 		*pInterface = NULL;
-		printf("CordbFrame - QueryInterface - NOT IMPLEMENTED\n");
+		printf("CordbFrame - QueryInterface - E_NOTIMPL - %x - %x - %x - %x\n", ((unsigned long*)&id)[0], ((unsigned long*)&id)[1], ((unsigned long*)&id)[2], ((unsigned long*)&id)[3]);
 		return E_NOINTERFACE;
 	}
 	printf("CordbFrame - QueryInterface - IMPLEMENTED\n");
 	fflush(stdout);
 	return S_OK;
 }
-ULONG STDMETHODCALLTYPE CordbFrame::AddRef(void)
+
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::RemapFunction(ULONG32 newILOffset)
+{
+	printf("CordbFrame - RemapFunction - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::EnumerateTypeParameters(ICorDebugTypeEnum** ppTyParEnum)
+{
+	printf("CordbFrame - EnumerateTypeParameters - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetReturnValueForILOffset(ULONG32 ILoffset, ICorDebugValue** ppReturnValue)
+{
+	printf("CordbFrame - GetReturnValueForILOffset - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::EnumerateLocalVariablesEx(ILCodeKind flags, ICorDebugValueEnum** ppValueEnum)
+{
+	printf("CordbFrame - EnumerateLocalVariablesEx - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetLocalVariableEx(ILCodeKind flags, DWORD dwIndex, ICorDebugValue** ppValue)
+{
+	printf("CordbFrame - GetLocalVariableEx - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetCodeEx(ILCodeKind flags, ICorDebugCode** ppCode)
+{
+	if (flags == ILCODE_REJIT_IL) {
+		*ppCode = NULL;
+	}
+	else {
+		CordbCode* code = new CordbCode(NULL);
+		*ppCode = static_cast<ICorDebugCode*>(code);
+	}
+	printf("CordbJITILFrame - GetCodeEx - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+ULONG STDMETHODCALLTYPE CordbJITILFrame::AddRef(void)
 {
 	return 0;
 }
-ULONG STDMETHODCALLTYPE CordbFrame::Release(void)
+ULONG STDMETHODCALLTYPE CordbJITILFrame::Release(void)
 {
 	return 0;
 }
 
-HRESULT STDMETHODCALLTYPE CordbFrame::GetIP(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetIP(
 	/* [out] */ ULONG32* pnOffset,
 	/* [out] */ CorDebugMappingResult* pMappingResult)
 {
@@ -3491,7 +3964,7 @@ HRESULT STDMETHODCALLTYPE CordbFrame::GetIP(
 	fflush(stdout);
 	return S_OK;
 }
-HRESULT STDMETHODCALLTYPE CordbFrame::SetIP(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::SetIP(
 	/* [in] */ ULONG32 nOffset)
 {
 	printf("CordbFrame - SetIP - NOT IMPLEMENTED\n");
@@ -3499,7 +3972,7 @@ HRESULT STDMETHODCALLTYPE CordbFrame::SetIP(
 	return E_NOTIMPL;
 }
 
-HRESULT STDMETHODCALLTYPE CordbFrame::EnumerateLocalVariables(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::EnumerateLocalVariables(
 	/* [out] */ ICorDebugValueEnum** ppValueEnum)
 {
 	printf("CordbFrame - EnumerateLocalVariables - NOT IMPLEMENTED\n");
@@ -3507,16 +3980,38 @@ HRESULT STDMETHODCALLTYPE CordbFrame::EnumerateLocalVariables(
 	return E_NOTIMPL;
 }
 
-HRESULT STDMETHODCALLTYPE CordbFrame::GetLocalVariable(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetLocalVariable(
 	/* [in] */ DWORD dwIndex,
 	/* [out] */ ICorDebugValue** ppValue)
 {
-	printf("CordbFrame - GetLocalVariable - NOT IMPLEMENTED\n");
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, thread->thread_id);
+	buffer_add_id(&localbuf, frameid);
+	buffer_add_int(&localbuf, 1);
+	buffer_add_int(&localbuf, dwIndex);
+
+	int cmdId = connection->send_event(CMD_SET_STACK_FRAME, CMD_STACK_FRAME_GET_VALUES, &localbuf);
+	buffer_free(&localbuf);
+
+	Buffer* localbuf2 = NULL;
+	while (!localbuf2) {
+		connection->process_packet(true);
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+
+	int type = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int value = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+	*ppValue = new CordbValue(ELEMENT_TYPE_I4, value, 4);
+
+
+	printf("CordbFrame - GetArgument - IMPLEMENTED - dwIndex - %d\n", dwIndex);
 	fflush(stdout);
-	return E_NOTIMPL;
+	return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE CordbFrame::EnumerateArguments(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::EnumerateArguments(
 	/* [out] */ ICorDebugValueEnum** ppValueEnum)
 {
 	printf("CordbFrame - EnumerateArguments - NOT IMPLEMENTED\n");
@@ -3524,16 +4019,38 @@ HRESULT STDMETHODCALLTYPE CordbFrame::EnumerateArguments(
 	return E_NOTIMPL;
 }
 
-HRESULT STDMETHODCALLTYPE CordbFrame::GetArgument(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetArgument(
 	/* [in] */ DWORD dwIndex,
 	/* [out] */ ICorDebugValue** ppValue)
 {
-	printf("CordbFrame - GetArgument - NOT IMPLEMENTED\n");
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, thread->thread_id);
+	buffer_add_id(&localbuf, frameid);
+	buffer_add_int(&localbuf, 1);
+	buffer_add_int(&localbuf, -1);
+
+	int cmdId = connection->send_event(CMD_SET_STACK_FRAME, CMD_STACK_FRAME_GET_VALUES, &localbuf);
+	buffer_free(&localbuf);
+
+	Buffer* localbuf2 = NULL;
+	while (!localbuf2) {
+		connection->process_packet(true);
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+	
+	int type = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int value = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+	*ppValue = new CordbValue(ELEMENT_TYPE_I4, value, 4);
+
+	
+	printf("CordbFrame - GetArgument - IMPLEMENTED - dwIndex - %d\n", dwIndex);
 	fflush(stdout);
-	return E_NOTIMPL;
+	return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE CordbFrame::GetStackDepth(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetStackDepth(
 	/* [out] */ ULONG32* pDepth)
 {
 	printf("CordbFrame - GetStackDepth - NOT IMPLEMENTED\n");
@@ -3541,7 +4058,7 @@ HRESULT STDMETHODCALLTYPE CordbFrame::GetStackDepth(
 	return E_NOTIMPL;
 }
 
-HRESULT STDMETHODCALLTYPE CordbFrame::GetStackValue(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetStackValue(
 	/* [in] */ DWORD dwIndex,
 	/* [out] */ ICorDebugValue** ppValue)
 {
@@ -3550,7 +4067,7 @@ HRESULT STDMETHODCALLTYPE CordbFrame::GetStackValue(
 	return E_NOTIMPL;
 }
 
-HRESULT STDMETHODCALLTYPE CordbFrame::CanSetIP(
+HRESULT STDMETHODCALLTYPE CordbJITILFrame::CanSetIP(
 	/* [in] */ ULONG32 nOffset)
 {
 	printf("CordbFrame - CanSetIP - NOT IMPLEMENTED\n");
@@ -3560,16 +4077,28 @@ HRESULT STDMETHODCALLTYPE CordbFrame::CanSetIP(
 
 HRESULT __stdcall CordbRegisteSet::GetRegistersAvailable(ULONG64* pAvailable)
 {
+	printf("CordbRegisteSet - GetRegistersAvailable - NOT IMPLEMENTED\n");
+	fflush(stdout);
 	return E_NOTIMPL;
+}
+
+CordbRegisteSet::CordbRegisteSet(guint8* ctx, guint32 ctx_len)
+{
+	this->ctx = ctx;
+	this->ctx_len = ctx_len;
 }
 
 HRESULT __stdcall CordbRegisteSet::QueryInterface(REFIID id, void** pInterface)
 {
+	printf("CordbRegisteSet - QueryInterface - NOT IMPLEMENTED\n");
+	fflush(stdout);
 	return E_NOTIMPL;
 }
 
 HRESULT __stdcall CordbRegisteSet::GetRegisters(ULONG64 mask, ULONG32 regCount, CORDB_REGISTER regBuffer[])
 {
+	printf("CordbRegisteSet - GetRegisters - NOT IMPLEMENTED\n");
+	fflush(stdout);
 	return E_NOTIMPL;
 }
 
@@ -3588,6 +4117,8 @@ HRESULT STDMETHODCALLTYPE CordbRegisteSet::SetRegisters(
 	/* [in] */ ULONG32 regCount,
 	/* [size_is][in] */ CORDB_REGISTER regBuffer[])
 {
+	printf("CordbRegisteSet - SetRegisters - NOT IMPLEMENTED\n");
+	fflush(stdout);
 	return E_NOTIMPL;
 }
 
@@ -3595,6 +4126,11 @@ HRESULT STDMETHODCALLTYPE CordbRegisteSet::GetThreadContext(
 	/* [in] */ ULONG32 contextSize,
 	/* [size_is][length_is][out][in] */ BYTE context[])
 {
+	AMD64_CONTEXT ctx_amd64;
+	memcpy(&ctx_amd64.Rax, ctx, ctx_len);
+	memcpy(context, &ctx_amd64, contextSize);
+	printf("CordbRegisteSet - GetThreadContext - IMPLEMENTED - %d - %d\n", contextSize, ctx_len);
+	fflush(stdout);
 	return S_OK;
 }
 
@@ -3602,22 +4138,37 @@ HRESULT STDMETHODCALLTYPE CordbRegisteSet::SetThreadContext(
 	/* [in] */ ULONG32 contextSize,
 	/* [size_is][length_is][in] */ BYTE context[])
 {
+	printf("CordbRegisteSet - SetThreadContext - NOT IMPLEMENTED\n");
+	fflush(stdout);
 	return E_NOTIMPL;
 }
 
 HRESULT __stdcall CordbChainEnum::Next(ULONG celt, ICorDebugChain* chains[], ULONG* pceltFetched)
 {
-	*pceltFetched = 0;
+	printf("CordbChainEnum - Next - IMPLEMENTED\n");
+	fflush(stdout);
+	chains[0] = new CordbChain(thread, CHAIN_PROCESS_START, false);
+	chains[1] = new CordbChain(thread, CHAIN_ENTER_MANAGED, true);
+	*pceltFetched = celt;
 	return S_OK;
+}
+
+CordbChainEnum::CordbChainEnum(CordbThread* thread)
+{
+	this->thread = thread;
 }
 
 HRESULT __stdcall CordbChainEnum::QueryInterface(REFIID id, void** pInterface)
 {
+	printf("CordbChainEnum - QueryInterface - NOT IMPLEMENTED\n");
+	fflush(stdout);
 	return E_NOTIMPL;
 }
 
 HRESULT __stdcall CordbChainEnum::Skip(ULONG celt)
 {
+	printf("CordbChainEnum - Skip - NOT IMPLEMENTED\n");
+	fflush(stdout);
 	return E_NOTIMPL;
 }
 
@@ -3632,18 +4183,931 @@ ULONG STDMETHODCALLTYPE CordbChainEnum::Release(void)
 
 HRESULT STDMETHODCALLTYPE CordbChainEnum::Reset(void)
 {
+	printf("CordbChainEnum - Reset - NOT IMPLEMENTED\n");
+	fflush(stdout);
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbChainEnum::Clone(
 	/* [out] */ ICorDebugEnum** ppEnum)
 {
+	printf("CordbChainEnum - Clone - NOT IMPLEMENTED\n");
+	fflush(stdout);
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbChainEnum::GetCount(
 	/* [out] */ ULONG* pcelt)
 {
+	printf("CordbChainEnum - GetCount - IMPLEMENTED\n");
+	fflush(stdout);
+	*pcelt = 2;
+	return S_OK;
+}
+
+CordbChain::CordbChain(CordbThread* thread, CorDebugChainReason chain_reason, bool is_managed)
+{
+	this->thread = thread;
+	this->chain_reason = chain_reason;
+	this->is_managed = is_managed;
+}
+
+HRESULT STDMETHODCALLTYPE CordbChain::GetThread(/* [out] */ ICorDebugThread** ppThread)
+{
+	*ppThread = static_cast<ICorDebugThread*>(thread);
+	printf("CordbChain - GetThread - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbChain::GetStackRange(/* [out] */ CORDB_ADDRESS* pStart, /* [out] */ CORDB_ADDRESS* pEnd)
+{
+	printf("CordbChain - GetStackRange - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbChain::GetContext(/* [out] */ ICorDebugContext** ppContext)
+{
+	printf("CordbChain - GetContext - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbChain::GetCaller(/* [out] */ ICorDebugChain** ppChain)
+{
+	printf("CordbChain - GetCaller - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbChain::GetCallee(/* [out] */ ICorDebugChain** ppChain)
+{
+	printf("CordbChain - GetCallee - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbChain::GetPrevious(/* [out] */ ICorDebugChain** ppChain)
+{
+	printf("CordbChain - GetPrevious - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbChain::GetNext(/* [out] */ ICorDebugChain** ppChain)
+{
+	printf("CordbChain - GetNext - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbChain::IsManaged(/* [out] */ BOOL* pManaged)
+{
+	printf("CordbChain - IsManaged - IMPLEMENTED\n");
+	*pManaged = is_managed;
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbChain::EnumerateFrames(/* [out] */ ICorDebugFrameEnum** ppFrames)
+{
+	*ppFrames = new CordbFrameEnum(thread);
+	printf("CordbChain - EnumerateFrames - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbChain::GetActiveFrame(/* [out] */ ICorDebugFrame** ppFrame)
+{
+	printf("CordbChain - GetActiveFrame - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbChain::GetRegisterSet(/* [out] */ ICorDebugRegisterSet** ppRegisters)
+{
+	printf("CordbChain - GetRegisterSet - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbChain::GetReason(/* [out] */ CorDebugChainReason* pReason)
+{
+	*pReason = chain_reason;
+	printf("CordbChain - GetReason - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbChain::QueryInterface(/* [in] */ REFIID id, /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface)
+{
+	printf("CordbChain - QueryInterface - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+ULONG STDMETHODCALLTYPE CordbChain::AddRef(void)
+{
+	return 0;
+}
+
+ULONG STDMETHODCALLTYPE CordbChain::Release(void)
+{
+	return 0;
+}
+
+CordbFrameEnum::CordbFrameEnum(CordbThread* thread)
+{
+	this->thread = thread;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrameEnum::Next(ULONG celt, ICorDebugFrame* frames[], ULONG* pceltFetched)
+{
+	for (int i = 0; i < nframes; i++)
+	{
+		frames[i] = this->frames[i];
+	}
+	printf("CordbFrameEnum - Next - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrameEnum::Skip(ULONG celt)
+{
+	printf("CordbFrameEnum - Skip - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrameEnum::Reset(void)
+{
+	printf("CordbFrameEnum - Reset - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrameEnum::Clone(ICorDebugEnum** ppEnum)
+{
+	printf("CordbFrameEnum - Clone - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrameEnum::GetCount(ULONG* pcelt)
+{
+	printf("CordbFrameEnum::GetCount\n");
+	fflush(stdout);
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, thread->thread_id);
+	buffer_add_int(&localbuf, 0);
+	buffer_add_int(&localbuf, -1);
+
+	int cmdId = connection->send_event(CMD_SET_THREAD, CMD_THREAD_GET_FRAME_INFO, &localbuf);
+	buffer_free(&localbuf);
+
+	Buffer* localbuf2 = NULL;
+	while (!localbuf2) {
+		printf("CordbFrameEnum::GetCount - 1\n");
+		fflush(stdout);
+		connection->process_packet(true);
+		printf("CordbFrameEnum::GetCount - 2\n");
+		fflush(stdout);
+		localbuf2 = (Buffer*)g_hash_table_lookup(connection->received_replies, (gpointer)(gssize)(cmdId));
+	}
+	printf("CordbFrameEnum::GetCount - 3\n");
+	fflush(stdout);
+	nframes = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	
+	printf("CordbFrameEnum::GetCount - nframes - %d\n", nframes);
+	fflush(stdout);
+
+	frames = (CordbNativeFrame**) malloc(sizeof(CordbNativeFrame*) * nframes);
+	printf("CordbFrameEnum::GetCount - 4\n");
+	fflush(stdout);
+	for (int i = 0; i < nframes; i++)
+	{
+		printf("CordbFrameEnum::GetCount - 5\n");
+		fflush(stdout);
+		int frameid = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int methoid = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int il_offset = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int flags = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+		CordbNativeFrame* frame = new CordbNativeFrame(frameid, methoid, il_offset, flags, thread);
+		frames[i] = frame;
+	}
+	printf("CordbFrameEnum::GetCount - 6\n");
+	fflush(stdout);
+
+	*pcelt = nframes;
+	printf("CordbFrameEnum - GetCount - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbFrameEnum::QueryInterface(REFIID riid, void** ppvObject)
+{
+	printf("CordbFrameEnum - QueryInterface - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+ULONG STDMETHODCALLTYPE CordbFrameEnum::AddRef(void)
+{
+	return 0;
+}
+
+ULONG STDMETHODCALLTYPE CordbFrameEnum::Release(void)
+{
+	return 0;
+}
+
+HRESULT STDMETHODCALLTYPE CordbBlockingObjectEnum::Next(ULONG celt, CorDebugBlockingObject values[], ULONG* pceltFetched)
+{
+	printf("CordbBlockingObjectEnum - Next - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbBlockingObjectEnum::Skip(ULONG celt)
+{
+	printf("CordbBlockingObjectEnum - Skip - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbBlockingObjectEnum::Reset(void)
+{
+	printf("CordbBlockingObjectEnum - Reset - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbBlockingObjectEnum::Clone(ICorDebugEnum** ppEnum)
+{
+	printf("CordbBlockingObjectEnum - Clone - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbBlockingObjectEnum::GetCount(ULONG* pcelt)
+{
+	pcelt = 0;
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbBlockingObjectEnum::QueryInterface(REFIID riid, void** ppvObject)
+{
+	printf("CordbBlockingObjectEnum - QueryInterface - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+ULONG STDMETHODCALLTYPE CordbBlockingObjectEnum::AddRef(void)
+{
+	return 0;
+}
+
+ULONG STDMETHODCALLTYPE CordbBlockingObjectEnum::Release(void)
+{
+	return 0;
+}
+
+CordbStepper::CordbStepper(CordbThread* thread)
+{
+	this->thread = thread;
+	hasStepped = false;
+}
+
+HRESULT STDMETHODCALLTYPE CordbStepper::IsActive(BOOL* pbActive)
+{
+	printf("CordbStepper - IsActive - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbStepper::Deactivate(void)
+{
+	printf("CordbStepper - Deactivate - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbStepper::SetInterceptMask(CorDebugIntercept mask)
+{
+	printf("CordbStepper - SetInterceptMask - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbStepper::SetUnmappedStopMask(CorDebugUnmappedStop mask)
+{
+	printf("CordbStepper - SetUnmappedStopMask - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbStepper::Step(BOOL bStepIn)
+{
+	printf("CordbStepper - Step - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbStepper::StepRange(BOOL bStepIn, COR_DEBUG_STEP_RANGE ranges[], ULONG32 cRangeCount)
+{
+	hasStepped = true;
+	//thread->ppProcess->suspended = false;
+	/*
+	step_thread_id = decode_id (p, &p, end);
+				size = (StepSize)decode_int (p, &p, end);
+				depth = (StepDepth)decode_int (p, &p, end);
+				if (CHECK_PROTOCOL_VERSION (2, 16))
+					filter = (StepFilter)decode_int (p, &p, end);
+				req->modifiers [i].data.filter = filter;
+				if (!CHECK_PROTOCOL_VERSION (2, 26) && (req->modifiers [i].data.filter & STEP_FILTER_DEBUGGER_HIDDEN))
+					/* Treat STEP_THOUGH the same as HIDDEN
+	req->modifiers[i].data.filter = (StepFilter)(req->modifiers[i].data.filter | STEP_FILTER_DEBUGGER_STEP_THROUGH); */
+
+	Buffer sendbuf;
+	int buflen = 128;
+	buffer_init(&sendbuf, buflen);
+	buffer_add_byte(&sendbuf, EVENT_KIND_STEP);
+	buffer_add_byte(&sendbuf, SUSPEND_POLICY_ALL);
+	buffer_add_byte(&sendbuf, 1); //modifiers
+	buffer_add_byte(&sendbuf, MOD_KIND_STEP);
+
+	buffer_add_id(&sendbuf, thread->thread_id);
+	buffer_add_int(&sendbuf, STEP_SIZE_MIN);
+	buffer_add_int(&sendbuf, bStepIn ? STEP_DEPTH_INTO : STEP_DEPTH_OVER);
+	buffer_add_int(&sendbuf, STEP_FILTER_NONE);
+
+	connection->send_event(CMD_SET_EVENT_REQUEST, CMD_EVENT_REQUEST_SET, &sendbuf);
+	buffer_free(&sendbuf);
+
+	printf("CordbStepper - StepRange - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbStepper::StepOut(void)
+{
+	printf("CordbStepper - StepOut - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbStepper::SetRangeIL(BOOL bIL)
+{
+	printf("CordbStepper - SetRangeIL - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbStepper::QueryInterface(REFIID riid, void** ppvObject)
+{
+	printf("CordbStepper - QueryInterface - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+ULONG STDMETHODCALLTYPE CordbStepper::AddRef(void)
+{
+	printf("CordbStepper - AddRef - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+ULONG STDMETHODCALLTYPE CordbStepper::Release(void)
+{
+	printf("CordbStepper - Release - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbStepper::SetJMC(BOOL fIsJMCStepper)
+{
+	printf("CordbStepper - SetJMC - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+CordbNativeFrame::CordbNativeFrame(int frameid, int methoid, int il_offset, int flags, CordbThread* thread)
+{
+	m_JITILFrame = new CordbJITILFrame(frameid, methoid, il_offset, flags, thread);
+	this->thread = thread;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetIP(ULONG32* pnOffset)
+{
+	printf("CordbNativeFrame - GetIP - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::SetIP(ULONG32 nOffset)
+{
+	printf("CordbNativeFrame - SetIP - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetRegisterSet(ICorDebugRegisterSet** ppRegisters)
+{
+	return thread->GetRegisterSet(ppRegisters);
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetLocalRegisterValue(CorDebugRegister reg, ULONG cbSigBlob, PCCOR_SIGNATURE pvSigBlob, ICorDebugValue** ppValue)
+{
+	printf("CordbNativeFrame - GetLocalRegisterValue - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetLocalDoubleRegisterValue(CorDebugRegister highWordReg, CorDebugRegister lowWordReg, ULONG cbSigBlob, PCCOR_SIGNATURE pvSigBlob, ICorDebugValue** ppValue)
+{
+	printf("CordbNativeFrame - GetLocalDoubleRegisterValue - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetLocalMemoryValue(CORDB_ADDRESS address, ULONG cbSigBlob, PCCOR_SIGNATURE pvSigBlob, ICorDebugValue** ppValue)
+{
+	printf("CordbNativeFrame - GetLocalMemoryValue - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetLocalRegisterMemoryValue(CorDebugRegister highWordReg, CORDB_ADDRESS lowWordAddress, ULONG cbSigBlob, PCCOR_SIGNATURE pvSigBlob, ICorDebugValue** ppValue)
+{
+	printf("CordbNativeFrame - GetLocalRegisterMemoryValue - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetLocalMemoryRegisterValue(CORDB_ADDRESS highWordAddress, CorDebugRegister lowWordRegister, ULONG cbSigBlob, PCCOR_SIGNATURE pvSigBlob, ICorDebugValue** ppValue)
+{
+	printf("CordbNativeFrame - GetLocalMemoryRegisterValue - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::CanSetIP(ULONG32 nOffset)
+{
+	printf("CordbNativeFrame - CanSetIP - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetChain(ICorDebugChain** ppChain)
+{
+	printf("CordbNativeFrame - GetChain - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetCode(ICorDebugCode** ppCode)
+{
+	printf("CordbNativeFrame - GetCode - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL; 
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetFunction(ICorDebugFunction** ppFunction)
+{
+	return m_JITILFrame->GetFunction(ppFunction);
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetFunctionToken(mdMethodDef* pToken)
+{
+	printf("CordbNativeFrame - GetFunctionToken - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetStackRange(CORDB_ADDRESS* pStart, CORDB_ADDRESS* pEnd)
+{
+	return m_JITILFrame->GetStackRange(pStart, pEnd);
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetCaller(ICorDebugFrame** ppFrame)
+{
+	printf("CordbNativeFrame - GetCaller - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetCallee(ICorDebugFrame** ppFrame)
+{
+	printf("CordbNativeFrame - GetCallee - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::CreateStepper(ICorDebugStepper** ppStepper)
+{
+	printf("CordbNativeFrame - CreateStepper - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::QueryInterface(REFIID id, void** pInterface)
+{
+	if (id == IID_ICorDebugFrame)
+	{
+		*pInterface = static_cast<ICorDebugFrame*>(static_cast<ICorDebugNativeFrame*>(this));
+	}
+	else if (id == IID_ICorDebugNativeFrame)
+	{
+		*pInterface = static_cast<ICorDebugNativeFrame*>(this);
+	}
+	else if (id == IID_ICorDebugNativeFrame2)
+	{
+		*pInterface = static_cast<ICorDebugNativeFrame2*>(this);
+	}
+	else if (id == IID_IUnknown)
+	{
+		*pInterface = static_cast<IUnknown*>(static_cast<ICorDebugNativeFrame*>(this));
+	}
+	else
+	{
+		// might be searching for an IL Frame. delegate that search to the
+		// JITILFrame
+		if (m_JITILFrame != NULL)
+		{
+			return m_JITILFrame->QueryInterface(id, pInterface);
+		}
+		else
+		{
+			*pInterface = NULL;
+			return E_NOINTERFACE;
+		}
+	}
+
+	return S_OK;
+}
+
+ULONG STDMETHODCALLTYPE CordbNativeFrame::AddRef(void)
+{
+	return 0;
+}
+
+ULONG STDMETHODCALLTYPE CordbNativeFrame::Release(void)
+{
+	return 0;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::IsChild(BOOL* pIsChild)
+{
+	printf("CordbNativeFrame - IsChild - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::IsMatchingParentFrame(ICorDebugNativeFrame2* pPotentialParentFrame, BOOL* pIsParent)
+{
+	printf("CordbNativeFrame - IsMatchingParentFrame - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetStackParameterSize(ULONG32* pSize)
+{
+	printf("CordbNativeFrame - GetStackParameterSize - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+CordbClass::CordbClass(mdToken token)
+{
+	this->token = token;
+}
+
+HRESULT STDMETHODCALLTYPE CordbClass::GetModule(ICorDebugModule** pModule)
+{
+	printf("CordbNativeFrame - GetModule - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbClass::GetToken(mdTypeDef* pTypeDef)
+{
+	printf("CordbNativeFrame - GetToken - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbClass::GetStaticFieldValue(mdFieldDef fieldDef, ICorDebugFrame* pFrame, ICorDebugValue** ppValue)
+{
+	CordbValue* value = new CordbValue(ELEMENT_TYPE_BOOLEAN, 0, 1);
+	*ppValue = static_cast<ICorDebugValue*>(value);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbClass::QueryInterface(REFIID id, void** pInterface)
+{
+	if (id == IID_ICorDebugClass)
+	{
+		*pInterface = static_cast<ICorDebugClass*>(this);
+	}
+	else if (id == IID_ICorDebugClass2)
+	{
+		*pInterface = static_cast<ICorDebugClass2*>(this);
+	}
+	else if (id == IID_IUnknown)
+	{
+		*pInterface = static_cast<IUnknown*>(static_cast<ICorDebugClass*>(this));
+	}
+	else
+	{
+		*pInterface = NULL;
+		return E_NOINTERFACE;
+	}
+
+	return S_OK;
+}
+
+ULONG STDMETHODCALLTYPE CordbClass::AddRef(void)
+{
+	return 0;
+}
+
+ULONG STDMETHODCALLTYPE CordbClass::Release(void)
+{
+	return 0;
+}
+
+HRESULT STDMETHODCALLTYPE CordbClass::GetParameterizedType(CorElementType elementType, ULONG32 nTypeArgs, ICorDebugType* ppTypeArgs[], ICorDebugType** ppType)
+{
+	printf("CordbClass - GetParameterizedType - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbClass::SetJMCStatus(BOOL bIsJustMyCode)
+{
+	printf("CordbClass - SetJMCStatus - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+CordbValue::CordbValue(CorElementType type, int value, int size)
+{
+	this->type = type;
+	this->value = value;
+	this->size = size;
+}
+
+HRESULT STDMETHODCALLTYPE CordbValue::GetType(CorElementType* pType)
+{
+	*pType = type;
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbValue::GetSize(ULONG32* pSize)
+{
+	*pSize = size;
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbValue::GetAddress(CORDB_ADDRESS* pAddress)
+{
+	*pAddress = (CORDB_ADDRESS)&value;
+	printf("CordbValue - GetAddress - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbValue::CreateBreakpoint(ICorDebugValueBreakpoint** ppBreakpoint)
+{
+	printf("CordbValue - CreateBreakpoint - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbValue::QueryInterface(REFIID id, void** pInterface)
+{
+	if (id == IID_ICorDebugValue)
+	{
+		*pInterface = static_cast<ICorDebugValue*>(static_cast<ICorDebugGenericValue*>(this));
+	}
+	else if (id == IID_ICorDebugValue2)
+	{
+		*pInterface = static_cast<ICorDebugValue2*>(this);
+	}
+	else if (id == IID_ICorDebugValue3)
+	{
+		*pInterface = static_cast<ICorDebugValue3*>(this);
+	}
+	else if (id == IID_ICorDebugGenericValue)
+	{
+		*pInterface = static_cast<ICorDebugGenericValue*>(this);
+	}
+	else if (id == IID_IUnknown)
+	{
+		*pInterface = static_cast<IUnknown*>(static_cast<ICorDebugGenericValue*>(this));
+	}
+	else
+	{
+		*pInterface = NULL;
+		return E_NOINTERFACE;
+	}
+	return S_OK;
+}
+
+ULONG STDMETHODCALLTYPE CordbValue::AddRef(void)
+{
+	return 0;
+}
+
+ULONG STDMETHODCALLTYPE CordbValue::Release(void)
+{
+	return 0;
+}
+
+HRESULT STDMETHODCALLTYPE CordbValue::GetExactType(ICorDebugType** ppType)
+{
+	printf("CordbValue - GetExactType - IMPLEMENTED\n");
+	CordbType *tp = new CordbType(type);
+	*ppType = static_cast<ICorDebugType*>(tp);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbValue::GetSize64(ULONG64* pSize)
+{
+	printf("CordbValue - GetSize64 - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbValue::GetValue(void* pTo)
+{
+	printf("CordbValue - GetValue - NOT IMPLEMENTED\n"); \
+	memcpy(pTo, &value, size);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbValue::SetValue(void* pFrom)
+{
+	printf("CordbValue - SetValue - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+CordbType::CordbType(CorElementType type)
+{
+	this->type = type;
+}
+
+HRESULT STDMETHODCALLTYPE CordbType::GetType(CorElementType* ty)
+{
+	*ty = type;
+	printf("CordbType - GetType - IMPLEMENTED - %d\n", type);
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbType::GetClass(ICorDebugClass** ppClass)
+{
+	printf("CordbType - GetClass - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return S_FALSE;
+}
+
+HRESULT STDMETHODCALLTYPE CordbType::EnumerateTypeParameters(ICorDebugTypeEnum** ppTyParEnum)
+{
+	CordbTypeEnum* tp = new CordbTypeEnum();
+	*ppTyParEnum = static_cast<ICorDebugTypeEnum*>(tp);
+
+	printf("CordbType - EnumerateTypeParameters - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbType::GetFirstTypeParameter(ICorDebugType** value)
+{
+	printf("CordbType - GetFirstTypeParameter - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbType::GetBase(ICorDebugType** pBase)
+{
+	printf("CordbType - GetBase - IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbType::GetStaticFieldValue(mdFieldDef fieldDef, ICorDebugFrame* pFrame, ICorDebugValue** ppValue)
+{
+	printf("CordbType - GetStaticFieldValue - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbType::GetRank(ULONG32* pnRank)
+{
+	printf("CordbType - GetRank - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbType::QueryInterface(REFIID id, void** pInterface)
+{
+	if (id == IID_ICorDebugType)
+		*pInterface = static_cast<ICorDebugType*>(this);
+	else if (id == IID_ICorDebugType2)
+		*pInterface = static_cast<ICorDebugType2*>(this);
+	else if (id == IID_IUnknown)
+		*pInterface = static_cast<IUnknown*>(static_cast<ICorDebugType*>(this));
+	else
+	{
+		*pInterface = NULL;
+		return E_NOINTERFACE;
+	}
+
+	return S_OK;
+}
+
+ULONG STDMETHODCALLTYPE CordbType::AddRef(void)
+{
+	return 0;
+}
+
+ULONG STDMETHODCALLTYPE CordbType::Release(void)
+{
+	return 0;
+}
+
+HRESULT STDMETHODCALLTYPE CordbType::GetTypeID(COR_TYPEID* id)
+{
+	printf("CordbType - GetTypeID - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbTypeEnum::Next(ULONG celt, ICorDebugType* values[], ULONG* pceltFetched)
+{
+	*pceltFetched = celt;
+	printf("CordbTypeEnum - Next - IMPLEMENTED\n");
+	fflush(stdout);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbTypeEnum::Skip(ULONG celt)
+{
+	printf("CordbTypeEnum - Skip - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbTypeEnum::Reset(void)
+{
+	printf("CordbTypeEnum - Reset - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbTypeEnum::Clone(ICorDebugEnum** ppEnum)
+{
+	printf("CordbTypeEnum - Clone - NOT IMPLEMENTED\n");
+	fflush(stdout);
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbTypeEnum::GetCount(ULONG* pcelt)
+{
 	*pcelt = 0;
 	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbTypeEnum::QueryInterface(REFIID id, void** pInterface)
+{
+	if (id == IID_ICorDebugEnum)
+		*pInterface = static_cast<ICorDebugEnum*>(this);
+	else if (id == IID_ICorDebugTypeEnum)
+		*pInterface = static_cast<ICorDebugTypeEnum*>(this);
+	else if (id == IID_IUnknown)
+		*pInterface = static_cast<IUnknown*>(static_cast<ICorDebugTypeEnum*>(this));
+	else
+	{
+		printf("CordbTypeEnum - QueryInterface - E_NOTIMPL - %x - %x - %x - %x\n", ((unsigned long*)&id)[0], ((unsigned long*)&id)[1], ((unsigned long*)&id)[2], ((unsigned long*)&id)[3]);
+		fflush(stdout);
+		*pInterface = NULL;
+		return E_NOINTERFACE;
+	}
+
+	return S_OK;
+}
+
+ULONG STDMETHODCALLTYPE CordbTypeEnum::AddRef(void)
+{
+	return 0;
+}
+
+ULONG STDMETHODCALLTYPE CordbTypeEnum::Release(void)
+{
+	return 0;
 }

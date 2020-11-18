@@ -3287,6 +3287,7 @@ mono_assembly_request_load_from (MonoImage *image, const char *fname,
 		g_free (base_dir);
 		mono_image_addref (mono_defaults.corlib);
 		*status = MONO_IMAGE_OK;
+		MONO_PROFILER_RAISE (assembly_loaded, (mono_defaults.corlib->assembly));
 		return mono_defaults.corlib->assembly;
 	}
 
