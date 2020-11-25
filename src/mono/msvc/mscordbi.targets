@@ -4,7 +4,71 @@
     <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb.cpp">
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_frame.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_thread.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_stepper.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_function.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>    
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_process.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_assembly.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_appdomain.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_register.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_breakpoint.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_class.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>      
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_value.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>    
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_type.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>  
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_blocking_obj.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>  
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_chain.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_code.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>  
+    <ClCompile Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_symbol.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile> 
     <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb.hpp"/>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_frame.hpp"/>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_thread.hpp"/>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_stepper.hpp"/>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_function.hpp"/>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_process.hpp"/>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_assembly.hpp"/>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_appdomain.hpp"/>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_register.hpp"/>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_breakpoint.hpp"/>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_class.hpp"/>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_value.hpp"/>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_type.hpp"/>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_blocking_obj.hpp"/>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_chain.hpp"/>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_code.hpp"/>
+    <ClInclude Include="$(MONO_MSCORDBI_SOURCE_DIR)\cordb_symbol.hpp"/>
     <ClCompile Include="$(top_srcdir)/../coreclr/src/pal/prebuilt/idl/xcordebug_i.cpp">
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
