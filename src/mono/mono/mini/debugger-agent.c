@@ -1126,32 +1126,40 @@ socket_transport_connect (const char *address)
 	} else {
 		/* Connect to the specified address */
 		/* FIXME: Respect the timeout */
-		for (rp = result->entries; rp != NULL; rp = rp->next) {
-			MonoSocketAddress sockaddr;
-			socklen_t sock_len;
 
-			mono_socket_address_init (&sockaddr, &sock_len, rp->family, &rp->address, port);
+		uint32_t startTime = time(NULL);
+		uint32_t elapsedTime;
+		do {
+			DEBUG_PRINTF (1, "Trying to connect.\n", conn_fd);
+			for (rp = result->entries; rp != NULL; rp = rp->next) {
+				MonoSocketAddress sockaddr;
+				socklen_t sock_len;
 
-			sfd = socket (rp->family, rp->socktype,
-						  rp->protocol);
-			if (sfd == -1)
-				continue;
+				mono_socket_address_init (&sockaddr, &sock_len, rp->family, &rp->address, port);
 
-			MONO_ENTER_GC_SAFE;
-			res = connect (sfd, &sockaddr.addr, sock_len);
-			MONO_EXIT_GC_SAFE;
+				sfd = socket (rp->family, rp->socktype,
+							rp->protocol);
+				if (sfd == -1)
+					continue;
 
-			if (res != -1)
-				break;       /* Success */
-			
-			MONO_ENTER_GC_SAFE;
-#ifdef HOST_WIN32
-			closesocket (sfd);
-#else
-			close (sfd);
-#endif
-			MONO_EXIT_GC_SAFE;
-		}
+				MONO_ENTER_GC_SAFE;
+				res = connect (sfd, &sockaddr.addr, sock_len);
+				MONO_EXIT_GC_SAFE;
+
+				if (res != -1)
+					break;       /* Success */
+				
+				MONO_ENTER_GC_SAFE;
+	#ifdef HOST_WIN32
+				closesocket (sfd);
+	#else
+				close (sfd);
+	#endif
+				MONO_EXIT_GC_SAFE;
+			}
+			elapsedTime = difftime(time(NULL), startTime) * 1000;
+		} while ((elapsedTime < agent_config.timeout) &&
+            (rp == 0));
 
 		if (rp == 0) {
 			g_printerr ("debugger-agent: Unable to connect to %s:%d\n", host, port);
