@@ -20,92 +20,63 @@ CordbAppDomain::CordbAppDomain(ICorDebugProcess* ppProcess)
 
 HRESULT CordbAppDomain::Stop(/* [in] */ DWORD dwTimeoutIgnored)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - Stop - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - Stop - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbAppDomain::Continue(/* [in] */ BOOL fIsOutOfBand)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - Continue - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - Continue - NOT IMPLEMENTED\n");
+
 	pProcess->Continue(fIsOutOfBand);
 	return S_OK;
 }
 
 HRESULT CordbAppDomain::IsRunning(/* [out] */ BOOL* pbRunning)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - IsRunning - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - IsRunning - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbAppDomain::HasQueuedCallbacks(/* [in] */ ICorDebugThread* pThread,/* [out] */ BOOL* pbQueued)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - HasQueuedCallbacks - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - HasQueuedCallbacks - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbAppDomain::EnumerateThreads(/* [out] */ ICorDebugThreadEnum** ppThreads)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - EnumerateThreads - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - EnumerateThreads - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbAppDomain::SetAllThreadsDebugState(/* [in] */ CorDebugThreadState state,/* [in] */ ICorDebugThread* pExceptThisThread)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - SetAllThreadsDebugState - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - SetAllThreadsDebugState - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbAppDomain::Detach(void)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - Detach - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - Detach - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbAppDomain::Terminate(/* [in] */ UINT exitCode)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - Terminate - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - Terminate - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbAppDomain::CanCommitChanges(/* [in] */ ULONG cSnapshots,/* [size_is][in] */ ICorDebugEditAndContinueSnapshot* pSnapshots[],/* [out] */ ICorDebugErrorInfoEnum** pError)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - CanCommitChanges - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - CanCommitChanges - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbAppDomain::CommitChanges(/* [in] */ ULONG cSnapshots,/* [size_is][in] */ ICorDebugEditAndContinueSnapshot* pSnapshots[],/* [out] */ ICorDebugErrorInfoEnum** pError)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - CommitChanges - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - CommitChanges - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -133,10 +104,8 @@ HRESULT CordbAppDomain::QueryInterface(/* [in] */ REFIID id,/* [iid_is][out] */ 
 		*ppInterface = (IUnknown*)(ICorDebugAppDomain*)this;
 	else
 	{
-		fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - QueryInterface - E_NOTIMPL" << std::endl;
-		file.close();
+		DEBUG_PRINTF(1, "CordbAppDomain - QueryInterface - E_NOTIMPL\n");
+	
 		*ppInterface = NULL;
 		return E_NOINTERFACE;
 	}
@@ -156,151 +125,108 @@ ULONG CordbAppDomain::Release(void)
 HRESULT CordbAppDomain::GetProcess(
 /* [out] */ ICorDebugProcess** ppProcess)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - GetProcess - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - GetProcess - NOT IMPLEMENTED\n");
+
 	*ppProcess = pProcess;
 	return S_OK;
 }
 
 HRESULT CordbAppDomain::EnumerateAssemblies(/* [out] */ ICorDebugAssemblyEnum** ppAssemblies)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - EnumerateAssemblies - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - EnumerateAssemblies - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 
 HRESULT CordbAppDomain::GetModuleFromMetaDataInterface(/* [in] */ IUnknown* pIMetaData,/* [out] */ ICorDebugModule** ppModule)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - GetModuleFromMetaDataInterface - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - GetModuleFromMetaDataInterface - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 
 HRESULT CordbAppDomain::EnumerateBreakpoints(/* [out] */ ICorDebugBreakpointEnum** ppBreakpoints)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - EnumerateBreakpoints - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - EnumerateBreakpoints - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 
 HRESULT CordbAppDomain::EnumerateSteppers(/* [out] */ ICorDebugStepperEnum** ppSteppers)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - EnumerateSteppers - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - EnumerateSteppers - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 
 HRESULT CordbAppDomain::IsAttached(/* [out] */ BOOL* pbAttached)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - IsAttached - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - IsAttached - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 
 HRESULT CordbAppDomain::GetName(/* [in] */ ULONG32 cchName,/* [out] */ ULONG32* pcchName,/* [length_is][size_is][out] */ WCHAR szName[])
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - GetName - IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbAppDomain - GetName - IMPLEMENTED\n");
 	if (cchName < strlen("DefaultDomain")) {
 		*pcchName = strlen("DefaultDomain") + 1;
 		return S_OK;
 	}
 	wcscpy(szName, L"DefaultDomain");
-	file.close();
+	
 	return S_OK;
 }
 
 
 HRESULT CordbAppDomain::GetObject(/* [out] */ ICorDebugValue** ppObject)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - GetObject - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - GetObject - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 
 HRESULT CordbAppDomain::Attach(void)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - Attach - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - Attach - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 
 HRESULT CordbAppDomain::GetID(/* [out] */ ULONG32* pId)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - GetID - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - GetID - IMPLEMENTED\n");
 	return S_OK;
 }
 HRESULT CordbAppDomain::GetArrayOrPointerType(/* [in] */ CorElementType elementType,/* [in] */ ULONG32 nRank,/* [in] */ ICorDebugType* pTypeArg,/* [out] */ ICorDebugType** ppType)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - GetArrayOrPointerType - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - GetArrayOrPointerType - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 
 HRESULT CordbAppDomain::GetFunctionPointerType(/* [in] */ ULONG32 nTypeArgs,/* [size_is][in] */ ICorDebugType* ppTypeArgs[],/* [out] */ ICorDebugType** ppType)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - GetFunctionPointerType - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - GetFunctionPointerType - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbAppDomain::GetCachedWinRTTypesForIIDs(/* [in] */ ULONG32 cReqTypes,/* [size_is][in] */ GUID* iidsToResolve,/* [out] */ ICorDebugTypeEnum** ppTypesEnum)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - GetCachedWinRTTypesForIIDs - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - GetCachedWinRTTypesForIIDs - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 
 HRESULT CordbAppDomain::GetCachedWinRTTypes(/* [out] */ ICorDebugGuidToTypeEnum** ppGuidToTypeEnum)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - GetCachedWinRTTypes - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - GetCachedWinRTTypes - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 
 HRESULT CordbAppDomain::GetObjectForCCW(/* [in] */ CORDB_ADDRESS ccwPointer,/* [out] */ ICorDebugValue** ppManagedObject)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAppDomain - GetObjectForCCW - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbAppDomain - GetObjectForCCW - NOT IMPLEMENTED\n");
 	return S_OK;
 }

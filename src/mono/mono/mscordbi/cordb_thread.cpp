@@ -23,42 +23,31 @@ CordbThread::CordbThread(CordbProcess* ppProcess, long thread_id)
 
 HRESULT STDMETHODCALLTYPE CordbThread::HasUnhandledException(void)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - HasUnhandledException - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - HasUnhandledException - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::GetBlockingObjects(
 	/* [out] */ ICorDebugBlockingObjectEnum** ppBlockingObjectEnum)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetBlockingObjects - IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbThread - GetBlockingObjects - IMPLEMENTED\n");
 	CordbBlockingObjectEnum* blockingObject = new CordbBlockingObjectEnum();
 	*ppBlockingObjectEnum = static_cast<ICorDebugBlockingObjectEnum*>(blockingObject);
-	file.close();
+	
 	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::GetCurrentCustomDebuggerNotification(
 	/* [out] */ ICorDebugValue** ppNotificationObject)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetCurrentCustomDebuggerNotification - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - GetCurrentCustomDebuggerNotification - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::CreateStackWalk(
 	/* [out] */ ICorDebugStackWalk** ppStackWalk)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - CreateStackWalk - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - CreateStackWalk - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
@@ -67,10 +56,7 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetActiveInternalFrames(
 	/* [out] */ ULONG32* pcInternalFrames,
 	/* [length_is][size_is][out][in] */ ICorDebugInternalFrame2* ppInternalFrames[])
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetActiveInternalFrames - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - GetActiveInternalFrames - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
@@ -79,40 +65,28 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetActiveFunctions(
 	/* [out] */ ULONG32* pcFunctions,
 	/* [length_is][size_is][out][in] */ COR_ACTIVE_FUNCTION pFunctions[])
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetActiveFunctions - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - GetActiveFunctions - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::GetConnectionID(
 	/* [out] */ CONNID* pdwConnectionId)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetConnectionID - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - GetConnectionID - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::GetTaskID(
 	/* [out] */ TASKID* pTaskId)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetTaskID - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - GetTaskID - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::GetVolatileOSThreadID(
 	/* [out] */ DWORD* pdwTid)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetVolatileOSThreadID - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - GetVolatileOSThreadID - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
@@ -120,19 +94,13 @@ HRESULT STDMETHODCALLTYPE CordbThread::InterceptCurrentException(
 
 	/* [in] */ ICorDebugFrame* pFrame)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - InterceptCurrentException - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - InterceptCurrentException - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 HRESULT STDMETHODCALLTYPE CordbThread::GetProcess(
 	/* [out] */ ICorDebugProcess** ppProcess)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetProcess - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - GetProcess - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
@@ -140,20 +108,14 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetID(
 	/* [out] */ DWORD* pdwThreadId)
 {
 	*pdwThreadId = thread_id;
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetID - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - GetID - IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::GetHandle(
 	/* [out] */ HTHREAD* phThreadHandle)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetHandle - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - GetHandle - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
@@ -161,10 +123,7 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetAppDomain(
 	/* [out] */ ICorDebugAppDomain** ppAppDomain)
 {
 	*ppAppDomain = static_cast<ICorDebugAppDomain*>(this->ppProcess->connection->pCorDebugAppDomain);
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetAppDomain - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - GetAppDomain - IMPLEMENTED\n");
 	return S_OK;
 
 }
@@ -172,30 +131,22 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetAppDomain(
 HRESULT STDMETHODCALLTYPE CordbThread::SetDebugState(
 	/* [in] */ CorDebugThreadState state)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - SetDebugState - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - SetDebugState - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::GetDebugState(
 	/* [out] */ CorDebugThreadState* pState)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetDebugState - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - GetDebugState - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::GetUserState(
 	/* [out] */ CorDebugUserState* pState)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetUserState - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - GetUserState - NOT IMPLEMENTED\n");
+
 	*pState = USER_SUSPENDED;
 	return S_OK;
 }
@@ -203,19 +154,14 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetUserState(
 HRESULT STDMETHODCALLTYPE CordbThread::GetCurrentException(
 	/* [out] */ ICorDebugValue** ppExceptionObject)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetCurrentException - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - GetCurrentException - IMPLEMENTED\n");
+
 	return S_FALSE;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::ClearCurrentException(void)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - ClearCurrentException - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - ClearCurrentException - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
@@ -229,10 +175,7 @@ HRESULT STDMETHODCALLTYPE CordbThread::CreateStepper(
 	}
 	*ppStepper = static_cast<ICorDebugStepper*>(stepper);
 
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - CreateStepper - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - CreateStepper - IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -241,32 +184,21 @@ HRESULT STDMETHODCALLTYPE CordbThread::EnumerateChains(
 {
 	CordbChainEnum* pChains = new CordbChainEnum(this);
 	*ppChains = static_cast<ICorDebugChainEnum*>(pChains);
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - EnumerateChains - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - EnumerateChains - IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::GetActiveChain(
 	/* [out] */ ICorDebugChain** ppChain)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetActiveChain - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - GetActiveChain - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::GetActiveFrame(
 	/* [out] */ ICorDebugFrame** ppFrame)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetActiveFrame - IMPLEMENTED" << endl;
-	file.close();
-
-	Buffer localbuf;
+	DEBUG_PRINTF(1, "CordbThread - GetActiveFrame - IMPLEMENTED\n");Buffer localbuf;
 	buffer_init(&localbuf, 128);
 	buffer_add_id(&localbuf, thread_id);
 	buffer_add_int(&localbuf, 0);
@@ -304,10 +236,12 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetActiveFrame(
 HRESULT STDMETHODCALLTYPE CordbThread::GetRegisterSet(
 	/* [out] */ ICorDebugRegisterSet** ppRegisters)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetRegisterSet - IMPLEMENTED - " << registerset << endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - GetRegisterSet - IMPLEMENTED - %x\n", registerset);
+
+	if (!registerset)
+		registerset = new CordbRegisteSet(0, 0);
+
+	
 
 	*ppRegisters = static_cast<ICorDebugRegisterSet*>(registerset);
 	return S_OK;
@@ -316,20 +250,14 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetRegisterSet(
 HRESULT STDMETHODCALLTYPE CordbThread::CreateEval(
 	/* [out] */ ICorDebugEval** ppEval)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - CreateEval - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - CreateEval - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::GetObject(
 	/* [out] */ ICorDebugValue** ppObject)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - GetObject - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - GetObject - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 HRESULT STDMETHODCALLTYPE CordbThread::QueryInterface(
@@ -361,10 +289,7 @@ HRESULT STDMETHODCALLTYPE CordbThread::QueryInterface(
 		*ppInterface = NULL;
 		return E_NOINTERFACE;
 	}
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbThread - QueryInterface - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbThread - QueryInterface - IMPLEMENTED\n");
 	return S_OK;
 }
 ULONG STDMETHODCALLTYPE CordbThread::AddRef(void)

@@ -17,134 +17,96 @@ CordbProcess::CordbProcess()
 
 HRESULT CordbProcess::EnumerateLoaderHeapMemoryRegions(
 	/* [out] */ ICorDebugMemoryRangeEnum** ppRanges) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - EnumerateLoaderHeapMemoryRegions - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - EnumerateLoaderHeapMemoryRegions - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::EnableGCNotificationEvents(
 	BOOL fEnable) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - EnableGCNotificationEvents - NOT IMPLEMENTED" << std::endl; 
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - EnableGCNotificationEvents - NOT IMPLEMENTED\n"); 
+	
 	return S_OK;
 }
 
 HRESULT CordbProcess::EnableExceptionCallbacksOutsideOfMyCode(
 	/* [in] */ BOOL enableExceptionsOutsideOfJMC) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - EnableExceptionCallbacksOutsideOfMyCode - NOT IMPLEMENTED" << std::endl; 
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - EnableExceptionCallbacksOutsideOfMyCode - NOT IMPLEMENTED\n"); 
+	
 	return S_OK;
 }
 
 HRESULT CordbProcess::SetWriteableMetadataUpdateMode(
 	WriteableMetadataUpdateMode flags) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - SetWriteableMetadataUpdateMode - NOT IMPLEMENTED" << std::endl; 
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - SetWriteableMetadataUpdateMode - NOT IMPLEMENTED\n"); 
+	
 	return S_OK;
 }
 
 HRESULT CordbProcess::GetGCHeapInformation(
 	/* [out] */ COR_HEAPINFO* pHeapInfo) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - GetGCHeapInformation - NOT IMPLEMENTED" << std::endl; 
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - GetGCHeapInformation - NOT IMPLEMENTED\n"); 
+	
 	return S_OK;
 }
 
 HRESULT CordbProcess::EnumerateHeap(
 	/* [out] */ ICorDebugHeapEnum** ppObjects) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - EnumerateHeap - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - EnumerateHeap - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::EnumerateHeapRegions(
 	/* [out] */ ICorDebugHeapSegmentEnum** ppRegions) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - EnumerateHeapRegions - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - EnumerateHeapRegions - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::GetObject(
 	/* [in] */ CORDB_ADDRESS addr,
 	/* [out] */ ICorDebugObjectValue** pObject) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - GetObject - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - GetObject - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::EnumerateGCReferences(
 	/* [in] */ BOOL enumerateWeakReferences,
 	/* [out] */ ICorDebugGCReferenceEnum** ppEnum) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - EnumerateGCReferences - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - EnumerateGCReferences - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::EnumerateHandles(
 	/* [in] */ CorGCReferenceType types,
 	/* [out] */ ICorDebugGCReferenceEnum** ppEnum) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - EnumerateHandles - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - EnumerateHandles - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::GetTypeID(
 	/* [in] */ CORDB_ADDRESS obj,
 	/* [out] */ COR_TYPEID* pId) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - GetTypeID - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - GetTypeID - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::GetTypeForTypeID(
 	/* [in] */ COR_TYPEID id,
 	/* [out] */ ICorDebugType** ppType) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - GetTypeForTypeID - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - GetTypeForTypeID - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::GetArrayLayout(
 	/* [in] */ COR_TYPEID id,
 	/* [out] */ COR_ARRAY_LAYOUT* pLayout) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - GetArrayLayout - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - GetArrayLayout - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::GetTypeLayout(
 	/* [in] */ COR_TYPEID id,
 	/* [out] */ COR_TYPE_LAYOUT* pLayout) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - GetTypeLayout - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - GetTypeLayout - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -153,19 +115,13 @@ HRESULT CordbProcess::GetTypeFields(
 	ULONG32 celt,
 	COR_FIELD fields[],
 	ULONG32* pceltNeeded) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - GetTypeFields - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - GetTypeFields - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::EnableNGENPolicy(
 	/* [in] */ CorDebugNGENPolicy ePolicy) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - EnableNGENPolicy - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - EnableNGENPolicy - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 HRESULT CordbProcess::Filter(
@@ -176,84 +132,57 @@ HRESULT CordbProcess::Filter(
 	/* [in] */ DWORD dwThreadId,
 	/* [in] */ ICorDebugManagedCallback* pCallback,
 	/* [out][in] */ CORDB_CONTINUE_STATUS* pContinueStatus) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - Filter - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - Filter - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::ProcessStateChanged(
 	/* [in] */ CorDebugStateChange eChange) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - ProcessStateChanged - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - ProcessStateChanged - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 HRESULT CordbProcess::SetEnableCustomNotification(
 	ICorDebugClass* pClass,
 	BOOL fEnable) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - SetEnableCustomNotification - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - SetEnableCustomNotification - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 HRESULT CordbProcess::GetID(
 	/* [out] */ DWORD* pdwProcessId) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - GetID - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - GetID - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::GetHandle(
 	/* [out] */ HPROCESS* phProcessHandle) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - GetHandle - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - GetHandle - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::GetThread(
 	/* [in] */ DWORD dwThreadId,
 	/* [out] */ ICorDebugThread** ppThread) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - GetThread - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - GetThread - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::EnumerateObjects(
 	/* [out] */ ICorDebugObjectEnum** ppObjects) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - EnumerateObjects - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - EnumerateObjects - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::IsTransitionStub(
 	/* [in] */ CORDB_ADDRESS address,
 	/* [out] */ BOOL* pbTransitionStub) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - IsTransitionStub - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - IsTransitionStub - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::IsOSSuspended(
 	/* [in] */ DWORD threadID,
 	/* [out] */ BOOL* pbSuspended) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - IsOSSuspended - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - IsOSSuspended - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -261,10 +190,7 @@ HRESULT CordbProcess::GetThreadContext(
 	/* [in] */ DWORD threadID,
 	/* [in] */ ULONG32 contextSize,
 	/* [size_is][length_is][out][in] */ BYTE context[]) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - GetThreadContext - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - GetThreadContext - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -272,10 +198,7 @@ HRESULT CordbProcess::SetThreadContext(
 	/* [in] */ DWORD threadID,
 	/* [in] */ ULONG32 contextSize,
 	/* [size_is][length_is][in] */ BYTE context[]) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - SetThreadContext - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - SetThreadContext - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -287,10 +210,7 @@ HRESULT CordbProcess::ReadMemory(
 	memcpy(buffer, (void*)address, size);
 	if (read != NULL)
 		*read = size;
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - ReadMemory - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - ReadMemory - IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -299,28 +219,19 @@ HRESULT CordbProcess::WriteMemory(
 	/* [in] */ DWORD size,
 	/* [size_is][in] */ BYTE buffer[],
 	/* [out] */ SIZE_T* written) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - WriteMemory - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - WriteMemory - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::ClearCurrentException(
 	/* [in] */ DWORD threadID) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - ClearCurrentException - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - ClearCurrentException - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::EnableLogMessages(
 	/* [in] */ BOOL fOnOff) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - EnableLogMessages - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - EnableLogMessages - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -328,65 +239,44 @@ HRESULT CordbProcess::ModifyLogSwitch(
 	/* [annotation][in] */
 	_In_  WCHAR* pLogSwitchName,
 	/* [in] */ LONG lLevel) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - ModifyLogSwitch - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - ModifyLogSwitch - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::EnumerateAppDomains(
 	/* [out] */ ICorDebugAppDomainEnum** ppAppDomains) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - EnumerateAppDomains - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - EnumerateAppDomains - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::GetObject(
 	/* [out] */ ICorDebugValue** ppObject) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - GetObject - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - GetObject - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::ThreadForFiberCookie(
 	/* [in] */ DWORD fiberCookie,
 	/* [out] */ ICorDebugThread** ppThread) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - ThreadForFiberCookie - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - ThreadForFiberCookie - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::GetHelperThreadID(
 	/* [out] */ DWORD* pThreadID) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "GetHelperThreadID - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "GetHelperThreadID - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 HRESULT CordbProcess::GetThreadForTaskID(
 	/* [in] */ TASKID taskid,
 	/* [out] */ ICorDebugThread2** ppThread) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - GetHelperThreadID - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - GetHelperThreadID - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::GetVersion(
 	/* [out] */ COR_VERSION* version) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - GetVersion - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - GetVersion - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -395,38 +285,26 @@ HRESULT CordbProcess::SetUnmanagedBreakpoint(
 	/* [in] */ ULONG32 bufsize,
 	/* [length_is][size_is][out] */ BYTE buffer[],
 	/* [out] */ ULONG32* bufLen) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - SetUnmanagedBreakpoint - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - SetUnmanagedBreakpoint - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::ClearUnmanagedBreakpoint(
 	/* [in] */ CORDB_ADDRESS address) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - ClearUnmanagedBreakpoint - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - ClearUnmanagedBreakpoint - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::SetDesiredNGENCompilerFlags(
 	/* [in] */ DWORD pdwFlags) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - SetDesiredNGENCompilerFlags - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - SetDesiredNGENCompilerFlags - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::GetDesiredNGENCompilerFlags(
 	/* [out] */ DWORD* pdwFlags)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - GetDesiredNGENCompilerFlags - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - GetDesiredNGENCompilerFlags - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -434,10 +312,7 @@ HRESULT CordbProcess::GetReferenceValueFromGCHandle(
 	/* [in] */ UINT_PTR handle,
 	/* [out] */ ICorDebugReferenceValue** pOutValue)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - GetReferenceValueFromGCHandle - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - GetReferenceValueFromGCHandle - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 HRESULT CordbProcess::QueryInterface(
@@ -492,10 +367,8 @@ HRESULT CordbProcess::QueryInterface(
 
 	else
 	{
-		fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - QueryInterface - E_NOTIMPL" << std::endl;
-		file.close();
+		DEBUG_PRINTF(1, "CordbProcess - QueryInterface - E_NOTIMPL\n");
+	
 
 		*pInterface = NULL;
 		return E_NOINTERFACE;
@@ -518,16 +391,12 @@ HRESULT CordbProcess::Stop(
 /* [in] */ DWORD dwTimeoutIgnored) {
 	if (suspended)
 	{
-		fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - Stop - ALREADY SUSPENDED" << std::endl;
-		file.close();
+		DEBUG_PRINTF(1, "CordbProcess - Stop - ALREADY SUSPENDED\n");
+	
 		return S_OK;
 	}
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - Stop - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - Stop - IMPLEMENTED\n");
+
 	Buffer sendbuf;
 	buffer_init(&sendbuf, 128);
 	connection->send_event(CMD_SET_VM, CMD_VM_SUSPEND, &sendbuf);
@@ -539,16 +408,12 @@ HRESULT CordbProcess::Continue(
 	/* [in] */ BOOL fIsOutOfBand)
 {
 	if (suspended == false) {
-		fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "RESUME SEM ESTAR SUSPENSO - fIsOutOfBand " << std::endl;
-		return S_OK;
+		DEBUG_PRINTF(1, "RESUME SEM ESTAR SUSPENSO - fIsOutOfBand \n");
+	return S_OK;
 	}
 	suspended = false;
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - Continue - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - Continue - IMPLEMENTED\n");
+
 	Buffer sendbuf;
 	buffer_init(&sendbuf, 128);
 	connection->send_event(CMD_SET_VM, CMD_VM_RESUME, &sendbuf);
@@ -557,10 +422,7 @@ HRESULT CordbProcess::Continue(
 
 HRESULT CordbProcess::IsRunning(
 	/* [out] */ BOOL* pbRunning) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - IsRunning - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - IsRunning - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -568,46 +430,31 @@ HRESULT CordbProcess::HasQueuedCallbacks(
 	/* [in] */ ICorDebugThread* pThread,
 	/* [out] */ BOOL* pbQueued) {
 	//connection->process_packet_from_queue();
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - HasQueuedCallbacks - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - HasQueuedCallbacks - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::EnumerateThreads(
 	/* [out] */ ICorDebugThreadEnum** ppThreads) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - EnumerateThreads - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - EnumerateThreads - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::SetAllThreadsDebugState(
 	/* [in] */ CorDebugThreadState state,
 	/* [in] */ ICorDebugThread* pExceptThisThread) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - SetAllThreadsDebugState - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - SetAllThreadsDebugState - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::Detach(void) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - Detach - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - Detach - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbProcess::Terminate(
 	/* [in] */ UINT exitCode) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - Terminate - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - Terminate - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -615,10 +462,7 @@ HRESULT CordbProcess::CanCommitChanges(
 	/* [in] */ ULONG cSnapshots,
 	/* [size_is][in] */ ICorDebugEditAndContinueSnapshot* pSnapshots[],
 	/* [out] */ ICorDebugErrorInfoEnum** pError) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - CanCommitChanges - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - CanCommitChanges - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -626,9 +470,6 @@ HRESULT CordbProcess::CommitChanges(
 	/* [in] */ ULONG cSnapshots,
 	/* [size_is][in] */ ICorDebugEditAndContinueSnapshot* pSnapshots[],
 	/* [out] */ ICorDebugErrorInfoEnum** pError) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbProcess - CommitChanges - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbProcess - CommitChanges - NOT IMPLEMENTED\n");
 	return S_OK;
 }

@@ -18,10 +18,8 @@ using namespace std;
 
 HRESULT __stdcall CordbChainEnum::Next(ULONG celt, ICorDebugChain* chains[], ULONG* pceltFetched)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChainEnum - Next - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChainEnum - Next - IMPLEMENTED\n");
+
 	chains[0] = new CordbChain(thread, CHAIN_PROCESS_START, false);
 	chains[1] = new CordbChain(thread, CHAIN_ENTER_MANAGED, true);
 	*pceltFetched = celt;
@@ -35,19 +33,13 @@ CordbChainEnum::CordbChainEnum(CordbThread* thread)
 
 HRESULT __stdcall CordbChainEnum::QueryInterface(REFIID id, void** pInterface)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChainEnum - QueryInterface - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChainEnum - QueryInterface - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT __stdcall CordbChainEnum::Skip(ULONG celt)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChainEnum - Skip - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChainEnum - Skip - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
@@ -62,30 +54,22 @@ ULONG STDMETHODCALLTYPE CordbChainEnum::Release(void)
 
 HRESULT STDMETHODCALLTYPE CordbChainEnum::Reset(void)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChainEnum - Reset - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChainEnum - Reset - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbChainEnum::Clone(
 	/* [out] */ ICorDebugEnum** ppEnum)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChainEnum - Clone - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChainEnum - Clone - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbChainEnum::GetCount(
 	/* [out] */ ULONG* pcelt)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChainEnum - GetCount - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChainEnum - GetCount - IMPLEMENTED\n");
+
 	*pcelt = 2;
 	return S_OK;
 }
@@ -100,121 +84,82 @@ CordbChain::CordbChain(CordbThread* thread, CorDebugChainReason chain_reason, bo
 HRESULT STDMETHODCALLTYPE CordbChain::GetThread(/* [out] */ ICorDebugThread** ppThread)
 {
 	*ppThread = static_cast<ICorDebugThread*>(thread);
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChain - GetThread - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChain - GetThread - IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbChain::GetStackRange(/* [out] */ CORDB_ADDRESS* pStart, /* [out] */ CORDB_ADDRESS* pEnd)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChain - GetStackRange - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChain - GetStackRange - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbChain::GetContext(/* [out] */ ICorDebugContext** ppContext)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChain - GetContext - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChain - GetContext - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbChain::GetCaller(/* [out] */ ICorDebugChain** ppChain)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChain - GetCaller - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChain - GetCaller - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbChain::GetCallee(/* [out] */ ICorDebugChain** ppChain)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChain - GetCallee - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChain - GetCallee - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbChain::GetPrevious(/* [out] */ ICorDebugChain** ppChain)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChain - GetPrevious - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChain - GetPrevious - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbChain::GetNext(/* [out] */ ICorDebugChain** ppChain)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChain - GetNext - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChain - GetNext - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbChain::IsManaged(/* [out] */ BOOL* pManaged)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChain - IsManaged - IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbChain - IsManaged - IMPLEMENTED\n");
 	*pManaged = is_managed;
-	file.close();
 	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbChain::EnumerateFrames(/* [out] */ ICorDebugFrameEnum** ppFrames)
 {
 	*ppFrames = new CordbFrameEnum(thread);
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChain - EnumerateFrames - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChain - EnumerateFrames - IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbChain::GetActiveFrame(/* [out] */ ICorDebugFrame** ppFrame)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChain - GetActiveFrame - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChain - GetActiveFrame - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbChain::GetRegisterSet(/* [out] */ ICorDebugRegisterSet** ppRegisters)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChain - GetRegisterSet - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChain - GetRegisterSet - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbChain::GetReason(/* [out] */ CorDebugChainReason* pReason)
 {
 	*pReason = chain_reason;
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChain - GetReason - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChain - GetReason - IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbChain::QueryInterface(/* [in] */ REFIID id, /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbChain - QueryInterface - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbChain - QueryInterface - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 

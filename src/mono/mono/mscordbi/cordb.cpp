@@ -15,15 +15,9 @@
 #include <cordb_code.hpp>
 #include <cordb_symbol.hpp>
 
-using namespace std;
-
-
 MONO_API HRESULT CoreCLRCreateCordbObjectEx(int iDebuggerVersion, DWORD pid, LPCWSTR lpApplicationGroupId, HMODULE hmodTargetCLR, void** ppCordb)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CoreCLRCreateCordbObjectEx " << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CoreCLRCreateCordbObjectEx \n");
 	*ppCordb = new Cordb();
 	return S_OK;
 }
@@ -41,41 +35,30 @@ static void debugger_thread(void* ppProcess)
 
 HRESULT Cordb::Initialize(void)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "Cordb - Initialize - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "Cordb - Initialize - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT Cordb::Terminate(void)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "Cordb - Terminate - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "Cordb - Terminate - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT Cordb::SetManagedHandler(
 /* [in] */ ICorDebugManagedCallback* pCallback)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "Cordb - SetManagedHandler - IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "Cordb - SetManagedHandler - IMPLEMENTED\n");
 	this->pCallback = pCallback;
 	this->pCallback->AddRef();
-	file.close();
+	
 	return S_OK;
 }
 
 HRESULT Cordb::SetUnmanagedHandler(
 /* [in] */ ICorDebugUnmanagedCallback* pCallback)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "Cordb - SetUnmanagedHandler - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "Cordb - SetUnmanagedHandler - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -93,10 +76,7 @@ HRESULT Cordb::CreateProcess(
 /* [in] */ CorDebugCreateProcessFlags debuggingFlags,
 /* [out] */ ICorDebugProcess** ppProcess)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "Cordb - CreateProcess - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "Cordb - CreateProcess - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -105,26 +85,21 @@ HRESULT Cordb::DebugActiveProcess(
 /* [in] */ BOOL win32Attach,
 /* [out] */ ICorDebugProcess** ppProcess)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "Cordb - DebugActiveProcess - IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "Cordb - DebugActiveProcess - IMPLEMENTED\n");
 	*ppProcess = new CordbProcess;
 	((CordbProcess*)*ppProcess)->cordb = this;
 		
 	DWORD thread_id;
 	CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)debugger_thread, ((CordbProcess*)*ppProcess), 0, &thread_id);
 
-	file.close();
+	
 	return S_OK;
 }
 
 HRESULT Cordb::EnumerateProcesses(
 /* [out] */ ICorDebugProcessEnum** ppProcess)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "Cordb - EnumerateProcesses - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "Cordb - EnumerateProcesses - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -132,10 +107,7 @@ HRESULT Cordb::GetProcess(
 /* [in] */ DWORD dwProcessId,
 /* [out] */ ICorDebugProcess** ppProcess)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "Cordb - GetProcess - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "Cordb - GetProcess - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -143,10 +115,7 @@ HRESULT Cordb::CanLaunchOrAttach(
 /* [in] */ DWORD dwProcessId,
 /* [in] */ BOOL win32DebuggingEnabled)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "Cordb - CanLaunchOrAttach - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "Cordb - CanLaunchOrAttach - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -188,10 +157,7 @@ HRESULT Cordb::QueryInterface(
 /* [in] */ REFIID riid,
 /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "Cordb - QueryInterface - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "Cordb - QueryInterface - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -221,10 +187,7 @@ _In_  LPWSTR lpCommandLine,
 /* [in] */ CorDebugCreateProcessFlags debuggingFlags,
 /* [out] */ ICorDebugProcess** ppProcess)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "Cordb - CreateProcessEx - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "Cordb - CreateProcessEx - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -234,10 +197,7 @@ HRESULT Cordb::DebugActiveProcessEx(
 /* [in] */ BOOL fWin32Attach,
 /* [out] */ ICorDebugProcess** ppProcess)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "Cordb - DebugActiveProcessEx - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "Cordb - DebugActiveProcessEx - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -280,10 +240,10 @@ void Connection::process_packet_internal(Buffer *recvbuf)
 
 		long thread_id = decode_id(recvbuf->buf, &recvbuf->buf, recvbuf->end);
 
-		fstream file;
-		file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-		file << "Received" << nevents << "events " << event_to_string(etype)  << ", suspend=" << etype << std::endl;
-		file.close();
+		
+		
+		DEBUG_PRINTF(1, "Received %d events %s, suspend=%d\n", nevents, event_to_string(etype), etype);
+		
 		switch (etype)
 		{
 		case EVENT_KIND_VM_START:
@@ -303,7 +263,7 @@ void Connection::process_packet_internal(Buffer *recvbuf)
 				pCorDebugAppDomain = new CordbAppDomain(static_cast<ICorDebugProcess*>(ppProcess));
 				ppCordb->pCallback->CreateAppDomain(static_cast<ICorDebugProcess*>(ppProcess), pCorDebugAppDomain);
 			}
-
+			DEBUG_PRINTF (1, "Recebi assembly load - %d\n", assembly_id);
 			ICorDebugAssembly* pAssembly = new CordbAssembly(ppProcess, pCorDebugAppDomain, assembly_id);
 			ppCordb->pCallback->LoadAssembly(pCorDebugAppDomain, pAssembly);
 
@@ -334,9 +294,6 @@ void Connection::process_packet_internal(Buffer *recvbuf)
 				ppProcess->suspended = true;
 				breakpoint = (CordbFunctionBreakpoint*)g_ptr_array_index(ppCordb->breakpoints, i);
 				if (breakpoint->offset == offset && breakpoint->code->func->id == method_id) {
-					fstream file;
-					file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-					file << "CHEGOU O BREAKPOINT" << std::endl;
 					ppCordb->pCallback->Breakpoint(pCorDebugAppDomain, thread, static_cast<ICorDebugFunctionBreakpoint*>(breakpoint));
 					break;
 				}
@@ -437,8 +394,6 @@ void Connection::process_packet_from_queue()
 
 void Connection::loop_send_receive()
 {
-	Sleep(10000);
-
 	//machine.EnableEvents(EventType.AssemblyLoad, EventType.ThreadStart, EventType.ThreadDeath, EventType.AppDomainUnload, EventType.UserBreak, EventType.UserLog);
 	enable_event(EVENT_KIND_ASSEMBLY_LOAD);
 	enable_event(EVENT_KIND_APPDOMAIN_CREATE);
@@ -482,6 +437,9 @@ void Connection::close_connection()
 
 void Connection::start_connection()
 {
+	DEBUG_PRINTF(1, "Start Connection\n");
+
+
 	WSADATA wsaData;
 	connect_socket = INVALID_SOCKET;
 	struct addrinfo* result = NULL,
@@ -500,8 +458,12 @@ void Connection::start_connection()
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 
+	
+	DEBUG_PRINTF(1, "Listening to 127.0.0.1:1001\n");
+
+
 	// Resolve the server address and port
-	iResult = getaddrinfo("127.0.0.1", "3001", &hints, &result);
+	iResult = getaddrinfo("127.0.0.1", "1001", &hints, &result);
 	if (iResult != 0) {
 		WSACleanup();
 		return;
@@ -550,7 +512,9 @@ void Connection::start_connection()
 	if (connect_socket == -1)
 		exit(1);
 
-	printf ("Accepted connection from client, socket fd=%d.\n", connect_socket);
+	
+	DEBUG_PRINTF(1, "Accepted connection from client.\n");
+
 
 	freeaddrinfo(result);
 
@@ -611,26 +575,16 @@ int Connection::send_event(int cmd_set, int cmd, Buffer *sendbuf)
 	return ret;
 }
 
-
-
-
 MONO_API HRESULT CoreCLRCreateCordbObject(int iDebuggerVersion, DWORD pid, HMODULE hmodTargetCLR, void** ppCordb)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CoreCLRCreateCordbObject " << std::endl;
-	file.close();
-
+	DEBUG_PRINTF(1, "CoreCLRCreateCordbObject \n");
 	*ppCordb = new Cordb();
 	return S_OK;
 }
 
 MONO_API HRESULT CreateCordbObject(int iDebuggerVersion, void** ppCordb)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CreateCordbObject " << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CreateCordbObject \n");
 	*ppCordb = new Cordb();
 	return S_OK;
 }
@@ -639,9 +593,7 @@ MONO_API HRESULT CreateCordbObject(int iDebuggerVersion, void** ppCordb)
 HRESULT CordbModule::GetAssembly(
 	/* [out] */ ICorDebugAssembly** ppAssembly)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - GetAssembly" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - GetAssembly\n");
 	*ppAssembly = static_cast<ICorDebugAssembly*> (pAssembly);
 	return S_OK;
 }
@@ -649,9 +601,7 @@ HRESULT CordbModule::GetAssembly(
 HRESULT CordbAssembly::GetProcess(
 	/* [out] */ ICorDebugProcess** ppProcess)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CorDebugAssembly - GetProcess" << std::endl;
+	DEBUG_PRINTF(1, "CorDebugAssembly - GetProcess\n");
 	*ppProcess = static_cast<ICorDebugProcess*>(pProcess);
 	return S_OK;
 }
@@ -659,11 +609,8 @@ HRESULT CordbAssembly::GetProcess(
 HRESULT CordbSymbol::GetAssemblyFromScope(mdAssembly* ptkAssembly)
 {
 	*ptkAssembly = pCordbAssembly->id;
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetAssemblyFromScope - IMPLEMENTED - id" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetAssemblyFromScope - IMPLEMENTED - id\n");
 	return S_OK;
-}    // [OUT] Put token here.
+}
 
 

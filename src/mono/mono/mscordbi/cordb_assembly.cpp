@@ -26,28 +26,22 @@ HRESULT CordbAssembly::IsFullyTrusted(
 /* [out] */ BOOL* pbFullyTrusted)
 {
 	*pbFullyTrusted = true;
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CorDebugAssembly - IsFullyTrusted - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CorDebugAssembly - IsFullyTrusted - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbAssembly::GetAppDomain(
 /* [out] */ ICorDebugAppDomain** ppAppDomain)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CorDebugAssembly - GetAppDomain - IMPLEMENTED" << std::endl;
-	*ppAppDomain = static_cast<ICorDebugAppDomain*>(pAppDomain);
+	DEBUG_PRINTF(1, "CorDebugAssembly - GetAppDomain - IMPLEMENTED\n");
+*ppAppDomain = static_cast<ICorDebugAppDomain*>(pAppDomain);
 	return S_OK;
 }
 
 	HRESULT CordbAssembly::EnumerateModules(
 	/* [out] */ ICorDebugModuleEnum** ppModules)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CorDebugAssembly - EnumerateModules - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CorDebugAssembly - EnumerateModules - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -56,9 +50,7 @@ HRESULT CordbAssembly::GetAppDomain(
 	/* [out] */ ULONG32* pcchName,
 	/* [length_is][size_is][out] */ WCHAR szName[])
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CorDebugAssembly - GetCodeBase - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CorDebugAssembly - GetCodeBase - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -67,9 +59,7 @@ HRESULT CordbAssembly::GetAppDomain(
 	/* [out] */ ULONG32* pcchName,
 	/* [length_is][size_is][out] */ WCHAR szName[])
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CorDebugAssembly - GetName - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CorDebugAssembly - GetName - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -85,10 +75,8 @@ HRESULT CordbAssembly::GetAppDomain(
 		*ppInterface = static_cast<IUnknown*>(static_cast<ICorDebugAssembly*>(this));
 	else
 	{
-		fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbAssembly - QueryInterface - E_NOTIMPL" << std::endl;
-		file.close();
+		DEBUG_PRINTF(1, "CordbAssembly - QueryInterface - E_NOTIMPL\n");
+	
 
 		*ppInterface = NULL;
 		return E_NOINTERFACE;
@@ -141,10 +129,8 @@ HRESULT CordbModule::QueryInterface(REFIID id, void** pInterface)
 	}
 	else
 	{
-		fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - QueryInterface - E_NOTIMPL" << std::endl;
-		file.close();
+		DEBUG_PRINTF(1, "CordbModule - QueryInterface - E_NOTIMPL\n");
+	
 
 		*pInterface = NULL;
 		return E_NOINTERFACE;
@@ -165,18 +151,14 @@ HRESULT CordbModule::IsMappedLayout(
 	/* [out] */ BOOL* pIsMapped)
 {
 	*pIsMapped = FALSE;
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - IsMappedLayout - IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - IsMappedLayout - IMPLEMENTED\n");
 	return S_OK;
 }
 HRESULT CordbModule::CreateReaderForInMemorySymbols(
 	/* [in] */ REFIID riid,
 	/* [iid_is][out] */ void** ppObj)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - CreateReaderForInMemorySymbols - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - CreateReaderForInMemorySymbols - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 HRESULT CordbModule::SetJMCStatus(
@@ -184,9 +166,7 @@ HRESULT CordbModule::SetJMCStatus(
 	/* [in] */ ULONG32 cTokens,
 	/* [size_is][in] */ mdToken pTokens[])
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - SetJMCStatus - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - SetJMCStatus - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -196,27 +176,21 @@ HRESULT CordbModule::ApplyChanges(
 	/* [in] */ ULONG cbIL,
 	/* [size_is][in] */ BYTE pbIL[])
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - ApplyChanges - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - ApplyChanges - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbModule::SetJITCompilerFlags(
 	/* [in] */ DWORD dwFlags)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - SetJITCompilerFlags - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - SetJITCompilerFlags - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbModule::GetJITCompilerFlags(
 	/* [out] */ DWORD* pdwFlags)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - GetJITCompilerFlags - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - GetJITCompilerFlags - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -224,19 +198,15 @@ HRESULT CordbModule::ResolveAssembly(
 	/* [in] */ mdToken tkAssemblyRef,
 	/* [out] */ ICorDebugAssembly** ppAssembly)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - ResolveAssembly - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - ResolveAssembly - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbModule::GetProcess(
 	/* [out] */ ICorDebugProcess** ppProcess)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - GetProcess - NOT IMPLEMENTED" << std::endl;
-	// *ppProcess = pProcess;
+	DEBUG_PRINTF(1, "CordbModule - GetProcess - NOT IMPLEMENTED\n");
+// *ppProcess = pProcess;
 	return S_OK;
 }
 
@@ -257,10 +227,8 @@ HRESULT CordbModule::GetBaseAddress(
 
 	assembly_metadata_blob = decode_byte_array(localbuf2->buf, &localbuf2->buf, localbuf2->end, &assembly_metadata_len);
 
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - GetBaseAddress" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbModule - GetBaseAddress\n");
+
 	*pAddress = (CORDB_ADDRESS)assembly_metadata_blob;
 	return S_OK;
 }
@@ -270,6 +238,7 @@ HRESULT CordbModule::GetName(
 	/* [out] */ ULONG32* pcchName,
 	/* [length_is][size_is][out] */ WCHAR szName[])
 {
+	DEBUG_PRINTF(1, "CordbModule - GetName - IMPLEMENTED\n");
 	Buffer localbuf;
 	buffer_init(&localbuf, 128);
 	buffer_add_id(&localbuf, id);
@@ -283,39 +252,43 @@ HRESULT CordbModule::GetName(
 	}
 
 	char* assembly_name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	fstream file;
+	
+	DEBUG_PRINTF(1, "CordbModule - assembly_name - %s\n", assembly_name);
+
 	if (cchName < strlen(assembly_name) + 1) {
-		fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - GetName - IMPLEMENTED - devolvi soh o tamanho" << std::endl;
 		*pcchName = strlen(assembly_name) + 1;
 		g_free(assembly_name);
 		return S_OK;
 	}
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - GetName - IMPLEMENTED - devolvi o tamanho e o valor" << std::endl;
 	mbstowcs(szName, assembly_name, strlen(assembly_name)+1);
 	*pcchName = strlen(assembly_name) + 1;
 	g_free(assembly_name);
 	return S_OK;
 }
 
+
+
+
+
+
+
+
+
+
+
+
 HRESULT CordbModule::EnableJITDebugging(
 	/* [in] */ BOOL bTrackJITInfo,
 	/* [in] */ BOOL bAllowJitOpts)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - EnableJITDebugging - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - EnableJITDebugging - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbModule::EnableClassLoadCallbacks(
 	/* [in] */ BOOL bClassLoadCallbacks)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - EnableClassLoadCallbacks - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - EnableClassLoadCallbacks - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -324,9 +297,7 @@ HRESULT CordbModule::GetFunctionFromToken(
 	/* [out] */ ICorDebugFunction** ppFunction)
 {
 	//check in a cache before talk to mono runtime to get info
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - GetFunctionFromToken - IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - GetFunctionFromToken - IMPLEMENTED\n");
 	Buffer localbuf;
 	buffer_init(&localbuf, 128);
 	buffer_add_id(&localbuf, id);
@@ -345,9 +316,6 @@ HRESULT CordbModule::GetFunctionFromToken(
 	func = pProcess->cordb->findFunction(id);
 	if (func == NULL)
 	{
-		fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CRIANDO FUNCAO" << std::endl;
 		func = new CordbFunction(methodDef, id, this);
 		g_ptr_array_add(pProcess->cordb->functions, func);
 	}
@@ -359,9 +327,7 @@ HRESULT CordbModule::GetFunctionFromRVA(
 	/* [in] */ CORDB_ADDRESS rva,
 	/* [out] */ ICorDebugFunction** ppFunction)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - GetFunctionFromRVA - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - GetFunctionFromRVA - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -377,18 +343,14 @@ HRESULT CordbModule::GetClassFromToken(
 HRESULT CordbModule::CreateBreakpoint(
 	/* [out] */ ICorDebugModuleBreakpoint** ppBreakpoint)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - CreateBreakpoint - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - CreateBreakpoint - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbModule::GetEditAndContinueSnapshot(
 	/* [out] */ ICorDebugEditAndContinueSnapshot** ppEditAndContinueSnapshot)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - GetEditAndContinueSnapshot - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - GetEditAndContinueSnapshot - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -399,27 +361,21 @@ HRESULT CordbModule::GetMetaDataInterface(
 	if (pCordbSymbol == NULL)
 		pCordbSymbol = new CordbSymbol(pAssembly);
 	pCordbSymbol->QueryInterface(riid, (void**)ppObj);
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - GetMetaDataInterface - IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - GetMetaDataInterface - IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbModule::GetToken(
 	/* [out] */ mdModule* pToken)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - GetToken - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - GetToken - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbModule::IsDynamic(
 	/* [out] */ BOOL* pDynamic)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - IsDynamic - IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - IsDynamic - IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -427,27 +383,21 @@ HRESULT CordbModule::GetGlobalVariableValue(
 	/* [in] */ mdFieldDef fieldDef,
 	/* [out] */ ICorDebugValue** ppValue)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - GetGlobalVariableValue - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - GetGlobalVariableValue - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbModule::GetSize(
 	/* [out] */ ULONG32* pcBytes)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - GetSize -IMPLEMENTED" << std::endl;
-	*pcBytes = assembly_metadata_len;
+	DEBUG_PRINTF(1, "CordbModule - GetSize -IMPLEMENTED\n");
+*pcBytes = assembly_metadata_len;
 	return S_OK;
 }
 
 HRESULT CordbModule::IsInMemory(
 	/* [out] */ BOOL* pInMemory)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbModule - IsInMemory - IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbModule - IsInMemory - IMPLEMENTED\n");
 	return S_OK;
 }

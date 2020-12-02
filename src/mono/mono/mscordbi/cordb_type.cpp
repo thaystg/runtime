@@ -21,19 +21,14 @@ CordbType::CordbType(CorElementType type)
 HRESULT STDMETHODCALLTYPE CordbType::GetType(CorElementType* ty)
 {
 	*ty = type;
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbType - GetType - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbType - GetType - IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbType::GetClass(ICorDebugClass** ppClass)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbType - GetClass - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbType - GetClass - NOT IMPLEMENTED\n");
+
 	return S_FALSE;
 }
 
@@ -42,46 +37,31 @@ HRESULT STDMETHODCALLTYPE CordbType::EnumerateTypeParameters(ICorDebugTypeEnum**
 	CordbTypeEnum* tp = new CordbTypeEnum();
 	*ppTyParEnum = static_cast<ICorDebugTypeEnum*>(tp);
 
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbType - EnumerateTypeParameters - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbType - EnumerateTypeParameters - IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbType::GetFirstTypeParameter(ICorDebugType** value)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbType - GetFirstTypeParameter - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbType - GetFirstTypeParameter - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbType::GetBase(ICorDebugType** pBase)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbType - GetBase - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbType - GetBase - IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbType::GetStaticFieldValue(mdFieldDef fieldDef, ICorDebugFrame* pFrame, ICorDebugValue** ppValue)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbType - GetStaticFieldValue - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbType - GetStaticFieldValue - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbType::GetRank(ULONG32* pnRank)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbType - GetRank - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbType - GetRank - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
@@ -114,47 +94,32 @@ ULONG STDMETHODCALLTYPE CordbType::Release(void)
 
 HRESULT STDMETHODCALLTYPE CordbType::GetTypeID(COR_TYPEID* id)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbType - GetTypeID - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbType - GetTypeID - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbTypeEnum::Next(ULONG celt, ICorDebugType* values[], ULONG* pceltFetched)
 {
 	*pceltFetched = celt;
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbTypeEnum - Next - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbTypeEnum - Next - IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbTypeEnum::Skip(ULONG celt)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbTypeEnum - Skip - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbTypeEnum - Skip - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbTypeEnum::Reset(void)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbTypeEnum - Reset - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbTypeEnum - Reset - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbTypeEnum::Clone(ICorDebugEnum** ppEnum)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbTypeEnum - Clone - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbTypeEnum - Clone - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
@@ -174,10 +139,7 @@ HRESULT STDMETHODCALLTYPE CordbTypeEnum::QueryInterface(REFIID id, void** pInter
 		*pInterface = static_cast<IUnknown*>(static_cast<ICorDebugTypeEnum*>(this));
 	else
 	{
-		fstream file;
-		file.open("c:\\thays\\example.txt", ios::out | ios::in | ios::app);
-		file << "CordbTypeEnum - QueryInterface - E_NOTIMPL" << std::endl;
-		file.close();
+		DEBUG_PRINTF(1, "CordbTypeEnum - QueryInterface - E_NOTIMPL\n");
 		*pInterface = NULL;
 		return E_NOINTERFACE;
 	}

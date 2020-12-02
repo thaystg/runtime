@@ -14,11 +14,7 @@ using namespace std;
 
 HRESULT __stdcall CordbRegisteSet::GetRegistersAvailable(ULONG64* pAvailable)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbRegisteSet - GetRegistersAvailable - NOT IMPLEMENTED" << endl;
-	file.close();
-
+	DEBUG_PRINTF(1, "CordbRegisteSet - GetRegistersAvailable - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
@@ -30,21 +26,13 @@ CordbRegisteSet::CordbRegisteSet(guint8* ctx, guint32 ctx_len)
 
 HRESULT __stdcall CordbRegisteSet::QueryInterface(REFIID id, void** pInterface)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbRegisteSet - QueryInterface - NOT IMPLEMENTED" << endl;
-	file.close();
-
-	file.close();
+	DEBUG_PRINTF(1, "CordbRegisteSet - QueryInterface - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT __stdcall CordbRegisteSet::GetRegisters(ULONG64 mask, ULONG32 regCount, CORDB_REGISTER regBuffer[])
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbRegisteSet - GetRegisters - NOT IMPLEMENTED" << endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbRegisteSet - GetRegisters - NOT IMPLEMENTED" );
 	return E_NOTIMPL;
 }
 
@@ -63,10 +51,7 @@ HRESULT STDMETHODCALLTYPE CordbRegisteSet::SetRegisters(
 	/* [in] */ ULONG32 regCount,
 	/* [size_is][in] */ CORDB_REGISTER regBuffer[])
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbRegisteSet - SetRegisters - NOT IMPLEMENTED" << endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbRegisteSet - SetRegisters - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
@@ -77,12 +62,7 @@ HRESULT STDMETHODCALLTYPE CordbRegisteSet::GetThreadContext(
 	AMD64_CONTEXT ctx_amd64;
 	memcpy(&ctx_amd64.Rax, ctx, ctx_len);
 	memcpy(context, &ctx_amd64, contextSize);
-	
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbRegisteSet - GetThreadContext - NOT IMPLEMENTED" << endl;
-	file.close();
-
+	DEBUG_PRINTF(1, "CordbRegisteSet - GetThreadContext - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -90,10 +70,6 @@ HRESULT STDMETHODCALLTYPE CordbRegisteSet::SetThreadContext(
 	/* [in] */ ULONG32 contextSize,
 	/* [size_is][length_is][in] */ BYTE context[])
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbRegisteSet - SetThreadContext - NOT IMPLEMENTED" << endl;
-	file.close();
-
+	DEBUG_PRINTF(1, "CordbRegisteSet - SetThreadContext - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }

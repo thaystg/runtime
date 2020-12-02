@@ -36,19 +36,13 @@ HRESULT STDMETHODCALLTYPE CordbValue::GetSize(ULONG32* pSize)
 HRESULT STDMETHODCALLTYPE CordbValue::GetAddress(CORDB_ADDRESS* pAddress)
 {
 	*pAddress = (CORDB_ADDRESS)&value;
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbValue - GetAddress - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbValue - GetAddress - IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbValue::CreateBreakpoint(ICorDebugValueBreakpoint** ppBreakpoint)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbValue - CreateBreakpoint - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbValue - CreateBreakpoint - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
@@ -94,37 +88,27 @@ ULONG STDMETHODCALLTYPE CordbValue::Release(void)
 
 HRESULT STDMETHODCALLTYPE CordbValue::GetExactType(ICorDebugType** ppType)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbValue - GetExactType - IMPLEMENTED" << std::endl;
-	CordbType *tp = new CordbType(type);
+	DEBUG_PRINTF(1, "CordbValue - GetExactType - IMPLEMENTED\n");
+CordbType *tp = new CordbType(type);
 	*ppType = static_cast<ICorDebugType*>(tp);
 	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbValue::GetSize64(ULONG64* pSize)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbValue - GetSize64 - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbValue - GetSize64 - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbValue::GetValue(void* pTo)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbValue - GetValue - NOT IMPLEMENTED" << std::endl; \
+	DEBUG_PRINTF(1, "CordbValue - GetValue - NOT IMPLEMENTED\n");
 	memcpy(pTo, &value, size);
 	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbValue::SetValue(void* pFrom)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbValue - SetValue - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbValue - SetValue - NOT IMPLEMENTED\n");
 	return S_OK;
 }

@@ -25,28 +25,19 @@ CordbCode::CordbCode(CordbFunction* func)
 
 HRESULT __stdcall CordbCode::IsIL(BOOL* pbIL)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbCode - IsIL - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbCode - IsIL - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT __stdcall CordbCode::GetFunction(ICorDebugFunction** ppFunction)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbCode - GetFunction - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbCode - GetFunction - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT __stdcall CordbCode::GetAddress(CORDB_ADDRESS* pStart)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbCode - GetAddress - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbCode - GetAddress - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
@@ -67,10 +58,7 @@ HRESULT __stdcall CordbCode::GetSize(ULONG32* pcBytes)
 
 	int code_size = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	*pcBytes = code_size;
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbCode - GetSize - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbCode - GetSize - IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -80,12 +68,9 @@ HRESULT __stdcall CordbCode::CreateBreakpoint(ULONG32 offset, ICorDebugFunctionB
 	CordbFunctionBreakpoint* bp = new CordbFunctionBreakpoint(this, offset);
 	*ppBreakpoint = static_cast<ICorDebugFunctionBreakpoint*>(bp);
 	g_ptr_array_add(this->func->module->pProcess->cordb->breakpoints, bp);
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbCode - CreateBreakpoint - %ld - IMPLEMENTED" << std::endl;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CreateBreakpoint - static_cast<ICorDebugFunctionBreakpoint*>(breakpoint)" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbCode - CreateBreakpoint - %ld - IMPLEMENTED\n");
+
+	DEBUG_PRINTF(1, "CreateBreakpoint - static_cast<ICorDebugFunctionBreakpoint*>(breakpoint)\n");
 	return S_OK;
 }
 
@@ -106,38 +91,26 @@ HRESULT __stdcall CordbCode::GetCode(ULONG32 startOffset, ULONG32 endOffset, ULO
 	guint8*  code = decode_byte_array(localbuf2->buf, &localbuf2->buf, localbuf2->end, pcBufferSize);
 	
 	memcpy(buffer, code, *pcBufferSize);
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbCode - GetCode - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbCode - GetCode - IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT __stdcall CordbCode::GetVersionNumber(ULONG32* nVersion)
 {
 	*nVersion = 1;
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbCode - GetVersionNumber - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbCode - GetVersionNumber - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT __stdcall CordbCode::GetILToNativeMapping(ULONG32 cMap, ULONG32* pcMap, COR_DEBUG_IL_TO_NATIVE_MAP map[])
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbCode - GetILToNativeMapping - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbCode - GetILToNativeMapping - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT __stdcall CordbCode::GetEnCRemapSequencePoints(ULONG32 cMap, ULONG32* pcMap, ULONG32 offsets[])
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbCode - GetEnCRemapSequencePoints - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbCode - GetEnCRemapSequencePoints - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 

@@ -21,19 +21,13 @@ CordbFunctionBreakpoint::CordbFunctionBreakpoint(CordbCode* code, ULONG32 offset
 HRESULT __stdcall CordbFunctionBreakpoint::GetFunction(ICorDebugFunction** ppFunction)
 {
 	*ppFunction = static_cast<ICorDebugFunction*>(code->func) ;
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbFunctionBreakpoint - GetFunction - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbFunctionBreakpoint - GetFunction - IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT __stdcall CordbFunctionBreakpoint::GetOffset(ULONG32* pnOffset)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbFunctionBreakpoint - GetOffset - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbFunctionBreakpoint - GetOffset - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
@@ -52,30 +46,21 @@ HRESULT __stdcall CordbFunctionBreakpoint::Activate(BOOL bActive)
 		buffer_add_long(&sendbuf, offset);
 		code->func->module->pProcess->connection->send_event(CMD_SET_EVENT_REQUEST, CMD_EVENT_REQUEST_SET, &sendbuf);
 		buffer_free(&sendbuf);
-
-		fstream file;
-		file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-		file << "CordbFunctionBreakpoint - Activate" << std::endl;
-		file.close();
+		DEBUG_PRINTF(1, "CordbFunctionBreakpoint - Activate\n");
 	}
 	return S_OK;
 }
 
 HRESULT __stdcall CordbFunctionBreakpoint::IsActive(BOOL* pbActive)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbFunctionBreakpoint - IsActive - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbFunctionBreakpoint - IsActive - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT __stdcall CordbFunctionBreakpoint::QueryInterface(REFIID id, void** pInterface)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbFunctionBreakpoint - QueryInterface - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbFunctionBreakpoint - QueryInterface - IMPLEMENTED\n");
+
 	if (id == IID_ICorDebugFunctionBreakpoint)
 	{
 		*pInterface = static_cast<ICorDebugFunctionBreakpoint*>(this);
@@ -84,10 +69,8 @@ HRESULT __stdcall CordbFunctionBreakpoint::QueryInterface(REFIID id, void** pInt
 	{
 		// Not looking for a function breakpoint? See if the base class handles
 		// this interface. (issue 143976)
-		fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "return CordbBreakpoint::QueryInterface(id, pInterface);" << std::endl;
-		file.close();
+		DEBUG_PRINTF(1, "return CordbBreakpoint::QueryInterface(id, pInterface);\n");
+	
 		//return CordbBreakpoint::QueryInterface(id, pInterface);
 	}
 	return S_OK;

@@ -275,4 +275,11 @@ public:
 	int process_packet(bool is_answer = false);
     CordbThread* findThread(GPtrArray *threads, long thread_id);
 };
+
+static int log_level = 1;
+static FILE* log_file = stdout;//fopen("c:\\thays\\example.txt", "a+");
+
+#define DEBUG(level,s) do { if (G_UNLIKELY ((level) <= log_level)) { s; fflush (log_file); } } while (0)
+#define DEBUG_PRINTF(level, ...) do { if (G_UNLIKELY ((level) <= log_level)) { fprintf (log_file, __VA_ARGS__); fflush (log_file); } } while (0)
+
 #endif

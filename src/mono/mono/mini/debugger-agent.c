@@ -3677,6 +3677,7 @@ static void
 runtime_initialized (MonoProfiler *prof)
 {
 	process_profiler_event (EVENT_KIND_VM_START, mono_thread_current ());
+	process_profiler_event (EVENT_KIND_ASSEMBLY_LOAD, (mono_defaults.corlib->assembly));
 	if (agent_config.defer) {
 		ERROR_DECL (error);
 		start_debugger_thread (error);
@@ -7314,8 +7315,6 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
         guint32 token = decode_int (p, &p, end);
         ERROR_DECL (error);
         error_init (error);
-		printf("token - %d\n", token);
-		fflush(stdout);
         MonoClass* mono_class = mono_class_get_checked (ass->image, token, error);
         if (!is_ok (error)) {
             add_error_string (buf, mono_error_get_message (error));

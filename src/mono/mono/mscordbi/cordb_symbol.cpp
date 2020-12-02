@@ -26,10 +26,7 @@ HRESULT CordbSymbol::EnumGenericParams(
 	ULONG       cMax,                   // [IN] Max GenericParams to put.
 	ULONG* pcGenericParams)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumGenericParams - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumGenericParams - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -43,10 +40,7 @@ HRESULT CordbSymbol::GetGenericParamProps(        // S_OK or error.
 	LPWSTR       wzname,                // [OUT] Put name here
 	ULONG        cchName,               // [IN] Size of buffer
 	ULONG* pchName) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetGenericParamProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetGenericParamProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }       // [OUT] Put size of name (wide chars) here.
 
@@ -56,12 +50,7 @@ HRESULT CordbSymbol::GetMethodSpecProps(
 	PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to the blob value of meta data
 	ULONG* pcbSigBlob) {
 
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetMethodSpecProps - NOT IMPLEMENTED" << endl;
-	file.close();
-
-	return S_OK;
+	DEBUG_PRINTF(1, "CordbSymbol - GetMethodSpecProps - NOT IMPLEMENTED\n");return S_OK;
 }     // [OUT] actual size of signature blob
 
 HRESULT CordbSymbol::EnumGenericParamConstraints(
@@ -70,10 +59,7 @@ HRESULT CordbSymbol::EnumGenericParamConstraints(
 	mdGenericParamConstraint rGenericParamConstraints[],    // [OUT] Put GenericParamConstraints here.
 	ULONG       cMax,                   // [IN] Max GenericParamConstraints to put.
 	ULONG* pcGenericParamConstraints) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumGenericParamConstraints - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumGenericParamConstraints - NOT IMPLEMENTED\n");
 	return S_OK;
 }// [OUT] Put # put here.
 
@@ -81,20 +67,14 @@ HRESULT CordbSymbol::GetGenericParamConstraintProps( // S_OK or error.
 	mdGenericParamConstraint gpc,       // [IN] GenericParamConstraint
 	mdGenericParam* ptGenericParam,     // [OUT] GenericParam that is constrained
 	mdToken* ptkConstraintType) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetGenericParamConstraintProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetGenericParamConstraintProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }// [OUT] TypeDef/Ref/Spec constraint
 
 HRESULT CordbSymbol::GetPEKind(                   // S_OK or error.
 	DWORD* pdwPEKind,                   // [OUT] The kind of PE (0 - not a PE)
 	DWORD* pdwMAchine) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetPEKind - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetPEKind - NOT IMPLEMENTED\n");
 	return S_OK;
 }           // [OUT] Machine as defined in NT header
 
@@ -103,10 +83,7 @@ HRESULT CordbSymbol::GetVersionString(            // S_OK or error.
 	LPWSTR      pwzBuf,                 // [OUT] Put version string here.
 	DWORD       ccBufSize,              // [IN] size of the buffer, in wide chars
 	DWORD* pccBufSize) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetVersionString - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetVersionString - NOT IMPLEMENTED\n");
 	return S_OK;
 }     // [OUT] Size of the version string, wide chars, including terminating nul.
 
@@ -116,10 +93,7 @@ HRESULT CordbSymbol::EnumMethodSpecs(
 	mdMethodSpec rMethodSpecs[],        // [OUT] Put MethodSpecs here.
 	ULONG       cMax,                   // [IN] Max tokens to put.
 	ULONG* pcMethodSpecs) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumMethodSpecs - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumMethodSpecs - NOT IMPLEMENTED\n");
 	return S_OK;
 }  // [OUT] Put actual count here.
 
@@ -133,15 +107,13 @@ HRESULT CordbSymbol::GetAssemblyProps(            // S_OK or error.
 	ULONG* pchName,               // [OUT] Actual # of wide chars in name.
 	ASSEMBLYMETADATA* pMetaData,        // [OUT] Assembly MetaData.
 	DWORD* pdwAssemblyFlags) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetAssemblyProps - NOT IMPLEMENTED" << std::endl;
+	DEBUG_PRINTF(1, "CordbSymbol - GetAssemblyProps - NOT IMPLEMENTED - %d - %d\n", cchName, mda);
 	*pchName = 23;
 	if (cchName >= 23)
 	{
-		mbstowcs(szName, "System.Private.CoreLib", strlen("System.Private.CoreLib") + 1);
+		wcscpy(szName, L"System.Private.CoreLib");
 	}
-	file.close();
+	
 	return S_OK;
 }   // [OUT] Flags.
 
@@ -156,10 +128,7 @@ HRESULT CordbSymbol::GetAssemblyRefProps(         // S_OK or error.
 	const void** ppbHashValue,         // [OUT] Hash blob.
 	ULONG* pcbHashValue,          // [OUT] Count of bytes in the hash blob.
 	DWORD* pdwAssemblyRefFlags) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetAssemblyRefProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetAssemblyRefProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }// [OUT] Flags.
 
@@ -171,10 +140,7 @@ HRESULT CordbSymbol::GetFileProps(                // S_OK or error.
 	const void** ppbHashValue,         // [OUT] Pointer to the Hash Value Blob.
 	ULONG* pcbHashValue,          // [OUT] Count of bytes in the Hash Value Blob.
 	DWORD* pdwFileFlags) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetFileProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetFileProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }   // [OUT] Flags.
 
@@ -186,10 +152,7 @@ HRESULT CordbSymbol::GetExportedTypeProps(        // S_OK or error.
 	mdToken* ptkImplementation,     // [OUT] mdFile or mdAssemblyRef or mdExportedType.
 	mdTypeDef* ptkTypeDef,            // [OUT] TypeDef token within the file.
 	DWORD* pdwExportedTypeFlags) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetExportedTypeProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetExportedTypeProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }// [OUT] Flags.
 
@@ -201,10 +164,7 @@ HRESULT CordbSymbol::GetManifestResourceProps(    // S_OK or error.
 	mdToken* ptkImplementation,     // [OUT] mdFile or mdAssemblyRef that provides the ManifestResource.
 	DWORD* pdwOffset,             // [OUT] Offset to the beginning of the resource within the file.
 	DWORD* pdwResourceFlags) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetManifestResourceProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetManifestResourceProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }// [OUT] Flags.
 
@@ -213,10 +173,7 @@ HRESULT CordbSymbol::EnumAssemblyRefs(            // S_OK or error
 	mdAssemblyRef rAssemblyRefs[],      // [OUT] Put AssemblyRefs here.
 	ULONG       cMax,                   // [IN] Max AssemblyRefs to put.
 	ULONG* pcTokens) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumAssemblyRefs - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumAssemblyRefs - NOT IMPLEMENTED\n");
 	return S_OK;
 }       // [OUT] Put # put here.
 
@@ -225,10 +182,7 @@ HRESULT CordbSymbol::EnumFiles(                   // S_OK or error
 	mdFile      rFiles[],               // [OUT] Put Files here.
 	ULONG       cMax,                   // [IN] Max Files to put.
 	ULONG* pcTokens) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumFiles - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumFiles - NOT IMPLEMENTED\n");
 	return S_OK;
 }       // [OUT] Put # put here.
 
@@ -237,10 +191,7 @@ HRESULT CordbSymbol::EnumExportedTypes(           // S_OK or error
 	mdExportedType   rExportedTypes[],  // [OUT] Put ExportedTypes here.
 	ULONG       cMax,                   // [IN] Max ExportedTypes to put.
 	ULONG* pcTokens) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumExportedTypes - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumExportedTypes - NOT IMPLEMENTED\n");
 	return S_OK;
 }       // [OUT] Put # put here.
 
@@ -249,10 +200,7 @@ HRESULT CordbSymbol::EnumManifestResources(       // S_OK or error
 	mdManifestResource  rManifestResources[],   // [OUT] Put ManifestResources here.
 	ULONG       cMax,                   // [IN] Max Resources to put.
 	ULONG* pcTokens) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumManifestResources - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumManifestResources - NOT IMPLEMENTED\n");
 	return S_OK;
 }       // [OUT] Put # put here.
 
@@ -260,20 +208,14 @@ HRESULT CordbSymbol::FindExportedTypeByName(      // S_OK or error
 	LPCWSTR     szName,                 // [IN] Name of the ExportedType.
 	mdToken     mdtExportedType,        // [IN] ExportedType for the enclosing class.
 	mdExportedType* ptkExportedType) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - FindExportedTypeByName - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - FindExportedTypeByName - NOT IMPLEMENTED\n");
 	return S_OK;
 }// [OUT] Put the ExportedType token here.
 
 HRESULT CordbSymbol::FindManifestResourceByName(  // S_OK or error
 	LPCWSTR     szName,                 // [IN] Name of the ManifestResource.
 	mdManifestResource* ptkManifestResource) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - FindManifestResourceByName - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - FindManifestResourceByName - NOT IMPLEMENTED\n");
 	return S_OK;
 } // [OUT] Put the ManifestResource token here.
 
@@ -284,10 +226,7 @@ HRESULT CordbSymbol::FindAssembliesByName(        // S_OK or error
 	IUnknown* ppIUnk[],                 // [OUT] put IMetaDataAssemblyImport pointers here
 	ULONG    cMax,                      // [IN] The max number to put
 	ULONG* pcAssemblies) {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - FindAssembliesByName - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - FindAssembliesByName - NOT IMPLEMENTED\n");
 	return S_OK;
 }      // [OUT] The number of assemblies returned.
 
@@ -309,11 +248,7 @@ HRESULT CordbSymbol::QueryInterface(REFIID riid, LPVOID* ppvObj)
 					*ppvObj = static_cast<IMetaDataImport*>(this);
 				else
 				{
-					//((unsigned long*)&rguid1)[0]
-					fstream file;
-					file.open("c:\\thays\\example.txt", ios::out | ios::in | ios::app);
-					file << "CordbSymbol - QueryInterface - E_NOTIMPL" << std::endl;
-					file.close();
+					DEBUG_PRINTF(1, "CordbSymbol - QueryInterface - E_NOTIMPL\n");
 					return E_NOTIMPL;
 				}
 
@@ -332,38 +267,27 @@ ULONG CordbSymbol::Release()
 // IMetaDataImport functions
 void CordbSymbol::CloseEnum(HCORENUM hEnum)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - CloseEnum - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - CloseEnum - NOT IMPLEMENTED\n");
+
 	return;
 }
 
 HRESULT CordbSymbol::CountEnum(HCORENUM hEnum, ULONG* pulCount)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - CountEnum - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - CountEnum - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbSymbol::ResetEnum(HCORENUM hEnum, ULONG ulPos)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - ResetEnum - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - ResetEnum - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbSymbol::EnumTypeDefs(HCORENUM* phEnum, mdTypeDef rTypeDefs[],
 ULONG cMax, ULONG* pcTypeDefs)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumTypeDefs - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumTypeDefs - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -371,10 +295,8 @@ HRESULT CordbSymbol::EnumInterfaceImpls(HCORENUM* phEnum, mdTypeDef td,
 mdInterfaceImpl rImpls[], ULONG cMax,
 ULONG* pcImpls)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumInterfaceImpls - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumInterfaceImpls - NOT IMPLEMENTED\n");
+
 	*pcImpls = 0;
 	return S_OK;
 }
@@ -382,10 +304,7 @@ ULONG* pcImpls)
 HRESULT CordbSymbol::EnumTypeRefs(HCORENUM* phEnum, mdTypeRef rTypeRefs[],
 ULONG cMax, ULONG* pcTypeRefs)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumTypeRefs - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumTypeRefs - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -437,10 +356,7 @@ mdTypeDef* ptd)             // [OUT] Put the TypeDef token here.
 	int token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	*ptd = token;
 
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - FindTypeDefByName - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - FindTypeDefByName - IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -478,74 +394,29 @@ GUID* pmvid)           // [OUT, OPTIONAL] Put MVID here.
 		this->pCordbAssembly->pProcess->connection->process_packet(true);
 		localbuf2 = (Buffer*)g_hash_table_lookup(this->pCordbAssembly->pProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
 	}
-
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetScopeProps - IMPLEMENTED - 1" << std::endl;
-	file.close();
 	char* basename = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetScopeProps - IMPLEMENTED - 2" << std::endl;
-	file.close();
 	char* module_name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetScopeProps - IMPLEMENTED - 3" << std::endl;
-	file.close();
 	char* name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetScopeProps - IMPLEMENTED - 4" << std::endl;
-	file.close();
 	char* guid = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetScopeProps - IMPLEMENTED - 5" << std::endl;
-	file.close();
 	int assembly_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetScopeProps - IMPLEMENTED - 6" << std::endl;
-	file.close();
 	/*char* sourcelink = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);*/
 	guint32 mvid_len;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetScopeProps - IMPLEMENTED - 7" << std::endl;
-	file.close();
 	guint8 *mvid = decode_byte_array(localbuf2->buf, &localbuf2->buf, localbuf2->end, &mvid_len);
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetScopeProps - IMPLEMENTED - 8" << std::endl;
-	file.close();
 	memcpy(pmvid, mvid, mvid_len);
 	if (cchName > strlen(name))
 	{
 		mbstowcs(szName, name, strlen(name) + 1);
 		*pchName = strlen(name) + 1;
 	}
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetScopeProps - IMPLEMENTED" << std::endl;
-
-	/*
-	* 
-	buffer_add_string (buf, basename); // name
-	buffer_add_string (buf, image->module_name); // scopename
-	buffer_add_string (buf, image->name); // fqname
-	buffer_add_string (buf, mono_image_get_guid (image)); // guid
-	buffer_add_assemblyid (buf, domain, image->assembly); // assembly
-	if (CHECK_PROTOCOL_VERSION (2, 48))
-		buffer_add_string (buf, sourcelink);
-	buffer_add_byte_array(buf, mono_metadata_module_mvid(image));
-	*/
 	
-
-	
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetScopeProps - IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbSymbol::GetModuleFromScope(          // S_OK.
 mdModule* pmd)            // [OUT] Put mdModule token here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetModuleFromScope - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetModuleFromScope - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -558,7 +429,8 @@ ULONG* pchTypeDef,            // [OUT] put size of name (wide chars) here.
 DWORD* pdwTypeDefFlags,       // [OUT] Put flags here.
 mdToken* ptkExtends)     // [OUT] Put base class TypeDef/TypeRef here.
 {
-	if (td == 33554532)
+	DEBUG_PRINTF(1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED - %d\n", td);
+	if (td == 33554532 || td == 33554507)
 		return E_NOTIMPL;
 	if (td == 0)
 		return E_NOTIMPL;
@@ -605,10 +477,8 @@ mdToken* ptkExtends)     // [OUT] Put base class TypeDef/TypeRef here.
 		*pchTypeDef = strlen(class_fullname_str) + 1;
 
 
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetTypeDefProps - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED - %s\n", class_fullname_str);
+
 	buffer_init(&localbuf, 128);
 
 	buffer_add_id(&localbuf, type_id);
@@ -645,10 +515,7 @@ mdInterfaceImpl iiImpl,             // [IN] InterfaceImpl token.
 mdTypeDef* pClass,                // [OUT] Put implementing class token here.
 mdToken* ptkIface)        // [OUT] Put implemented interface token here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetInterfaceImplProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetInterfaceImplProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -660,19 +527,13 @@ LPWSTR      szName,                 // [OUT] Name of the TypeRef.
 ULONG       cchName,                // [IN] Size of buffer.
 ULONG* pchName)         // [OUT] Size of Name.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetTypeRefProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetTypeRefProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT CordbSymbol::ResolveTypeRef(mdTypeRef tr, REFIID riid, IUnknown** ppIScope, mdTypeDef* ptd)
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - ResolveTypeRef - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - ResolveTypeRef - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -683,10 +544,7 @@ mdToken     rMembers[],             // [OUT] Put MemberDefs here.
 ULONG       cMax,                   // [IN] Max MemberDefs to put.
 ULONG* pcTokens)        // [OUT] Put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumMembers - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumMembers - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -698,10 +556,7 @@ mdToken     rMembers[],             // [OUT] Put MemberDefs here.
 ULONG       cMax,                   // [IN] Max MemberDefs to put.
 ULONG* pcTokens)        // [OUT] Put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumMembersWithName - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumMembersWithName - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -712,10 +567,7 @@ mdMethodDef rMethods[],             // [OUT] Put MethodDefs here.
 ULONG       cMax,                   // [IN] Max MethodDefs to put.
 ULONG* pcTokens)        // [OUT] Put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumMethods - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumMethods - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -727,10 +579,7 @@ mdMethodDef rMethods[],             // [OU] Put MethodDefs here.
 ULONG       cMax,                   // [IN] Max MethodDefs to put.
 ULONG* pcTokens)        // [OUT] Put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumMethodsWithName - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumMethodsWithName - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -741,10 +590,7 @@ mdFieldDef  rFields[],              // [OUT] Put FieldDefs here.
 ULONG       cMax,                   // [IN] Max FieldDefs to put.
 ULONG* pcTokens)        // [OUT] Put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumFields - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumFields - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -756,10 +602,7 @@ mdFieldDef  rFields[],              // [OUT] Put MemberDefs here.
 ULONG       cMax,                   // [IN] Max MemberDefs to put.
 ULONG* pcTokens)        // [OUT] Put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumFieldsWithName - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumFieldsWithName - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -771,10 +614,7 @@ mdParamDef  rParams[],              // [OUT] Put ParamDefs here.
 ULONG       cMax,                   // [IN] Max ParamDefs to put.
 ULONG* pcTokens)        // [OUT] Put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumParams - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumParams - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -785,10 +625,7 @@ mdMemberRef rMemberRefs[],          // [OUT] Put MemberRefs here.
 ULONG       cMax,                   // [IN] Max MemberRefs to put.
 ULONG* pcTokens)        // [OUT] Put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumMemberRefs - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumMemberRefs - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -800,10 +637,7 @@ mdToken     rMethodDecl[],          // [OUT] Put Method Declaration tokens here.
 ULONG       cMax,                   // [IN] Max tokens to put.
 ULONG* pcTokens)        // [OUT] Put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumMethodImpls - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumMethodImpls - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -815,10 +649,7 @@ mdPermission rPermission[],         // [OUT] Put Permissions here.
 ULONG       cMax,                   // [IN] Max Permissions to put.
 ULONG* pcTokens)        // [OUT] Put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumPermissionSets - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumPermissionSets - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -829,10 +660,7 @@ PCCOR_SIGNATURE pvSigBlob,          // [IN] point to a blob value of CLR signatu
 ULONG       cbSigBlob,              // [IN] count of bytes in the signature blob
 mdToken* pmb)             // [OUT] matching memberdef
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - FindMember - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - FindMember - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -843,10 +671,7 @@ PCCOR_SIGNATURE pvSigBlob,          // [IN] point to a blob value of CLR signatu
 ULONG       cbSigBlob,              // [IN] count of bytes in the signature blob
 mdMethodDef* pmb)             // [OUT] matching memberdef
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - FindMethod - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - FindMethod - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -857,10 +682,7 @@ PCCOR_SIGNATURE pvSigBlob,          // [IN] point to a blob value of CLR signatu
 ULONG       cbSigBlob,              // [IN] count of bytes in the signature blob
 mdFieldDef* pmb)             // [OUT] matching memberdef
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - FindField - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - FindField - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -871,10 +693,7 @@ PCCOR_SIGNATURE pvSigBlob,          // [IN] point to a blob value of CLR signatu
 ULONG       cbSigBlob,              // [IN] count of bytes in the signature blob
 mdMemberRef* pmr)             // [OUT] matching memberref
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - FindMemberRef - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - FindMemberRef - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -967,10 +786,7 @@ DWORD* pdwImplFlags)    // [OUT] Impl. Flags
 	{
 		*pulCodeRVA = 8460;
 	}
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetMethodProps - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -984,10 +800,7 @@ ULONG* pchMember,             // [OUT] actual count of char in member name
 PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to meta data blob value
 ULONG* pbSig)           // [OUT] actual size of signature blob
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetMemberRefProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetMemberRefProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -998,10 +811,7 @@ mdProperty  rProperties[],          // [OUT] Put Properties here.
 ULONG       cMax,                   // [IN] Max properties to put.
 ULONG* pcProperties)    // [OUT] Put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumProperties - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumProperties - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1012,10 +822,7 @@ mdEvent     rEvents[],              // [OUT] Put events here.
 ULONG       cMax,                   // [IN] Max events to put.
 ULONG* pcEvents)        // [OUT] Put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumEvents - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumEvents - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1034,10 +841,7 @@ mdMethodDef rmdOtherMethod[],       // [OUT] other method of the event
 ULONG       cMax,                   // [IN] size of rmdOtherMethod
 ULONG* pcOtherMethod)   // [OUT] total number of other method of this event
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetEventProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetEventProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1048,10 +852,7 @@ mdToken     rEventProp[],           // [OUT] Put Event/Property here.
 ULONG       cMax,                   // [IN] Max properties to put.
 ULONG* pcEventProp)     // [OUT] Put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumMethodSemantics - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumMethodSemantics - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1060,10 +861,7 @@ mdMethodDef mb,                     // [IN] method token
 mdToken     tkEventProp,            // [IN] event/property token.
 DWORD* pdwSemanticsFlags) // [OUT] the role flags for the method/propevent pair
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetMethodSemantics - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetMethodSemantics - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1075,10 +873,8 @@ ULONG       cMax,                   // [IN] size of the array
 ULONG* pcFieldOffset,         // [OUT] needed array size
 ULONG* pulClassSize)        // [OUT] the size of the class
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetClassLayout - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetClassLayout - NOT IMPLEMENTED\n");
+
 	return 0x80131130;
 }
 
@@ -1087,10 +883,7 @@ mdToken     tk,                     // [IN] given a field's memberdef
 PCCOR_SIGNATURE* ppvNativeType,     // [OUT] native type of this field
 ULONG* pcbNativeType)   // [OUT] the count of bytes of *ppvNativeType
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetFieldMarshal - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetFieldMarshal - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1099,10 +892,7 @@ mdToken     tk,                     // Member for which to set offset
 ULONG* pulCodeRVA,            // The offset
 DWORD* pdwImplFlags)    // the implementation flags
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetRVA - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetRVA - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1112,10 +902,7 @@ DWORD* pdwAction,             // [OUT] CorDeclSecurity.
 void const** ppvPermission,        // [OUT] permission blob.
 ULONG* pcbPermission)   // [OUT] count of bytes of pvPermission.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetPermissionSetProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetPermissionSetProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1124,10 +911,8 @@ mdSignature mdSig,                  // [IN] Signature token.
 PCCOR_SIGNATURE* ppvSig,            // [OUT] return pointer to token.
 ULONG* pcbSig)          // [OUT] return size of signature.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetSigFromToken - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetSigFromToken - NOT IMPLEMENTED\n");
+
 
 	COR_SIGNATURE tempSignature[3] = { 7, 1, 8 };
 	if (ppvSig)
@@ -1147,10 +932,7 @@ LPWSTR      szName,                 // [OUT] buffer to fill with the moduleref n
 ULONG       cchName,                // [IN] size of szName in wide characters.
 ULONG* pchName)         // [OUT] actual count of characters in the name.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetModuleRefProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetModuleRefProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1160,10 +942,7 @@ mdModuleRef rModuleRefs[],          // [OUT] put modulerefs here.
 ULONG       cmax,                   // [IN] max memberrefs to put.
 ULONG* pcModuleRefs)    // [OUT] put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumModuleRefs - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumModuleRefs - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1172,10 +951,7 @@ mdTypeSpec typespec,                // [IN] TypeSpec token.
 PCCOR_SIGNATURE* ppvSig,            // [OUT] return pointer to TypeSpec signature
 ULONG* pcbSig)          // [OUT] return size of signature.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetTypeSpecFromToken - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetTypeSpecFromToken - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1183,10 +959,7 @@ HRESULT CordbSymbol::GetNameFromToken(            // Not Recommended! May be rem
 mdToken     tk,                     // [IN] Token to get name from.  Must have a name.
 MDUTF8CSTR* pszUtf8NamePtr)  // [OUT] Return pointer to UTF8 name in heap.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetNameFromToken - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetNameFromToken - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1196,10 +969,7 @@ mdToken     rMethods[],             // [OUT] Put MemberDefs here.
 ULONG       cMax,                   // [IN] Max MemberDefs to put.
 ULONG* pcTokens)        // [OUT] Put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumUnresolvedMethods - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumUnresolvedMethods - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1210,10 +980,7 @@ LPWSTR      szString,               // [OUT] Copy of string.
 ULONG       cchString,              // [IN] Max chars of room in szString.
 ULONG* pchString)       // [OUT] How many chars in actual string.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetUserString - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetUserString - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1226,10 +993,7 @@ ULONG       cchImportName,          // [IN] Size of the name buffer.
 ULONG* pchImportName,         // [OUT] Actual number of characters stored.
 mdModuleRef* pmrImportDLL)    // [OUT] ModuleRef token for the target DLL.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetPinvokeMap - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetPinvokeMap - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1239,10 +1003,7 @@ mdSignature rSignatures[],          // [OUT] put signatures here.
 ULONG       cmax,                   // [IN] max signatures to put.
 ULONG* pcSignatures)    // [OUT] put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumSignatures - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumSignatures - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1252,10 +1013,7 @@ mdTypeSpec  rTypeSpecs[],           // [OUT] put TypeSpecs here.
 ULONG       cmax,                   // [IN] max TypeSpecs to put.
 ULONG* pcTypeSpecs)     // [OUT] put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumTypeSpecs - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumTypeSpecs - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1266,10 +1024,7 @@ mdString    rStrings[],             // [OUT] put Strings here.
 ULONG       cmax,                   // [IN] max Strings to put.
 ULONG* pcStrings)       // [OUT] put # put here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumUserStrings - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumUserStrings - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1278,10 +1033,7 @@ mdMethodDef md,                     // [IN] Method token.
 ULONG       ulParamSeq,             // [IN] Parameter sequence.
 mdParamDef* ppd)             // [IN] Put Param token here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetParamForMethodIndex - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetParamForMethodIndex - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1293,10 +1045,7 @@ mdCustomAttribute rCustomAttributes[], // [OUT] Put custom attribute tokens here
 ULONG       cMax,                   // [IN] Size of rCustomAttributes.
 ULONG* pcCustomAttributes)  // [OUT, OPTIONAL] Put count of token values here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - EnumCustomAttributes - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - EnumCustomAttributes - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1307,10 +1056,7 @@ mdToken* ptkType,               // [OUT, OPTIONAL] Put AttrType token here.
 void const** ppBlob,               // [OUT, OPTIONAL] Put pointer to data here.
 ULONG* pcbSize)         // [OUT, OPTIONAL] Put size of date here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetCustomAttributeProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetCustomAttributeProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1319,10 +1065,7 @@ mdToken     tkResolutionScope,      // [IN] ModuleRef, AssemblyRef or TypeRef.
 LPCWSTR     szName,                 // [IN] TypeRef Name.
 mdTypeRef* ptr)             // [OUT] matching TypeRef.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - FindTypeRef - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - FindTypeRef - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1342,10 +1085,7 @@ DWORD* pdwCPlusTypeFlag,      // [OUT] flag for value type. selected ELEMENT_TYP
 UVCP_CONSTANT* ppValue,             // [OUT] constant value
 ULONG* pcchValue)       // [OUT] size of constant string in chars, 0 for non-strings.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetMemberProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetMemberProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1363,10 +1103,7 @@ DWORD* pdwCPlusTypeFlag,      // [OUT] flag for value type. selected ELEMENT_TYP
 UVCP_CONSTANT* ppValue,             // [OUT] constant value
 ULONG* pcchValue)       // [OUT] size of constant string in chars, 0 for non-strings.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetFieldProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetFieldProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1388,10 +1125,7 @@ mdMethodDef rmdOtherMethod[],       // [OUT] other method of the property
 ULONG       cMax,                   // [IN] size of rmdOtherMethod
 ULONG* pcOtherMethod)   // [OUT] total number of other method of this property
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetPropertyProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetPropertyProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1408,10 +1142,7 @@ DWORD* pdwCPlusTypeFlag,      // [OUT] Flag for value type. selected ELEMENT_TYP
 UVCP_CONSTANT* ppValue,             // [OUT] Constant value.
 ULONG* pcchValue)       // [OUT] size of constant string in chars, 0 for non-strings.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetParamProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetParamProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1421,10 +1152,8 @@ LPCWSTR     szName,                 // [IN] Name of desired Custom Attribute.
 const void** ppData,               // [OUT] Put pointer to data here.
 ULONG* pcbData)         // [OUT] Put size of data here.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetCustomAttributeByName - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetCustomAttributeByName - IMPLEMENTED\n");
+
 	if (!wcscmp(szName, L"System.Diagnostics.DebuggerNonUserCodeAttribute") || !wcscmp(szName, L"System.Diagnostics.DebuggerStepThroughAttribute"))
 		return S_FALSE;
 	if (!wcscmp(szName, L"System.Diagnostics.DebuggerHiddenAttribute"))
@@ -1449,10 +1178,8 @@ ULONG* pcbData)         // [OUT] Put size of data here.
 BOOL CordbSymbol::IsValidToken(         // True or False.
 mdToken     tk)               // [IN] Given token.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - IsValidToken - IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - IsValidToken - IMPLEMENTED\n");
+
 	return 1;
 }
 
@@ -1460,10 +1187,7 @@ HRESULT CordbSymbol::GetNestedClassProps(         // S_OK or error.
 mdTypeDef   tdNestedClass,          // [IN] NestedClass token.
 mdTypeDef* ptdEnclosingClass) // [OUT] EnclosingClass token.
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetNestedClassProps - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetNestedClassProps - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1472,10 +1196,7 @@ void const* pvSig,                 // [IN] Pointer to signature.
 ULONG       cbSig,                  // [IN] Count of signature bytes.
 ULONG* pCallConv)       // [OUT] Put calling conv here (see CorPinvokemap).
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - GetNativeCallConvFromSig - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - GetNativeCallConvFromSig - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -1484,10 +1205,7 @@ mdToken     pd,                     // [IN] Type, Field, or Method token.
 int* pbGlobal)        // [OUT] Put 1 if global, 0 otherwise.
 
 {
-	fstream file;
-	file.open ("c:\\thays\\example.txt", ios::out | ios::in | ios::app );
-	file << "CordbSymbol - IsGlobal - NOT IMPLEMENTED" << std::endl;
-	file.close();
+	DEBUG_PRINTF(1, "CordbSymbol - IsGlobal - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
