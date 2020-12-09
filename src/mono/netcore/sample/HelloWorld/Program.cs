@@ -27,10 +27,16 @@ namespace HelloWorld
         }
         private static void AnotherFunctionCall(int c)
         {
-            int a = 10;
-            a = 10 + 20;
-            c = c + a;
-            Console.WriteLine("Debugger attached 2");
+            long myLong = c + 10000;
+            int myInt = c + 10;
+            char myLetter = 'a';
+            bool myBool = c == 50;
+            string myString = "thays";
+            myString = myString + myLetter;
+            Console.WriteLine(myLetter);
+            Console.WriteLine(myBool);
+            Console.WriteLine(myLong);
+            Console.WriteLine(myInt);
         }
     }
 }

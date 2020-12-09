@@ -8,9 +8,10 @@ class CordbClass :
     public ICorDebugClass,
     public ICorDebugClass2
 {
+    Connection* conn;
     mdToken token;
 public:
-    CordbClass(mdToken token);
+    CordbClass(Connection* conn, mdToken token);
     HRESULT STDMETHODCALLTYPE GetModule(ICorDebugModule** pModule);
     HRESULT STDMETHODCALLTYPE GetToken(mdTypeDef* pTypeDef);
     HRESULT STDMETHODCALLTYPE GetStaticFieldValue(mdFieldDef fieldDef, ICorDebugFrame* pFrame, ICorDebugValue** ppValue);

@@ -50,12 +50,7 @@ HRESULT __stdcall CordbCode::GetSize(ULONG32* pcBytes)
 	int cmdId = func->module->pProcess->connection->send_event(CMD_SET_METHOD, CMD_METHOD_GET_BODY, &localbuf);
 	buffer_free(&localbuf);
 
-	Buffer* localbuf2 = NULL;
-	while (!localbuf2) {
-		func->module->pProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(func->module->pProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-	}
-
+	Buffer* localbuf2 = func->module->pProcess->connection->get_answer(cmdId);
 	int code_size = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	*pcBytes = code_size;
 	DEBUG_PRINTF(1, "CordbCode - GetSize - IMPLEMENTED\n");
@@ -83,11 +78,7 @@ HRESULT __stdcall CordbCode::GetCode(ULONG32 startOffset, ULONG32 endOffset, ULO
 	int cmdId = func->module->pProcess->connection->send_event(CMD_SET_METHOD, CMD_METHOD_GET_BODY, &localbuf);
 	buffer_free(&localbuf);
 
-	Buffer* localbuf2 = NULL;
-	while (!localbuf2) {
-		func->module->pProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(func->module->pProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-	}
+	Buffer* localbuf2 = func->module->pProcess->connection->get_answer(cmdId);
 	guint8*  code = decode_byte_array(localbuf2->buf, &localbuf2->buf, localbuf2->end, pcBufferSize);
 	
 	memcpy(buffer, code, *pcBufferSize);

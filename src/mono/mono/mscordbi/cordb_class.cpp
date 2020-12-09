@@ -12,9 +12,10 @@
 
 using namespace std;
 
-CordbClass::CordbClass(mdToken token)
+CordbClass::CordbClass(Connection *conn, mdToken token)
 {
 	this->token = token;
+	this->conn = conn;
 }
 
 HRESULT STDMETHODCALLTYPE CordbClass::GetModule(ICorDebugModule** pModule)
@@ -31,7 +32,9 @@ HRESULT STDMETHODCALLTYPE CordbClass::GetToken(mdTypeDef* pTypeDef)
 
 HRESULT STDMETHODCALLTYPE CordbClass::GetStaticFieldValue(mdFieldDef fieldDef, ICorDebugFrame* pFrame, ICorDebugValue** ppValue)
 {
-	CordbValue* value = new CordbValue(ELEMENT_TYPE_BOOLEAN, 0, 1);
+	CordbContent content_value;
+	content_value.booleanValue = 0;
+	CordbValue* value = new CordbValue(conn, ELEMENT_TYPE_BOOLEAN, content_value, 1);
 	*ppValue = static_cast<ICorDebugValue*>(value);
 	return S_OK;
 }

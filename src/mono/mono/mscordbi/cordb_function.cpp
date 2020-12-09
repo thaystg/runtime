@@ -78,7 +78,7 @@ HRESULT __stdcall CordbFunction::GetClass(ICorDebugClass** ppClass)
 HRESULT __stdcall CordbFunction::GetToken(mdMethodDef* pMethodDef)
 {
 	*pMethodDef = this->token;
-	DEBUG_PRINTF(1, "CordbFunction - GetToken - IMPLEMENTED\n");
+	DEBUG_PRINTF(1, "CordbFunction - GetToken - IMPLEMENTED - %d\n", *pMethodDef);
 	return S_OK;
 }
 

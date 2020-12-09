@@ -219,12 +219,7 @@ HRESULT CordbModule::GetBaseAddress(
 	int cmdId = pProcess->connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_METADATA_BLOB, &localbuf);
 	buffer_free(&localbuf);
 
-	Buffer* localbuf2 = NULL;
-	while (!localbuf2) {
-		pProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(pProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-	}
-
+	Buffer* localbuf2 = pProcess->connection->get_answer(cmdId);
 	assembly_metadata_blob = decode_byte_array(localbuf2->buf, &localbuf2->buf, localbuf2->end, &assembly_metadata_len);
 
 	DEBUG_PRINTF(1, "CordbModule - GetBaseAddress\n");
@@ -245,12 +240,7 @@ HRESULT CordbModule::GetName(
 	int cmdId = pProcess->connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_LOCATION, &localbuf);
 	buffer_free(&localbuf);
 
-	Buffer* localbuf2 = NULL;
-	while (!localbuf2) {
-		pProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(pProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-	}
-
+	Buffer* localbuf2 = pProcess->connection->get_answer(cmdId);
 	char* assembly_name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	
 	DEBUG_PRINTF(1, "CordbModule - assembly_name - %s\n", assembly_name);
@@ -305,12 +295,7 @@ HRESULT CordbModule::GetFunctionFromToken(
 	int cmdId = pProcess->connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_METHOD_FROM_TOKEN, &localbuf);
 	buffer_free(&localbuf);
 
-	Buffer* localbuf2 = NULL;
-	while (!localbuf2) {
-		pProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(pProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-	}
-
+	Buffer* localbuf2 = pProcess->connection->get_answer(cmdId);
 	int id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	CordbFunction* func = NULL;
 	func = pProcess->cordb->findFunction(id);
@@ -335,7 +320,7 @@ HRESULT CordbModule::GetClassFromToken(
 	/* [in] */ mdTypeDef typeDef,
 	/* [out] */ ICorDebugClass** ppClass)
 {
-	CordbClass* pClass = new CordbClass(typeDef);
+	CordbClass* pClass = new CordbClass(pProcess->connection, typeDef);
 	*ppClass = static_cast<ICorDebugClass*>(pClass);
 	return S_OK;
 }
@@ -391,7 +376,7 @@ HRESULT CordbModule::GetSize(
 	/* [out] */ ULONG32* pcBytes)
 {
 	DEBUG_PRINTF(1, "CordbModule - GetSize -IMPLEMENTED\n");
-*pcBytes = assembly_metadata_len;
+	*pcBytes = assembly_metadata_len;
 	return S_OK;
 }
 

@@ -20,6 +20,10 @@
 
 #define return_if_nok(error) do { if (!is_ok ((error))) return S_FALSE; } while (0)
 
+#define dbg_lock() mono_os_mutex_lock (&debug_mutex.m);
+#define dbg_unlock() mono_os_mutex_unlock (&debug_mutex.m);
+static MonoCoopMutex debug_mutex;
+
 class Cordb;
 class CordbProcess;
 class CordbAppDomain;
@@ -30,6 +34,8 @@ class CordbFunction;
 class CordbStepper;
 class CordbSymbol;
 class CordbRegisteSet;
+
+int convert_mono_type_2_icordbg_size(int type);
 
 struct M128BIT {
     uint64_t Low;
@@ -268,16 +274,18 @@ public:
 	void close_connection();
 	void start_connection();
 	void transport_handshake();
+    void receive();
 	void send_packet(Buffer& sendbuf);
 	void receive_packet(Buffer& b, int len);
 	void receive_header(Header* header);
 	int send_event(int cmd_set, int cmd, Buffer* sendbuf);
 	int process_packet(bool is_answer = false);
+    Buffer* get_answer(int cmdId);
     CordbThread* findThread(GPtrArray *threads, long thread_id);
 };
 
-static int log_level = 1;
-static FILE* log_file = stdout;//fopen("c:\\thays\\example.txt", "a+");
+static int log_level = 10;
+static FILE* log_file = fopen("c:\\thays\\example.txt", "a+");
 
 #define DEBUG(level,s) do { if (G_UNLIKELY ((level) <= log_level)) { s; fflush (log_file); } } while (0)
 #define DEBUG_PRINTF(level, ...) do { if (G_UNLIKELY ((level) <= log_level)) { fprintf (log_file, __VA_ARGS__); fflush (log_file); } } while (0)

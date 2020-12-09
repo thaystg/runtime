@@ -58,11 +58,7 @@ HRESULT STDMETHODCALLTYPE CordbFrameEnum::GetCount(ULONG* pcelt)
 	int cmdId = thread->ppProcess->connection->send_event(CMD_SET_THREAD, CMD_THREAD_GET_FRAME_INFO, &localbuf);
 	buffer_free(&localbuf);
 
-	Buffer* localbuf2 = NULL;
-	while (!localbuf2) {
-		thread->ppProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(thread->ppProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-	}
+	Buffer* localbuf2 = thread->ppProcess->connection->get_answer(cmdId);
 	nframes = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	frames = (CordbNativeFrame**) malloc(sizeof(CordbNativeFrame*) * nframes);
 	
@@ -298,19 +294,56 @@ HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetLocalVariable(
 	buffer_add_int(&localbuf, 1);
 	buffer_add_int(&localbuf, dwIndex);
 
+	DEBUG_PRINTF(1, "CordbJITILFrame::GetLocalVariable - %d\n", dwIndex);
+
 	int cmdId = thread->ppProcess->connection->send_event(CMD_SET_STACK_FRAME, CMD_STACK_FRAME_GET_VALUES, &localbuf);
 	buffer_free(&localbuf);
 
-	Buffer* localbuf2 = NULL;
-	while (!localbuf2) {
-		thread->ppProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(thread->ppProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
+	Buffer* localbuf2 = thread->ppProcess->connection->get_answer(cmdId);
+
+	CorElementType type = (CorElementType)decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	CordbContent value;
+	switch (type)
+	{
+		case MONO_TYPE_BOOLEAN:
+		case MONO_TYPE_I1:
+		case MONO_TYPE_U1:
+			value.booleanValue = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			DEBUG_PRINTF(1, "bool value - %d\n", value.booleanValue);
+			break;
+		case MONO_TYPE_CHAR:
+		case MONO_TYPE_I2:
+		case MONO_TYPE_U2:
+			value.charValue = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			DEBUG_PRINTF(1, "char value - %c\n", value.charValue);
+			break;
+		case MONO_TYPE_I4:
+		case MONO_TYPE_U4:
+		case MONO_TYPE_R4:
+			value.intValue = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			DEBUG_PRINTF(1, "int value - %d\n", value.intValue);
+			break;
+		case MONO_TYPE_I8:
+		case MONO_TYPE_U8:
+		case MONO_TYPE_R8:
+			value.longValue = decode_long(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			DEBUG_PRINTF(1, "long value - %ld\n", value.longValue);
+			break;
+		case MONO_TYPE_STRING:
+		{
+			DEBUG_PRINTF(1, "string value 1\n");
+			int object_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			DEBUG_PRINTF(1, "string value 1.2\n");
+			CordbReferenceValue* refValue = new CordbReferenceValue(thread->ppProcess->connection, type, object_id);
+			DEBUG_PRINTF(1, "string value 2\n");
+			refValue->QueryInterface(IID_ICorDebugValue, (void**)ppValue);
+			DEBUG_PRINTF(1, "string value 3\n");
+			return S_OK;
+		}
 	}
-
-	int type = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int value = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-
-	*ppValue = new CordbValue(ELEMENT_TYPE_I4, value, 4);
+	
+	
+	*ppValue = new CordbValue(thread->ppProcess->connection, type, value, convert_mono_type_2_icordbg_size(type)); //
 
 
 	DEBUG_PRINTF(1, "CordbFrame - GetArgument - IMPLEMENTED - dwIndex\n");
@@ -338,16 +371,14 @@ HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetArgument(
 	int cmdId = thread->ppProcess->connection->send_event(CMD_SET_STACK_FRAME, CMD_STACK_FRAME_GET_VALUES, &localbuf);
 	buffer_free(&localbuf);
 
-	Buffer* localbuf2 = NULL;
-	while (!localbuf2) {
-		thread->ppProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(thread->ppProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-	}
+	Buffer* localbuf2 = thread->ppProcess->connection->get_answer(cmdId);
+
 	
 	int type = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int value = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	CordbContent value;
+	value.intValue = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 
-	*ppValue = new CordbValue(ELEMENT_TYPE_I4, value, 4);
+	*ppValue = new CordbValue(thread->ppProcess->connection, ELEMENT_TYPE_I4, value, 4);
 
 	
 	DEBUG_PRINTF(1, "CordbFrame - GetArgument - IMPLEMENTED - dwIndex\n");

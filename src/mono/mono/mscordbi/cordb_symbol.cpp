@@ -324,11 +324,7 @@ mdTypeDef* ptd)             // [OUT] Put the TypeDef token here.
 	int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_VM, CMD_VM_GET_TYPES, &sendbuf);
 	buffer_free(&sendbuf);
 
-	Buffer* localbuf2 = NULL;
-	while (!localbuf2) {
-		this->pCordbAssembly->pProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(this->pCordbAssembly->pProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-	}
+	Buffer* localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
 
 	int count_class = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	int klass_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
@@ -340,11 +336,7 @@ mdTypeDef* ptd)             // [OUT] Put the TypeDef token here.
 	cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
 	buffer_free(&localbuf);
 
-	localbuf2 = NULL;
-	while (!localbuf2) {
-		this->pCordbAssembly->pProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(this->pCordbAssembly->pProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-	}
+	localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
 
 	char* namespace_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	char* class_name_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
@@ -374,11 +366,7 @@ GUID* pmvid)           // [OUT, OPTIONAL] Put MVID here.
 		int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_MANIFEST_MODULE, &localbuf);
 		buffer_free(&localbuf);
 
-		Buffer* localbuf2 = NULL;
-		while (!localbuf2) {
-			this->pCordbAssembly->pProcess->connection->process_packet(true);
-			localbuf2 = (Buffer*)g_hash_table_lookup(this->pCordbAssembly->pProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-		}
+		Buffer* localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
 
 		module_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	}
@@ -389,11 +377,7 @@ GUID* pmvid)           // [OUT, OPTIONAL] Put MVID here.
 	int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_MODULE, CMD_MODULE_GET_INFO, &localbuf);
 	buffer_free(&localbuf);
 
-	Buffer* localbuf2 = NULL;
-	while (!localbuf2) {
-		this->pCordbAssembly->pProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(this->pCordbAssembly->pProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-	}
+	Buffer* localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
 	char* basename = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	char* module_name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	char* name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
@@ -441,11 +425,7 @@ mdToken* ptkExtends)     // [OUT] Put base class TypeDef/TypeRef here.
 	int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN, &localbuf);
 	buffer_free(&localbuf);
 
-	Buffer* localbuf2 = NULL;
-	while (!localbuf2) {
-		this->pCordbAssembly->pProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(this->pCordbAssembly->pProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-	}
+	Buffer* localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
 	int klass_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 
 	buffer_init(&localbuf, 128);
@@ -454,11 +434,7 @@ mdToken* ptkExtends)     // [OUT] Put base class TypeDef/TypeRef here.
 	cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
 	buffer_free(&localbuf);
 
-	localbuf2 = NULL;
-	while (!localbuf2) {
-		this->pCordbAssembly->pProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(this->pCordbAssembly->pProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-	}
+	localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
 
 	char* namespace_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	char* class_name_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
@@ -485,11 +461,7 @@ mdToken* ptkExtends)     // [OUT] Put base class TypeDef/TypeRef here.
 	cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
 	buffer_free(&localbuf);
 
-	localbuf2 = NULL;
-	while (!localbuf2) {
-		this->pCordbAssembly->pProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(this->pCordbAssembly->pProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-	}
+	localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
 	{
 		char* namespace_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 		char* class_name_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
@@ -709,8 +681,8 @@ PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to the blob value of meta dat
 ULONG* pcbSigBlob,            // [OUT] actual size of signature blob
 ULONG* pulCodeRVA,            // [OUT] codeRVA
 DWORD* pdwImplFlags)    // [OUT] Impl. Flags
-
 {
+	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 1 - %d\n", mb);
 	CordbFunction* func = this->pCordbAssembly->pProcess->cordb->findFunctionByToken(mb);
 	int func_id = 0;
 	if (!func)
@@ -722,17 +694,15 @@ DWORD* pdwImplFlags)    // [OUT] Impl. Flags
 		int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_METHOD_FROM_TOKEN, &localbuf);
 		buffer_free(&localbuf);
 
-		Buffer* localbuf2 = NULL;
-		while (!localbuf2) {
-			this->pCordbAssembly->pProcess->connection->process_packet(true);
-			localbuf2 = (Buffer*)g_hash_table_lookup(this->pCordbAssembly->pProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-		}
+		Buffer* localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
 
 		func_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 
 	}
 	else
 		func_id = func->id;
+
+	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 2\n");
 
 	Buffer localbuf;
 	buffer_init(&localbuf, 128);
@@ -741,11 +711,7 @@ DWORD* pdwImplFlags)    // [OUT] Impl. Flags
 	int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_METHOD, CMD_METHOD_GET_DECLARING_TYPE, &localbuf);
 	buffer_free(&localbuf);
 
-	Buffer* localbuf2 = NULL;
-	while (!localbuf2) {
-		this->pCordbAssembly->pProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(this->pCordbAssembly->pProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-	}
+	Buffer* localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
 
 	int klass_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 
@@ -755,11 +721,7 @@ DWORD* pdwImplFlags)    // [OUT] Impl. Flags
 	cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
 	buffer_free(&localbuf);
 	
-	localbuf2 = NULL;
-	while (!localbuf2) {
-		this->pCordbAssembly->pProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(this->pCordbAssembly->pProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-	}
+	localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
 
 	char* namespace_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	char* class_name_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
@@ -775,18 +737,20 @@ DWORD* pdwImplFlags)    // [OUT] Impl. Flags
 	}
 	if (pchMethod)
 		*pchMethod = strlen(class_name_str) + 1;
-	COR_SIGNATURE tempSignature[4] = { 0, 1, 1, 8 };
+	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 3\n");
+	COR_SIGNATURE tempSignature[5] = { 0, 1, 8, 8 };
 	if (ppvSigBlob)
 	{
 		*ppvSigBlob = new COR_SIGNATURE[4];
 		memcpy((void*)*ppvSigBlob, tempSignature, 4 * sizeof(COR_SIGNATURE));
 		*pcbSigBlob = 4;
 	}
+	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 4\n");
 	if (pulCodeRVA)
 	{
 		*pulCodeRVA = 8460;
 	}
-	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED\n");
+	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 5\n");
 	return S_OK;
 }
 
@@ -911,17 +875,15 @@ mdSignature mdSig,                  // [IN] Signature token.
 PCCOR_SIGNATURE* ppvSig,            // [OUT] return pointer to token.
 ULONG* pcbSig)          // [OUT] return size of signature.
 {
-	DEBUG_PRINTF(1, "CordbSymbol - GetSigFromToken - NOT IMPLEMENTED\n");
-
-
-	COR_SIGNATURE tempSignature[3] = { 7, 1, 8 };
+	DEBUG_PRINTF(1, "CordbSymbol - GetSigFromToken - NOT IMPLEMENTED - %d\n", mdSig);
+	COR_SIGNATURE tempSignature[7] = { 7, 5, 10, 8, 3, 2, 14}; // segundo parametro quantas locais, terceiro em diante os tipos
 	if (ppvSig)
 	{
-		*ppvSig = new COR_SIGNATURE[4];
-		memcpy((void*)*ppvSig, tempSignature, 3 * sizeof(COR_SIGNATURE));
+		*ppvSig = new COR_SIGNATURE[7];
+		memcpy((void*)*ppvSig, tempSignature, 7 * sizeof(COR_SIGNATURE));
 	}
 
-	*pcbSig = 3;
+	*pcbSig = 7;
 	return S_OK;
 }
 

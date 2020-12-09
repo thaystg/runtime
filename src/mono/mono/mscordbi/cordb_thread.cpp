@@ -207,12 +207,7 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetActiveFrame(
 	int cmdId = this->ppProcess->connection->send_event(CMD_SET_THREAD, CMD_THREAD_GET_FRAME_INFO, &localbuf);
 	buffer_free(&localbuf);
 
-	Buffer* localbuf2 = NULL;
-	while (!localbuf2) {
-		this->ppProcess->connection->process_packet(true);
-		localbuf2 = (Buffer*)g_hash_table_lookup(this->ppProcess->connection->received_replies, (gpointer)(gssize)(cmdId));
-	}
-
+	Buffer* localbuf2 = ppProcess->connection->get_answer(cmdId);
 	int nframes = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	for (int i = 0; i < nframes; i++)
 	{

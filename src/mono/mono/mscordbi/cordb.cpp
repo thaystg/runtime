@@ -15,11 +15,44 @@
 #include <cordb_code.hpp>
 #include <cordb_symbol.hpp>
 
+
+
+int convert_mono_type_2_icordbg_size(int type)
+{
+	switch (type) {
+		case MONO_TYPE_VOID:
+			return 0;
+		case MONO_TYPE_BOOLEAN:
+		case MONO_TYPE_I1:
+		case MONO_TYPE_U1:
+			return 1;
+			break;
+		case MONO_TYPE_CHAR:
+		case MONO_TYPE_I2:
+		case MONO_TYPE_U2:
+			return 2;
+		case MONO_TYPE_I4:
+		case MONO_TYPE_U4:
+		case MONO_TYPE_R4:
+			return 4;
+		case MONO_TYPE_I8:
+		case MONO_TYPE_U8:
+		case MONO_TYPE_R8:
+			return 8;
+	}
+	return 0;
+}
+
 MONO_API HRESULT CoreCLRCreateCordbObjectEx(int iDebuggerVersion, DWORD pid, LPCWSTR lpApplicationGroupId, HMODULE hmodTargetCLR, void** ppCordb)
 {
 	DEBUG_PRINTF(1, "CoreCLRCreateCordbObjectEx \n");
 	*ppCordb = new Cordb();
 	return S_OK;
+}
+
+static void receive_thread(Connection *c)
+{
+	c->receive();
 }
 
 static void debugger_thread(void* ppProcess)
@@ -91,8 +124,6 @@ HRESULT Cordb::DebugActiveProcess(
 		
 	DWORD thread_id;
 	CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)debugger_thread, ((CordbProcess*)*ppProcess), 0, &thread_id);
-
-	
 	return S_OK;
 }
 
@@ -226,6 +257,64 @@ CordbThread* Connection::findThread(GPtrArray* threads, long thread_id)
 	return NULL;
 }
 
+void Connection::receive()
+{
+	while (true) {
+		Buffer recvbuf_header;
+		buffer_init(&recvbuf_header, HEADER_LEN);
+		
+		int iResult = recv(connect_socket, (char*)recvbuf_header.buf, HEADER_LEN, 0);
+		
+		if (iResult == -1)
+			break;
+		while (iResult == 0) {
+			DEBUG_PRINTF (1, "[dbg] transport_recv () sleep returned %d, expected %d.\n", iResult, HEADER_LEN);
+			iResult = recv(connect_socket, (char*)recvbuf_header.buf, HEADER_LEN, 0);
+			Sleep(1000);
+		}
+		
+		Header header;
+		Buffer* recvbuf = new Buffer();
+		decode_command_header(&recvbuf_header, &header);
+
+		buffer_init(recvbuf, header.len - HEADER_LEN);
+
+		if (header.len < HEADER_LEN) {
+			return;
+		}
+
+		if (header.len - HEADER_LEN != 0)
+		{
+			iResult = recv(connect_socket, (char*)recvbuf->buf, header.len - HEADER_LEN, 0);
+			int totalRead = iResult;
+			while (totalRead < header.len - HEADER_LEN)
+			{
+				iResult = recv(connect_socket, (char*)recvbuf->buf+ totalRead, (header.len - HEADER_LEN) - totalRead, 0);
+				totalRead += iResult;
+			}
+		}
+
+		dbg_lock ();
+		if (header.flags == REPLY_PACKET)
+			g_hash_table_insert(received_replies, (gpointer)(gssize)(header.id), recvbuf);
+		else {
+			g_ptr_array_add(received_replies_to_process, recvbuf);
+		}
+		dbg_unlock ();
+	}
+}
+
+Buffer* Connection::get_answer(int cmdId)
+{
+	Buffer* ret = NULL;
+	while (ret == NULL) {
+		dbg_lock ();
+		ret = (Buffer*)g_hash_table_lookup(received_replies, (gpointer)(gssize)(cmdId));
+		dbg_unlock ();		
+	}
+	return ret;
+}
+
 void Connection::process_packet_internal(Buffer *recvbuf)
 {
 	int spolicy = decode_byte(recvbuf->buf, &recvbuf->buf, recvbuf->end);
@@ -330,55 +419,7 @@ int Connection::process_packet(bool is_answer)
 {
 	if (!is_answer)
 		process_packet_from_queue();
-
-	int iResult;
-	Buffer sendbuf, recvbufheader;
-	Buffer* recvbuf;
-	recvbuf = new Buffer();
-
-	buffer_init(&sendbuf, 128);
-	buffer_init(&recvbufheader, HEADER_LEN);
-	
-	iResult = recv(connect_socket, (char*)recvbufheader.buf, HEADER_LEN, 0);
-
-	Header header;
-	decode_command_header(&recvbufheader, &header);
-	
-	if (header.len < HEADER_LEN) {
-		return 0;
-	}
-
-	if (header.flags == REPLY_PACKET) //add to the dictionary of messages
-	{
-		Buffer *recvbuf2;
-		recvbuf2 = new Buffer();
-		buffer_init(recvbuf2, header.len - HEADER_LEN);
-		if (header.len - HEADER_LEN != 0)
-		{
-			iResult = recv(connect_socket, (char*)recvbuf2->buf, header.len - HEADER_LEN, 0);
-			int totalRead = iResult;
-			while (totalRead < header.len - HEADER_LEN)
-			{
-				iResult = recv(connect_socket, (char*)recvbuf2->buf+ totalRead, (header.len - HEADER_LEN) - totalRead, 0);
-				totalRead += iResult;
-			}
-		}
-		g_hash_table_insert(received_replies, (gpointer)(gssize)(header.id), recvbuf2);
-		return 0;
-	}
-
-	buffer_init(recvbuf, header.len - HEADER_LEN);
-	iResult = recv(connect_socket, (char*)recvbuf->buf, header.len - HEADER_LEN, 0);
-
-	if (header.command_set == CMD_SET_EVENT && header.command == CMD_COMPOSITE) {
-		if (is_answer)
-		{
-			g_ptr_array_add(received_replies_to_process, recvbuf);
-			return iResult;
-		}
-		process_packet_internal(recvbuf);
-	}
-	return iResult;
+	return 1;
 }
 
 void Connection::process_packet_from_queue()
@@ -387,13 +428,18 @@ void Connection::process_packet_from_queue()
 	while (i < received_replies_to_process->len) {
 		Buffer* req = (Buffer*)g_ptr_array_index(received_replies_to_process, i);
 		process_packet_internal(req);
+		dbg_lock ();
 		g_ptr_array_remove_index_fast(received_replies_to_process, i);
+		dbg_unlock ();
 		g_free(req);
 	}
 }
 
 void Connection::loop_send_receive()
 {
+	DWORD thread_id;
+	CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)receive_thread, this, 0, &thread_id);
+
 	//machine.EnableEvents(EventType.AssemblyLoad, EventType.ThreadStart, EventType.ThreadDeath, EventType.AppDomainUnload, EventType.UserBreak, EventType.UserLog);
 	enable_event(EVENT_KIND_ASSEMBLY_LOAD);
 	enable_event(EVENT_KIND_APPDOMAIN_CREATE);
@@ -459,11 +505,11 @@ void Connection::start_connection()
 	hints.ai_protocol = IPPROTO_TCP;
 
 	
-	DEBUG_PRINTF(1, "Listening to 127.0.0.1:1001\n");
+	DEBUG_PRINTF(1, "Listening to 127.0.0.1:1002\n");
 
 
 	// Resolve the server address and port
-	iResult = getaddrinfo("127.0.0.1", "1001", &hints, &result);
+	iResult = getaddrinfo("127.0.0.1", "1002", &hints, &result);
 	if (iResult != 0) {
 		WSACleanup();
 		return;
