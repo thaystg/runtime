@@ -11,7 +11,8 @@ class CordbClass :
     Connection* conn;
     mdToken token;
 public:
-    CordbClass(Connection* conn, mdToken token);
+    int module_id;
+    CordbClass(Connection* conn, mdToken token, int module_id);
     HRESULT STDMETHODCALLTYPE GetModule(ICorDebugModule** pModule);
     HRESULT STDMETHODCALLTYPE GetToken(mdTypeDef* pTypeDef);
     HRESULT STDMETHODCALLTYPE GetStaticFieldValue(mdFieldDef fieldDef, ICorDebugFrame* pFrame, ICorDebugValue** ppValue);

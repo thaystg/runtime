@@ -13,8 +13,9 @@
 
 
 using namespace std;
-CordbType::CordbType(CorElementType type)
+CordbType::CordbType(CorElementType type, CordbClass* klass)
 {
+	this->klass = klass;
 	this->type = type;
 }
 
@@ -27,9 +28,9 @@ HRESULT STDMETHODCALLTYPE CordbType::GetType(CorElementType* ty)
 
 HRESULT STDMETHODCALLTYPE CordbType::GetClass(ICorDebugClass** ppClass)
 {
-	DEBUG_PRINTF(1, "CordbType - GetClass - NOT IMPLEMENTED\n");
-
-	return S_FALSE;
+	DEBUG_PRINTF(1, "CordbType - GetClass - IMPLEMENTED\n");
+	*ppClass = static_cast<ICorDebugClass*>(klass);
+	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbType::EnumerateTypeParameters(ICorDebugTypeEnum** ppTyParEnum)

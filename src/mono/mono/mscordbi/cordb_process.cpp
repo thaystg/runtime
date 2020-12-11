@@ -7,6 +7,7 @@
 #include <cordb_stepper.hpp>
 #include <cordb_function.hpp>
 #include <cordb_process.hpp>
+#include <cordb_appdomain.hpp>
 
 using namespace std;
 
@@ -245,7 +246,8 @@ HRESULT CordbProcess::ModifyLogSwitch(
 
 HRESULT CordbProcess::EnumerateAppDomains(
 	/* [out] */ ICorDebugAppDomainEnum** ppAppDomains) {
-	DEBUG_PRINTF(1, "CordbProcess - EnumerateAppDomains - NOT IMPLEMENTED\n");
+	*ppAppDomains = new CordbAppDomainEnum();
+	DEBUG_PRINTF(1, "CordbProcess - EnumerateAppDomains - IMPLEMENTED\n");
 	return S_OK;
 }
 

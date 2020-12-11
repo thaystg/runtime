@@ -156,6 +156,7 @@ Cordb::Cordb()
 	breakpoints = g_ptr_array_new();
 	threads = g_ptr_array_new();
 	functions = g_ptr_array_new();
+	modules = g_hash_table_new (NULL, NULL);
 }
 
 CordbFunction* Cordb::findFunction(int id)
@@ -358,6 +359,7 @@ void Connection::process_packet_internal(Buffer *recvbuf)
 
 			ppProcess->suspended = true;
 			ICorDebugModule* pModule = new CordbModule(ppProcess, (CordbAssembly*)pAssembly, assembly_id);
+			g_hash_table_insert (ppCordb->modules, GINT_TO_POINTER(assembly_id), pModule);
 			ppCordb->pCallback->LoadModule(pCorDebugAppDomain, pModule);
 		}
 		break;

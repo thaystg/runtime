@@ -43,6 +43,19 @@ private:
     HRESULT STDMETHODCALLTYPE GetObjectForCCW(/* [in] */ CORDB_ADDRESS ccwPointer,/* [out] */ ICorDebugValue** ppManagedObject);
 };
 
+class CordbAppDomainEnum : public ICorDebugAppDomainEnum {
+
+public:
+    HRESULT STDMETHODCALLTYPE Next(ULONG celt, ICorDebugAppDomain* values[], ULONG* pceltFetched);
+    HRESULT STDMETHODCALLTYPE Skip(ULONG celt);
+    HRESULT STDMETHODCALLTYPE Reset(void);
+    HRESULT STDMETHODCALLTYPE Clone(ICorDebugEnum** ppEnum);
+    HRESULT STDMETHODCALLTYPE GetCount(ULONG* pcelt);
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject);
+    ULONG STDMETHODCALLTYPE AddRef(void);
+    ULONG STDMETHODCALLTYPE Release(void);
+
+};
 
 
 #endif

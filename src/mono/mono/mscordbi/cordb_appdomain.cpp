@@ -230,3 +230,59 @@ HRESULT CordbAppDomain::GetObjectForCCW(/* [in] */ CORDB_ADDRESS ccwPointer,/* [
 	DEBUG_PRINTF(1, "CordbAppDomain - GetObjectForCCW - NOT IMPLEMENTED\n");
 	return S_OK;
 }
+
+HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::Next(ULONG celt, ICorDebugAppDomain* values[], ULONG* pceltFetched)
+{
+	*pceltFetched = celt;
+	DEBUG_PRINTF(1, "CordbAppDomainEnum - Next - IMPLEMENTED\n");
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::Skip(ULONG celt)
+{
+	DEBUG_PRINTF(1, "CordbAppDomain - Skip - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::Reset(void)
+{
+	DEBUG_PRINTF(1, "CordbAppDomain - Reset - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::Clone(ICorDebugEnum** ppEnum)
+{
+	DEBUG_PRINTF(1, "CordbAppDomain - Clone - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::GetCount(ULONG* pcelt)
+{
+	*pcelt = 0;
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::QueryInterface(REFIID id, void** pInterface)
+{
+	if (id == IID_IUnknown)
+		*pInterface = static_cast<IUnknown*>(static_cast<ICorDebugAppDomainEnum*>(this));
+	else if (id == IID_ICorDebugAppDomainEnum)
+		*pInterface = static_cast<ICorDebugAppDomainEnum*>(this);
+	else if (id == IID_ICorDebugEnum)
+		*pInterface = static_cast<ICorDebugEnum*>(this);
+	else {
+		DEBUG_PRINTF(1, "CordbAppDomain - QueryInterface - NOT IMPLEMENTED\n");
+		return E_NOINTERFACE;
+	}
+	return S_OK;
+}
+
+ULONG STDMETHODCALLTYPE CordbAppDomainEnum::AddRef(void)
+{
+	return 1;
+}
+
+ULONG STDMETHODCALLTYPE CordbAppDomainEnum::Release(void)
+{
+	return 1;
+}

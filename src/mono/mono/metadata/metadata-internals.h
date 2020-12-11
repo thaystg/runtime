@@ -761,6 +761,7 @@ typedef struct {
 	guint16      max_stack;
 	gboolean     has_clauses;
 	gboolean     has_locals;
+	guint32 rva;
 } MonoMethodHeaderSummary;
 
 // FIXME? offsetof (MonoMethodHeader, locals)?

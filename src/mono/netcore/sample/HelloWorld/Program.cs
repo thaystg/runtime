@@ -7,6 +7,23 @@ using System.Diagnostics;
 
 namespace HelloWorld
 {
+    public class Thays
+    {
+        public long myLong;
+        public int myInt;
+        public char myLetter;
+        public bool myBool;
+        public string myString;
+        public Thays(int c)
+        {
+            myLong = c + 10000;
+            myInt = c + 10;
+            myLetter = 'a';
+            myBool = c == 50;
+            myString = "thaysgrazia";
+        }
+    }
+
     internal class Program
     {
         private static void Main(string[] args)
@@ -32,11 +49,14 @@ namespace HelloWorld
             char myLetter = 'a';
             bool myBool = c == 50;
             string myString = "thays";
+            Thays t = new Thays(c + 1);
             myString = myString + myLetter;
             Console.WriteLine(myLetter);
             Console.WriteLine(myBool);
             Console.WriteLine(myLong);
             Console.WriteLine(myInt);
+            Console.WriteLine(myString);
+            Console.WriteLine(t.ToString());
         }
     }
 }

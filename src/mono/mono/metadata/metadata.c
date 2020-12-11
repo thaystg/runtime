@@ -4347,7 +4347,6 @@ gboolean
 mono_method_get_header_summary (MonoMethod *method, MonoMethodHeaderSummary *summary)
 {
 	int idx;
-	guint32 rva;
 	MonoImage* img;
 	const char *ptr;
 	unsigned char flags, format;
@@ -4383,15 +4382,15 @@ mono_method_get_header_summary (MonoMethod *method, MonoMethodHeaderSummary *sum
 
 	idx = mono_metadata_token_index (method->token);
 	img = m_class_get_image (method->klass);
-	rva = mono_metadata_decode_row_col (&img->tables [MONO_TABLE_METHOD], idx - 1, MONO_METHOD_RVA);
+	summary->rva = mono_metadata_decode_row_col (&img->tables [MONO_TABLE_METHOD], idx - 1, MONO_METHOD_RVA);
 
 	/*We must run the verifier since we'll be decoding it.*/
-	if (!mono_verifier_verify_method_header (img, rva, error)) {
+	if (!mono_verifier_verify_method_header (img, summary->rva, error)) {
 		mono_error_cleanup (error);
 		return FALSE;
 	}
 
-	ptr = mono_image_rva_map (img, rva);
+	ptr = mono_image_rva_map (img, summary->rva);
 	if (!ptr)
 		return FALSE;
 

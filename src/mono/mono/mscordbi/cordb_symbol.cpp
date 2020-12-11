@@ -555,6 +555,12 @@ ULONG* pcTokens)        // [OUT] Put # put here.
 	return S_OK;
 }
 
+class HENUMInternal {
+public:
+	GPtrArray* items;
+	int currentIdx;
+};
+
 HRESULT CordbSymbol::EnumFields(                  // S_OK, S_FALSE, or error.
 HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
 mdTypeDef   cl,                     // [IN] TypeDef to scope the enumeration.
@@ -562,7 +568,60 @@ mdFieldDef  rFields[],              // [OUT] Put FieldDefs here.
 ULONG       cMax,                   // [IN] Max FieldDefs to put.
 ULONG* pcTokens)        // [OUT] Put # put here.
 {
-	DEBUG_PRINTF(1, "CordbSymbol - EnumFields - NOT IMPLEMENTED\n");
+	if (cl == 33554532)
+		return E_NOTIMPL;
+	DEBUG_PRINTF(1, "CordbSymbol - EnumFields - %d - %d\n", cl, this->pCordbAssembly->id);
+	if (*phEnum == NULL)
+	{
+		Buffer localbuf;
+		buffer_init(&localbuf, 128);
+		buffer_add_id(&localbuf, this->pCordbAssembly->id);
+		buffer_add_int(&localbuf, cl);
+		int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN, &localbuf);
+		buffer_free(&localbuf);
+		Buffer* localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
+		int klass_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+		DEBUG_PRINTF(1, "CordbSymbol - EnumFields - 1\n");
+		
+		buffer_init(&localbuf, 128);
+		buffer_add_int(&localbuf, klass_id);
+
+		DEBUG_PRINTF(1, "CordbSymbol - EnumFields - 1.1 - %d\n", klass_id);
+
+		cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_TYPE, CMD_TYPE_GET_FIELDS, &localbuf);
+		buffer_free(&localbuf);
+		localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
+		int num_fields = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		GPtrArray *fields = g_ptr_array_new();
+		for (int i = 0; i < num_fields; i++) {
+			DEBUG_PRINTF(1, "CordbSymbol - EnumFields - 2\n");
+			int* field_id = new int;
+			*field_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			*field_id = mono_metadata_make_token(MONO_TABLE_FIELD, *field_id);
+			char *field_name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			DEBUG_PRINTF(1, "CordbSymbol - EnumFields - 3 -  %d - %s\n", *field_id, field_name);
+			g_ptr_array_add(fields, field_id);
+		}
+		HENUMInternal* enumInternal = new HENUMInternal();
+		enumInternal->items = fields;
+		enumInternal->currentIdx = 1;
+		*phEnum = enumInternal;
+	}
+	HENUMInternal* enumInternal = static_cast<HENUMInternal*>(*phEnum);
+	for (int i = 0; i < cMax; i++) {
+		DEBUG_PRINTF(1, "CordbSymbol - EnumFields - to fazendo o loop - %d - %d\n", enumInternal->currentIdx, enumInternal->items->len);
+		if (enumInternal->currentIdx > enumInternal->items->len) {
+			*pcTokens = i;
+			return S_OK;
+		}
+		rFields[i] = *(int*)(g_ptr_array_index(enumInternal->items, enumInternal->currentIdx - 1));
+		DEBUG_PRINTF(1, "CordbSymbol - EnumFields - to fazendo o loop - %d\n", rFields[i]);
+		enumInternal->currentIdx++;
+	}
+	*pcTokens = cMax;
 	return S_OK;
 }
 
@@ -731,7 +790,7 @@ DWORD* pdwImplFlags)    // [OUT] Impl. Flags
 	int type_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	int type_id2 = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	int token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	*pClass = token;
+	*pClass = mdTypeDefNil;
 	if (cchMethod > strlen(class_name_str)) {
 		mbstowcs(szMethod, class_name_str, strlen(class_name_str) + 1);
 	}
@@ -745,12 +804,19 @@ DWORD* pdwImplFlags)    // [OUT] Impl. Flags
 		memcpy((void*)*ppvSigBlob, tempSignature, 4 * sizeof(COR_SIGNATURE));
 		*pcbSigBlob = 4;
 	}
-	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 4\n");
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, func_id);
+	cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_METHOD, CMD_METHOD_RVA, &localbuf);
+	buffer_free(&localbuf);
+
+	localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
+
+	int rva = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	if (pulCodeRVA)
 	{
-		*pulCodeRVA = 8460;
+		*pulCodeRVA = rva;
 	}
-	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 5\n");
+	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - rva - %d\n", rva);
 	return S_OK;
 }
 
@@ -776,6 +842,7 @@ ULONG       cMax,                   // [IN] Max properties to put.
 ULONG* pcProperties)    // [OUT] Put # put here.
 {
 	DEBUG_PRINTF(1, "CordbSymbol - EnumProperties - NOT IMPLEMENTED\n");
+	*pcProperties = 0;
 	return S_OK;
 }
 
@@ -876,14 +943,14 @@ PCCOR_SIGNATURE* ppvSig,            // [OUT] return pointer to token.
 ULONG* pcbSig)          // [OUT] return size of signature.
 {
 	DEBUG_PRINTF(1, "CordbSymbol - GetSigFromToken - NOT IMPLEMENTED - %d\n", mdSig);
-	COR_SIGNATURE tempSignature[7] = { 7, 5, 10, 8, 3, 2, 14}; // segundo parametro quantas locais, terceiro em diante os tipos
+	COR_SIGNATURE tempSignature[9] = { 7, 6, 10, 8, 3, 2, 14, ELEMENT_TYPE_CLASS, 8}; // segundo parametro quantas locais, terceiro em diante os tipos
 	if (ppvSig)
 	{
-		*ppvSig = new COR_SIGNATURE[7];
-		memcpy((void*)*ppvSig, tempSignature, 7 * sizeof(COR_SIGNATURE));
+		*ppvSig = new COR_SIGNATURE[9];
+		memcpy((void*)*ppvSig, tempSignature, 9 * sizeof(COR_SIGNATURE));
 	}
 
-	*pcbSig = 7;
+	*pcbSig = 9;
 	return S_OK;
 }
 
@@ -1007,6 +1074,7 @@ mdCustomAttribute rCustomAttributes[], // [OUT] Put custom attribute tokens here
 ULONG       cMax,                   // [IN] Size of rCustomAttributes.
 ULONG* pcCustomAttributes)  // [OUT, OPTIONAL] Put count of token values here.
 {
+	*pcCustomAttributes = 0;
 	DEBUG_PRINTF(1, "CordbSymbol - EnumCustomAttributes - NOT IMPLEMENTED\n");
 	return S_OK;
 }
@@ -1065,7 +1133,43 @@ DWORD* pdwCPlusTypeFlag,      // [OUT] flag for value type. selected ELEMENT_TYP
 UVCP_CONSTANT* ppValue,             // [OUT] constant value
 ULONG* pcchValue)       // [OUT] size of constant string in chars, 0 for non-strings.
 {
-	DEBUG_PRINTF(1, "CordbSymbol - GetFieldProps - NOT IMPLEMENTED\n");
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, mono_metadata_token_index(mb));
+	int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_FIELD, CMD_FIELD_GET_INFO, &localbuf);
+	buffer_free(&localbuf);
+
+	Buffer* localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
+
+	char *field_name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int type_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int klass_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int attrs = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int type = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int klass_token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+	
+	if (ppvSigBlob || pcbSigBlob) {
+		DEBUG_PRINTF(1, "CordbSymbol - GetFieldProps - IMPLEMENTED 1.1, %s, %d, %d\n", field_name, attrs, type);
+		COR_SIGNATURE tempSignature[2];
+		*pcbSigBlob = 2;
+		tempSignature[0] = attrs;
+		tempSignature[1] = type;
+		*ppvSigBlob = new COR_SIGNATURE[2];
+		memcpy((void*)*ppvSigBlob, tempSignature, 2 * sizeof(COR_SIGNATURE));
+		*pdwCPlusTypeFlag = 1;
+		*pdwAttr = 1;
+	}
+
+	DEBUG_PRINTF(1, "CordbSymbol - GetFieldProps - IMPLEMENTED, %s, %d, %d, %d\n", field_name, attrs, type, klass_id);
+
+	*pClass = klass_token;
+	if (cchField > strlen(field_name)) {
+		DEBUG_PRINTF(1, "CordbSymbol - GetFieldProps - FIZ COPIA DO NOME - IMPLEMENTED, %s, %d, %d\n", field_name, attrs, type);
+		mbstowcs(szField, field_name, strlen(field_name) + 1);
+		*pchField = strlen(field_name);
+	}
+	
 	return S_OK;
 }
 
@@ -1140,7 +1244,7 @@ ULONG* pcbData)         // [OUT] Put size of data here.
 BOOL CordbSymbol::IsValidToken(         // True or False.
 mdToken     tk)               // [IN] Given token.
 {
-	DEBUG_PRINTF(1, "CordbSymbol - IsValidToken - IMPLEMENTED\n");
+	DEBUG_PRINTF(1, "CordbSymbol - IsValidToken - IMPLEMENTED - %d\n", tk);
 
 	return 1;
 }

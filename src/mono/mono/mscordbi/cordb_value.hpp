@@ -41,6 +41,7 @@ class CordbReferenceValue : public ICorDebugReferenceValue, public ICorDebugValu
     CorElementType type;
     int object_id;
     Connection* conn;
+    CordbClass* klass;
 public:
     CordbReferenceValue(Connection *conn, CorElementType type, int object_id);
     HRESULT STDMETHODCALLTYPE GetType(CorElementType* pType);
@@ -76,10 +77,14 @@ class CordbObjectValue : public ICorDebugObjectValue,
     CorElementType type;
     int object_id;
     Connection* conn;
+    CordbClass* klass;
 public:
-    CordbObjectValue(Connection* conn, CorElementType type, int object_id);
+    CordbObjectValue(Connection* conn, CorElementType type, int object_id, CordbClass* klass);
     HRESULT STDMETHODCALLTYPE GetClass(/* [out] */ ICorDebugClass** ppClass);
     HRESULT STDMETHODCALLTYPE GetFieldValue(ICorDebugClass* pClass, mdFieldDef fieldDef, ICorDebugValue** ppValue);
+
+    static HRESULT CreateCordbValue(Connection* conn, Buffer* localbuf2, ICorDebugValue** ppValue);
+
     HRESULT STDMETHODCALLTYPE GetVirtualMethod(mdMemberRef memberRef, ICorDebugFunction** ppFunction);
     HRESULT STDMETHODCALLTYPE GetContext(ICorDebugContext** ppContext);
     HRESULT STDMETHODCALLTYPE IsValueClass(BOOL* pbIsValueClass);

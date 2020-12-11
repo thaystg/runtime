@@ -320,7 +320,7 @@ HRESULT CordbModule::GetClassFromToken(
 	/* [in] */ mdTypeDef typeDef,
 	/* [out] */ ICorDebugClass** ppClass)
 {
-	CordbClass* pClass = new CordbClass(pProcess->connection, typeDef);
+	CordbClass* pClass = new CordbClass(pProcess->connection, typeDef, id);
 	*ppClass = static_cast<ICorDebugClass*>(pClass);
 	return S_OK;
 }

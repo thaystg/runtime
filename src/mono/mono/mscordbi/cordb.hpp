@@ -34,6 +34,7 @@ class CordbFunction;
 class CordbStepper;
 class CordbSymbol;
 class CordbRegisteSet;
+class CordbClass;
 
 int convert_mono_type_2_icordbg_size(int type);
 
@@ -184,6 +185,8 @@ public:
     GPtrArray* breakpoints;
     GPtrArray* threads;
     GPtrArray* functions;
+    GHashTable* modules;
+
     ICorDebugManagedCallback* pCallback;
     Cordb();
 
@@ -259,10 +262,10 @@ public:
 class Connection
 {
 	SOCKET connect_socket;
-	CordbProcess* ppProcess;
-	Cordb* ppCordb;
     bool is_answer_pending;
 public:
+	CordbProcess* ppProcess;
+	Cordb* ppCordb;
     CordbAppDomain* pCorDebugAppDomain;
 	GHashTable* received_replies;
 	GPtrArray* received_replies_to_process;

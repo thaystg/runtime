@@ -7426,6 +7426,8 @@ field_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		buffer_add_typeid (buf, domain, f->parent);
 		buffer_add_typeid (buf, domain, mono_class_from_mono_type_internal (f->type));
 		buffer_add_int (buf, f->type->attrs);
+		buffer_add_int (buf, f->type->type);
+		buffer_add_int (buf, m_class_get_type_token (f->parent));
 		break;
 	}
 	default:
@@ -8096,6 +8098,7 @@ type_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 static ErrorCode
 method_commands_internal (int command, MonoMethod *method, MonoDomain *domain, guint8 *p, guint8 *end, Buffer *buf)
 {
+	DEBUG_PRINTF(1, "method_commands_internal\n");
 	MonoMethodHeader *header;
 	ErrorCode err;
 
@@ -8528,6 +8531,13 @@ method_commands_internal (int command, MonoMethod *method, MonoDomain *domain, g
 		if (!mono_verifier_is_method_valid_generic_instantiation (inflated))
 			return ERR_INVALID_ARGUMENT;
 		buffer_add_methodid (buf, domain, inflated);
+		break;
+	}
+	case CMD_METHOD_RVA: {
+		DEBUG_PRINTF(1, "CMD_METHOD_RVA\n");
+		MonoMethodHeaderSummary header;
+		mono_method_get_header_summary (method, &header);
+		buffer_add_int(buf, header.rva);
 		break;
 	}
 	default:

@@ -12,22 +12,28 @@
 
 using namespace std;
 
-CordbClass::CordbClass(Connection *conn, mdToken token)
+CordbClass::CordbClass(Connection *conn, mdToken token, int module_id)
 {
 	this->token = token;
 	this->conn = conn;
+	this->module_id = module_id;
 }
 
 HRESULT STDMETHODCALLTYPE CordbClass::GetModule(ICorDebugModule** pModule)
 {
-	DEBUG_PRINTF(1, "CordbNativeFrame - GetModule - NOT IMPLEMENTED\n");
-	return E_NOTIMPL;
+	DEBUG_PRINTF(1, "CordbClass - GetModule - IMPLEMENTED - %d\n", module_id);
+	if (pModule) {
+		*pModule = (ICorDebugModule*)g_hash_table_lookup(conn->ppCordb->modules, GINT_TO_POINTER(module_id));
+		DEBUG_PRINTF(1, "CordbClass - GetModule - IMPLEMENTED - %x\n", *pModule);
+	}
+	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbClass::GetToken(mdTypeDef* pTypeDef)
 {
-	DEBUG_PRINTF(1, "CordbNativeFrame - GetToken - NOT IMPLEMENTED\n");
-	return E_NOTIMPL;
+	DEBUG_PRINTF(1, "CordbClass - GetToken - IMPLEMENTED - %d\n", module_id);
+	*pTypeDef = token;
+	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbClass::GetStaticFieldValue(mdFieldDef fieldDef, ICorDebugFrame* pFrame, ICorDebugValue** ppValue)

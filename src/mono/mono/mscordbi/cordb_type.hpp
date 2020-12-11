@@ -8,8 +8,9 @@ class CordbType:
     public ICorDebugType2
 {
     CorElementType type;
+    CordbClass* klass;
 public:
-    CordbType(CorElementType type);
+    CordbType(CorElementType type, CordbClass* klass = NULL);
     HRESULT STDMETHODCALLTYPE GetType(CorElementType* ty);
     HRESULT STDMETHODCALLTYPE GetClass(ICorDebugClass** ppClass);
     HRESULT STDMETHODCALLTYPE EnumerateTypeParameters(ICorDebugTypeEnum** ppTyParEnum);
