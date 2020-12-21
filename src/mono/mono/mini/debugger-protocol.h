@@ -133,7 +133,8 @@ typedef enum {
 	CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN = 11,
 	CMD_ASSEMBLY_GET_METHOD_FROM_TOKEN = 12,
 	CMD_ASSEMBLY_HAS_DEBUG_INFO = 13,
-	CMD_ASSEMBLY_GET_CUSTOM_ATTRIBUTES = 14
+	CMD_ASSEMBLY_GET_CUSTOM_ATTRIBUTES = 14,
+	CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN = 15
 } CmdAssembly;
 
 typedef enum {
@@ -187,6 +188,7 @@ typedef enum {
 	CMD_STACK_FRAME_SET_VALUES = 3,
 	CMD_STACK_FRAME_GET_DOMAIN = 4,
 	CMD_STACK_FRAME_SET_THIS = 5,
+	CMD_STACK_FRAME_GET_ARGUMENT = 6,
 } CmdStackFrame;
 
 typedef enum {
@@ -237,6 +239,8 @@ typedef struct {
 	int flags;
 	int command_set;
 	int command;
+	int error;
+	int error_2;
 } Header;
 
 typedef struct ReplyPacket {

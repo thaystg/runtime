@@ -29,6 +29,11 @@ HRESULT STDMETHODCALLTYPE CordbType::GetType(CorElementType* ty)
 HRESULT STDMETHODCALLTYPE CordbType::GetClass(ICorDebugClass** ppClass)
 {
 	DEBUG_PRINTF(1, "CordbType - GetClass - IMPLEMENTED\n");
+	if (!klass)
+	{
+		DEBUG_PRINTF(1, "CordbType - GetClass - SEM CLASSE\n");
+		return S_OK;
+	}
 	*ppClass = static_cast<ICorDebugClass*>(klass);
 	return S_OK;
 }

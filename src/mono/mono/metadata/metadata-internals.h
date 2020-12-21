@@ -973,6 +973,12 @@ MonoMethodSignature  *mono_metadata_parse_signature_checked (MonoImage *image,
 							     uint32_t    token,
 							     MonoError *error);
 
+
+MonoMethodHeader *mono_metadata_parse_header_checked  (MonoImage *image, 
+								guint32 token, 
+								int *len_blob, 
+								MonoError *error);
+
 gboolean
 mono_method_get_header_summary (MonoMethod *method, MonoMethodHeaderSummary *summary);
 

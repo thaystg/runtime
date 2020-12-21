@@ -317,24 +317,15 @@ HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetArgument(
 	buffer_init(&localbuf, 128);
 	buffer_add_id(&localbuf, thread->thread_id);
 	buffer_add_id(&localbuf, frameid);
-	buffer_add_int(&localbuf, 1);
-	buffer_add_int(&localbuf, -1);
+	
 
-	int cmdId = thread->ppProcess->connection->send_event(CMD_SET_STACK_FRAME, CMD_STACK_FRAME_GET_VALUES, &localbuf);
+    buffer_add_int(&localbuf, dwIndex);
+	int cmdId = thread->ppProcess->connection->send_event(CMD_SET_STACK_FRAME, CMD_STACK_FRAME_GET_ARGUMENT, &localbuf);
 	buffer_free(&localbuf);
 
 	Buffer* localbuf2 = thread->ppProcess->connection->get_answer(cmdId);
-
-	
-	int type = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	CordbContent value;
-	value.intValue = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-
-	*ppValue = new CordbValue(thread->ppProcess->connection, ELEMENT_TYPE_I4, value, 4);
-
-	
-	DEBUG_PRINTF(1, "CordbFrame - GetArgument - IMPLEMENTED - dwIndex\n");
-	return S_OK;
+	DEBUG_PRINTF(1, "CordbFrame - GetArgument - IMPLEMENTED - dwIndex - %d\n", dwIndex);
+	return CordbObjectValue::CreateCordbValue(thread->ppProcess->connection, localbuf2, ppValue);
 }
 
 HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetStackDepth(

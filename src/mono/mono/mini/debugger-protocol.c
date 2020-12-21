@@ -42,16 +42,7 @@
 #include "debugger-protocol.h"
 #include "debugger-engine.h"
 
-static int log_level = 10;
-static FILE *log_file;
-
 static int packet_id = 0;
-
-#ifdef HOST_ANDROID
-#define DEBUG_PRINTF(level, ...) do { if (G_UNLIKELY ((level) <= log_level)) { g_print (__VA_ARGS__); } } while (0)
-#else
-#define DEBUG_PRINTF(level, ...) do { if (G_UNLIKELY ((level) <= log_level)) { fprintf (log_file, __VA_ARGS__); fflush (log_file); } } while (0)
-#endif
 
 /*
  * Functions to decode protocol data
@@ -78,8 +69,14 @@ decode_command_header(Buffer *recvbuf, Header *header)
 	header->len = decode_int(recvbuf->buf, &recvbuf->buf, recvbuf->end);
 	header->id = decode_int(recvbuf->buf, &recvbuf->buf, recvbuf->end);
 	header->flags = decode_byte(recvbuf->buf, &recvbuf->buf, recvbuf->end);
-	header->command_set = decode_byte(recvbuf->buf, &recvbuf->buf, recvbuf->end);
-	header->command = decode_byte(recvbuf->buf, &recvbuf->buf, recvbuf->end);
+	if (header->flags == REPLY_PACKET) {
+		header->error = decode_byte(recvbuf->buf, &recvbuf->buf, recvbuf->end);
+		header->error_2 = decode_byte(recvbuf->buf, &recvbuf->buf, recvbuf->end);
+	}
+	else {
+		header->command_set = decode_byte(recvbuf->buf, &recvbuf->buf, recvbuf->end);
+		header->command = decode_byte(recvbuf->buf, &recvbuf->buf, recvbuf->end);
+	}
 }
 
 int

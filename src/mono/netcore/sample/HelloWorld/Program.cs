@@ -7,6 +7,12 @@ using System.Diagnostics;
 
 namespace HelloWorld
 {
+    public class Leone{
+        public int myLeoneValue;
+        public Leone(int c) {
+            myLeoneValue = c;
+        }
+    }
     public class Thays
     {
         public long myLong;
@@ -14,6 +20,7 @@ namespace HelloWorld
         public char myLetter;
         public bool myBool;
         public string myString;
+        public Leone myLeone;
         public Thays(int c)
         {
             myLong = c + 10000;
@@ -21,6 +28,10 @@ namespace HelloWorld
             myLetter = 'a';
             myBool = c == 50;
             myString = "thaysgrazia";
+            myLeone = new Leone(c + 1);
+        }
+        public int localMethod() {
+            return myInt;
         }
     }
 
@@ -50,9 +61,21 @@ namespace HelloWorld
             bool myBool = c == 50;
             string myString = "thays";
             Thays t = new Thays(c + 1);
+            bool myBool2 = c == 51;
+            char myLetter2 = 'b';
+
+            /*int[] numeros = new int[5];
+            numeros[0] = 1;
+            numeros[1] = 600;
+            numeros[2] = 257;
+            numeros[3] = 12;
+            numeros[4] = 42;*/
+
             myString = myString + myLetter;
             Console.WriteLine(myLetter);
+            Console.WriteLine(myLetter2);
             Console.WriteLine(myBool);
+            Console.WriteLine(myBool2);
             Console.WriteLine(myLong);
             Console.WriteLine(myInt);
             Console.WriteLine(myString);

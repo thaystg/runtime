@@ -276,7 +276,7 @@ static int packet_id = 0;
 #define HEADER_LENGTH 11
 
 #define MAJOR_VERSION 2
-#define MINOR_VERSION 57
+#define MINOR_VERSION 58
 
 
 /*
@@ -5028,6 +5028,10 @@ buffer_add_value_full (Buffer *buf, MonoType *t, void *addr, MonoDomain *domain,
 
 		if (!obj) {
 			buffer_add_byte (buf, VALUE_TYPE_ID_NULL);
+			if (CHECK_PROTOCOL_VERSION (2, 58)) {
+				buffer_add_byte (buf, t->type);
+				buffer_add_typeid (buf, domain, mono_class_from_mono_type_internal (t));
+			}
 		} else {
 			if (m_class_is_valuetype (obj->vtable->klass)) {
 				t = m_class_get_byval_arg (obj->vtable->klass);
@@ -6418,6 +6422,7 @@ get_types_for_source_file (gpointer key, gpointer value, gpointer user_data)
 
 static void add_error_string (Buffer *buf, const char *str) 
 {
+	printf("ERROR: %s\n", str);
 	if (CHECK_PROTOCOL_VERSION (2, 56)) 
 		buffer_add_string (buf, str);
 }
@@ -7175,6 +7180,32 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		return err;
 
 	switch (command) {
+	case CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN: {
+		ErrorCode error;
+		DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN\n");
+		int token = decode_int (p, &p, end);
+		DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 1 - %d\n", token);
+		DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 2 - %d\n", token);
+		int blob_len;
+		MonoMethodHeader *ret = mono_metadata_parse_header_checked (ass->image, token, &blob_len, &error);
+		if (ret) {
+			buffer_add_int (buf, blob_len);
+			buffer_add_int (buf, 7);
+			buffer_add_int (buf, ret->num_locals);
+			for (int i = 0; i < ret->num_locals; i++) {
+				DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 2.1 - %d\n", ret->locals[i]->type);
+				buffer_add_int (buf, ret->locals[i]->type);
+				if (ret->locals[i]->type == MONO_TYPE_CLASS) {
+					DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 3 - %d\n", ret->locals[i]->attrs);
+					DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 3.1 - %d\n", ret->locals[i]->data.klass->class_kind);
+					DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 3.2 - %d\n", ret->locals[i]->data.klass->type_token);
+					DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 3.3 - %d\n", mono_metadata_token_table(ret->locals[i]->data.klass->type_token));
+					buffer_add_int (buf,  mono_metadata_token_table(ret->locals[i]->data.klass->type_token));
+				}
+			}
+		}
+		break;
+	}
 	case CMD_ASSEMBLY_GET_LOCATION: {
 		buffer_add_string (buf, mono_image_get_filename (ass->image));
 		break;			
@@ -7280,13 +7311,13 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		g_free (name);
 		break;
 	}
-    case CMD_ASSEMBLY_GET_METADATA_BLOB: {
+	case CMD_ASSEMBLY_GET_METADATA_BLOB: {
 		MonoImage* image = ass->image;
-        if (ass->dynamic) {
-            return ERR_NOT_IMPLEMENTED;
-        }
-        buffer_add_byte_array (buf, (guint8*)image->raw_data, image->raw_data_len);
-        break;
+		if (ass->dynamic) {
+			return ERR_NOT_IMPLEMENTED;
+		}
+		buffer_add_byte_array (buf, (guint8*)image->raw_data, image->raw_data_len);
+		break;
     }
 
     case CMD_ASSEMBLY_GET_IS_DYNAMIC: {
@@ -7317,10 +7348,12 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
         error_init (error);
         MonoClass* mono_class = mono_class_get_checked (ass->image, token, error);
         if (!is_ok (error)) {
+			DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN - ERRO - %d - %s\n",  token, mono_error_get_message (error));
             add_error_string (buf, mono_error_get_message (error));
             mono_error_cleanup (error);
             return ERR_INVALID_ARGUMENT;
         }
+		DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN - %s\n", m_class_get_name (mono_class));
         buffer_add_typeid (buf, domain, mono_class);
         mono_error_cleanup (error);
         break;
@@ -7396,13 +7429,12 @@ module_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		buffer_add_string (buf, mono_image_get_guid (image)); // guid
 		buffer_add_assemblyid (buf, domain, image->assembly); // assembly
 		if (CHECK_PROTOCOL_VERSION (2, 48)) {
-			printf("CHECK_PROTOCOL_VERSION (2, 48)\n");
-			fflush(stdout);
 			buffer_add_string (buf, sourcelink);
 		}
 		g_free (basename);
 		g_free (sourcelink);
-		buffer_add_byte_array(buf, mono_metadata_module_mvid (image), 16);
+		if (CHECK_PROTOCOL_VERSION (2, 58))
+			buffer_add_byte_array(buf, mono_metadata_module_mvid (image), 16);
 		break;			
 	}
 	default:
@@ -7426,9 +7458,12 @@ field_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		buffer_add_typeid (buf, domain, f->parent);
 		buffer_add_typeid (buf, domain, mono_class_from_mono_type_internal (f->type));
 		buffer_add_int (buf, f->type->attrs);
-		buffer_add_int (buf, f->type->type);
-		buffer_add_int (buf, m_class_get_type_token (f->parent));
-		break;
+		if (CHECK_PROTOCOL_VERSION (2, 58)) {
+			buffer_add_int (buf, f->type->type);
+			buffer_add_int (buf, m_class_get_type_token (f->parent));
+			buffer_add_int (buf, m_class_get_type_token (mono_class_from_mono_type_internal (f->type)));
+		}
+        break;
 	}
 	default:
 		return ERR_NOT_IMPLEMENTED;
@@ -7570,6 +7605,7 @@ collect_interfaces (MonoClass *klass, GHashTable *ifaces, MonoError *error)
 static ErrorCode
 type_commands_internal (int command, MonoClass *klass, MonoDomain *domain, guint8 *p, guint8 *end, Buffer *buf)
 {
+	DEBUG_PRINTF(1, "type_commands_internal\n");
 	HANDLE_FUNCTION_ENTER ();
 
 	ERROR_DECL (error);
@@ -7584,6 +7620,7 @@ type_commands_internal (int command, MonoClass *klass, MonoDomain *domain, guint
 
 	switch (command) {
 	case CMD_TYPE_GET_INFO: {
+		DEBUG_PRINTF(1, "type_commands_internal CMD_TYPE_GET_INFO\n");
 		buffer_add_string (buf, m_class_get_name_space (klass));
 		buffer_add_string (buf, m_class_get_name (klass));
 		// FIXME: byref
@@ -8081,8 +8118,10 @@ type_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 	ErrorCode err;
 
 	klass = decode_typeid (p, &p, end, &domain, &err);
-	if (err != ERR_NONE)
+	if (err != ERR_NONE) {
+		DEBUG_PRINTF(1, "type_commands err %d\n", err);
 		return err;
+	}
 
 	old_domain = mono_domain_get ();
 
@@ -8642,8 +8681,8 @@ thread_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 			 */
 			buffer_add_byte (buf, tls->frames [i]->flags);
 		}
-		buffer_add_byte_array(buf, ((guint8 *)&tls->context.ctx), (guint32)sizeof(MonoContext));
-
+		if (CHECK_PROTOCOL_VERSION (2, 58))
+			buffer_add_byte_array(buf, ((guint8 *)&tls->context.ctx), (guint32)sizeof(MonoContext));
 		break;
 	}
 	case CMD_THREAD_GET_STATE:
@@ -8787,6 +8826,19 @@ frame_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		return ERR_ABSENT_INFORMATION;
 
 	switch (command) {
+	case CMD_STACK_FRAME_GET_ARGUMENT: {
+		ERROR_DECL (error);
+		pos = decode_int (p, &p, end);
+		if (sig->hasthis) {
+			if (pos == 0)
+				goto cmd_stack_frame_get_this;
+			else
+				pos--;
+		}
+		len = 1;		
+		header = mono_method_get_header_checked (frame->actual_method, error);
+		goto cmd_stack_frame_get_parameter;
+	}
 	case CMD_STACK_FRAME_GET_VALUES: {
 		ERROR_DECL (error);
 		len = decode_int (p, &p, end);
@@ -8798,7 +8850,7 @@ frame_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 
 			if (pos < 0) {
 				pos = - pos - 1;
-
+cmd_stack_frame_get_parameter:
 				DEBUG_PRINTF (4, "[dbg]   send arg %d.\n", pos);
 
 				if (frame->de.ji->is_interp) {
@@ -8841,6 +8893,7 @@ frame_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		break;
 	}
 	case CMD_STACK_FRAME_GET_THIS: {
+cmd_stack_frame_get_this:	
 		if (frame->de.method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE)
 			return ERR_ABSENT_INFORMATION;
 		if (m_class_is_valuetype (frame->api_method->klass)) {
@@ -9230,8 +9283,10 @@ object_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 
 		for (i = 0; i < len; ++i) {
 			MonoClassField *f = decode_fieldid (p, &p, end, NULL, &err);
-			if (err != ERR_NONE)
+			if (err != ERR_NONE) {
+				DEBUG_PRINTF (1, "[dbg] CMD_OBJECT_REF_GET_VALUES 1.1\n");
 				goto exit;
+			}
 
 			/* Check that the field belongs to the object */
 			found = FALSE;
@@ -9241,28 +9296,35 @@ object_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 					break;
 				}
 			}
-			if (!found)
+			if (!found) {
+				DEBUG_PRINTF (1, "[dbg] CMD_OBJECT_REF_GET_VALUES 1.2\n");
 				goto invalid_fieldid;
+			}
 
 			if (f->type->attrs & FIELD_ATTRIBUTE_STATIC) {
 				guint8 *val;
 				MonoVTable *vtable;
 
-				if (mono_class_field_is_special_static (f))
+				if (mono_class_field_is_special_static (f)) {
+					DEBUG_PRINTF (1, "[dbg] CMD_OBJECT_REF_GET_VALUES 1.3\n");
 					goto invalid_fieldid;
+				}
 
 				g_assert (f->type->attrs & FIELD_ATTRIBUTE_STATIC);
 				vtable = mono_class_vtable_checked (obj->vtable->domain, f->parent, error);
 				if (!is_ok (error)) {
 					mono_error_cleanup (error);
+					DEBUG_PRINTF (1, "[dbg] CMD_OBJECT_REF_GET_VALUES 1.4\n");
 					goto invalid_object;
 				}
 				val = (guint8 *)g_malloc (mono_class_instance_size (mono_class_from_mono_type_internal (f->type)));
 				mono_field_static_get_value_checked (vtable, f, val, string_handle, error);
 				if (!is_ok (error)) {
 					mono_error_cleanup (error); /* FIXME report the error */
+					DEBUG_PRINTF (1, "[dbg] CMD_OBJECT_REF_GET_VALUES 1.5\n");
 					goto invalid_object;
 				}
+				DEBUG_PRINTF (1, "[dbg] CMD_OBJECT_REF_GET_VALUES 1.6\n");
 				buffer_add_value (buf, f->type, val, obj->vtable->domain);
 				g_free (val);
 			} else {
@@ -9270,10 +9332,13 @@ object_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 #ifndef DISABLE_REMOTING
 				void *field_storage = NULL;
 #endif
+				DEBUG_PRINTF (1, "[dbg] CMD_OBJECT_REF_GET_VALUES 1.7\n");
 				if (remote_obj) {
 #ifndef DISABLE_REMOTING
+					DEBUG_PRINTF (1, "[dbg] CMD_OBJECT_REF_GET_VALUES 1.8\n");
 					field_value = mono_load_remote_field_checked(obj, obj_type, f, &field_storage, error);
 					if (!is_ok (error)) {
+						DEBUG_PRINTF (1, "[dbg] CMD_OBJECT_REF_GET_VALUES 1.9\n");
 						mono_error_cleanup (error); /* FIXME report the error */
 						goto invalid_object;
 					}
@@ -9282,7 +9347,7 @@ object_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 #endif
 				} else
 					field_value = (guint8*)obj + f->offset;
-
+				DEBUG_PRINTF (1, "[dbg] CMD_OBJECT_REF_GET_VALUES 1.10\n");
 				buffer_add_value (buf, f->type, field_value, obj->vtable->domain);
 			}
 		}
