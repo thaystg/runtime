@@ -11,6 +11,7 @@ class CordbStepper :
     CordbThread* thread;
     boolean hasStepped;
 public:
+    boolean isComplete;
     CordbStepper(CordbThread* thread);
     HRESULT STDMETHODCALLTYPE IsActive(BOOL* pbActive);
     HRESULT STDMETHODCALLTYPE Deactivate(void);

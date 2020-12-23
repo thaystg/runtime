@@ -18,6 +18,10 @@
 #include "xcordebug.h"
 #include <WS2tcpip.h>
 
+
+#define MAJOR_VERSION 2
+#define MINOR_VERSION 58
+
 #define return_if_nok(error) do { if (!is_ok ((error))) return S_FALSE; } while (0)
 
 #define dbg_lock() mono_os_mutex_lock (&debug_mutex.m);

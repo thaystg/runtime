@@ -979,6 +979,18 @@ MonoMethodHeader *mono_metadata_parse_header_checked  (MonoImage *image,
 								int *len_blob, 
 								MonoError *error);
 
+
+int
+mono_metadata_class_from_memberref_token (MonoImage *image, 
+								guint32 token, 
+								MonoError *error);
+
+const char *
+mono_metadata_signature_from_memberref_token (MonoImage *image, 
+								guint32 token, 
+								int *len_blob, 
+								MonoError *error);			
+
 gboolean
 mono_method_get_header_summary (MonoMethod *method, MonoMethodHeaderSummary *summary);
 

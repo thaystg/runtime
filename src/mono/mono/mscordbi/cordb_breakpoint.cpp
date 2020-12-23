@@ -48,6 +48,10 @@ HRESULT __stdcall CordbFunctionBreakpoint::Activate(BOOL bActive)
 		buffer_free(&sendbuf);
 		DEBUG_PRINTF(1, "CordbFunctionBreakpoint - Activate\n");
 	}
+	else
+	{
+		DEBUG_PRINTF(1, "CordbFunctionBreakpoint - Activate - FALSE - NOT IMPLEMENTED\n");
+	}
 	return S_OK;
 }
 

@@ -65,11 +65,11 @@ HRESULT STDMETHODCALLTYPE CordbFrameEnum::GetCount(ULONG* pcelt)
 	for (int i = 0; i < nframes; i++)
 	{
 		int frameid = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		int methoid = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int methodId = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 		int il_offset = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 		int flags = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 
-		CordbNativeFrame* frame = new CordbNativeFrame(frameid, methoid, il_offset, flags, thread);
+		CordbNativeFrame* frame = new CordbNativeFrame(frameid, methodId, il_offset, flags, thread);
 		frames[i] = frame;
 	}
 
@@ -100,10 +100,10 @@ ULONG STDMETHODCALLTYPE CordbFrameEnum::Release(void)
 }
 
 
-CordbJITILFrame::CordbJITILFrame(int frameid, int methoid, int il_offset, int flags, CordbThread* thread)
+CordbJITILFrame::CordbJITILFrame(int frameid, int methodId, int il_offset, int flags, CordbThread* thread)
 {
 	this->frameid = frameid;
-	this->methoid = methoid;
+	this->methodId = methodId;
 	this->il_offset = il_offset;
 	this->flags = flags;
 	this->thread = thread;
@@ -126,10 +126,10 @@ HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetCode(
 HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetFunction(
 	/* [out] */ ICorDebugFunction** ppFunction)
 {
-	CordbFunction *func = thread->ppProcess->cordb->findFunction(methoid);
+	CordbFunction *func = thread->ppProcess->cordb->findFunction(methodId);
 	if (!func)
 	{
-		func = new CordbFunction(0, methoid, NULL);
+		func = new CordbFunction(0, methodId, NULL, thread->ppProcess->connection);
 		g_ptr_array_add(thread->ppProcess->cordb->functions, func);
 	}
 
@@ -351,9 +351,9 @@ HRESULT STDMETHODCALLTYPE CordbJITILFrame::CanSetIP(
 }
 
 
-CordbNativeFrame::CordbNativeFrame(int frameid, int methoid, int il_offset, int flags, CordbThread* thread)
+CordbNativeFrame::CordbNativeFrame(int frameid, int methodId, int il_offset, int flags, CordbThread* thread)
 {
-	m_JITILFrame = new CordbJITILFrame(frameid, methoid, il_offset, flags, thread);
+	m_JITILFrame = new CordbJITILFrame(frameid, methodId, il_offset, flags, thread);
 	this->thread = thread;
 }
 

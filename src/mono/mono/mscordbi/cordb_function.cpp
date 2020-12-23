@@ -7,15 +7,17 @@
 #include <cordb_stepper.hpp>
 #include <cordb_function.hpp>
 #include <cordb_code.hpp>
+#include <cordb_process.hpp>
 
 using namespace std;
 
-CordbFunction::CordbFunction(mdToken token, int id, CordbModule* module)
+CordbFunction::CordbFunction(mdToken token, int id, CordbModule* module, Connection *connection)
 {
 	this->token = token;
 	this->id = id;
 	code = NULL;
 	this->module = module;
+	this-> connection = connection;
 }
 
 HRESULT __stdcall CordbFunction::QueryInterface(REFIID id, void** pInterface)
@@ -61,8 +63,26 @@ ULONG __stdcall CordbFunction::Release(void)
 
 HRESULT __stdcall CordbFunction::GetModule(ICorDebugModule** ppModule)
 {
+	if (module == NULL) {
+		Buffer localbuf;
+		buffer_init(&localbuf, 128);
+		buffer_add_id(&localbuf, id);
+		int cmdId = connection->send_event(CMD_SET_METHOD, CMD_METHOD_ASSEMBLY, &localbuf);
+		buffer_free(&localbuf);
+
+		DEBUG_PRINTF(1, "CordbFunction - GetModule - IMPLEMENTED - ENTREI NO 0.1 - %d\n", id);
+
+		Buffer *localbuf2 = connection->get_answer(cmdId);
+
+		int module_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+		DEBUG_PRINTF(1, "CordbFunction - GetModule - IMPLEMENTED - ENTREI NO 0.2 - %d\n", module_id);
+
+		module = (CordbModule *)g_hash_table_lookup(connection->ppCordb->modules, GINT_TO_POINTER(module_id));
+	}
+
 	*ppModule = static_cast<ICorDebugModule*>(this->module);
-	DEBUG_PRINTF(1, "CordbFunction - GetModule - IMPLEMENTED\n");
+	DEBUG_PRINTF(1, "CordbFunction - GetModule - IMPLEMENTED - %x\n", this->module);
 
 	if (!*ppModule)
 		return S_FALSE;
@@ -77,6 +97,20 @@ HRESULT __stdcall CordbFunction::GetClass(ICorDebugClass** ppClass)
 
 HRESULT __stdcall CordbFunction::GetToken(mdMethodDef* pMethodDef)
 {
+	if (this->token == 0) {
+		DEBUG_PRINTF(1, "CordbFunction - GetToken - IMPLEMENTED - ENTREI NO 0 - %d\n", id);
+		Buffer localbuf;
+		buffer_init(&localbuf, 128);
+		buffer_add_id(&localbuf, id);
+		int cmdId = connection->send_event(CMD_SET_METHOD, CMD_METHOD_TOKEN, &localbuf);
+		buffer_free(&localbuf);
+
+		DEBUG_PRINTF(1, "CordbFunction - GetToken - IMPLEMENTED - ENTREI NO 0.1 - %d\n", id);
+
+		Buffer *localbuf2 = connection->get_answer(cmdId);
+
+		this->token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	}
 	*pMethodDef = this->token;
 	DEBUG_PRINTF(1, "CordbFunction - GetToken - IMPLEMENTED - %d\n", *pMethodDef);
 	return S_OK;

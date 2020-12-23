@@ -15,8 +15,9 @@ public:
     mdToken token;
     CordbCode* code;
     CordbModule* module;
+    Connection *connection;
 
-    CordbFunction(mdToken token, int id, CordbModule *module);
+    CordbFunction(mdToken token, int id, CordbModule *module, Connection *connection);
     HRESULT STDMETHODCALLTYPE QueryInterface(/* [in] */ REFIID id,/* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface);
     ULONG STDMETHODCALLTYPE AddRef(void);
     ULONG STDMETHODCALLTYPE Release(void);

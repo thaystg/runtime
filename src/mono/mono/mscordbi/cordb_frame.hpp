@@ -11,11 +11,11 @@ class CordbJITILFrame :
 {
 public:
     int frameid;
-    int methoid;
+    int methodId;
     int il_offset;
     int flags;
     CordbThread* thread;
-    CordbJITILFrame(int frameid, int methoid, int il_offset, int flags, CordbThread* thread);
+    CordbJITILFrame(int frameid, int methodId, int il_offset, int flags, CordbThread* thread);
     HRESULT STDMETHODCALLTYPE GetChain(/* [out] */ ICorDebugChain** ppChain);
     HRESULT STDMETHODCALLTYPE GetCode(/* [out] */ ICorDebugCode** ppCode);
     HRESULT STDMETHODCALLTYPE GetFunction(/* [out] */ ICorDebugFunction** ppFunction);
@@ -51,7 +51,7 @@ class CordbNativeFrame :
     CordbJITILFrame* m_JITILFrame;
 public:
     CordbThread* thread;
-    CordbNativeFrame(int frameid, int methoid, int il_offset, int flags, CordbThread* thread);
+    CordbNativeFrame(int frameid, int methodId, int il_offset, int flags, CordbThread* thread);
     HRESULT STDMETHODCALLTYPE GetIP(ULONG32* pnOffset);
     HRESULT STDMETHODCALLTYPE SetIP(ULONG32 nOffset);
     HRESULT STDMETHODCALLTYPE GetRegisterSet(ICorDebugRegisterSet** ppRegisters);

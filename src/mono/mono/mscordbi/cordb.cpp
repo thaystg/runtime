@@ -296,8 +296,10 @@ void Connection::receive()
 		}
 
 		dbg_lock ();
-		if (header.flags == REPLY_PACKET)
+		if (header.flags == REPLY_PACKET) {
+			DEBUG_PRINTF(1, "header->id - %d - header->error - %d - header->error_2 - %d\n", header.id, header.error, header.error_2);
 			g_hash_table_insert(received_replies, (gpointer)(gssize)(header.id), recvbuf);
+		}
 		else {
 			g_ptr_array_add(received_replies_to_process, recvbuf);
 		}
@@ -332,17 +334,27 @@ void Connection::process_packet_internal(Buffer *recvbuf)
 
 		
 		
-		DEBUG_PRINTF(1, "Received %d events %s, suspend=%d\n", nevents, event_to_string(etype), etype);
+		DEBUG_PRINTF(1, "Received %d %d events %s, suspend=%d\n", i, nevents, event_to_string(etype), etype);
 		
 		switch (etype)
 		{
 		case EVENT_KIND_VM_START:
 		{
 			ppProcess->suspended = true;
-			Buffer sendbuf;
-			buffer_init(&sendbuf, 128);
-			send_event(0, 0, &sendbuf);
 			ppCordb->pCallback->CreateProcess(static_cast<ICorDebugProcess*>(ppProcess));
+		}
+		break;
+		case EVENT_KIND_THREAD_START:
+		{
+			DEBUG_PRINTF(1, "criei a thread certinha pelo EVENT_KIND_THREAD_START\n");
+			CordbThread* thread = new CordbThread(ppProcess, thread_id);
+			g_ptr_array_add(ppCordb->threads, thread);
+			ppCordb->pCallback->CreateThread(pCorDebugAppDomain, thread);
+		}
+		break;
+		case EVENT_KIND_APPDOMAIN_CREATE:
+		{
+
 		}
 		break;
 		case EVENT_KIND_ASSEMBLY_LOAD:
@@ -370,15 +382,11 @@ void Connection::process_packet_internal(Buffer *recvbuf)
 			CordbThread* thread = findThread(ppCordb->threads, thread_id);
 			if (thread == NULL)
 			{ 
+				DEBUG_PRINTF(1, "criei a thread errada pelo EVENT_KIND_BREAKPOINT\n");
 				thread = new CordbThread(ppProcess, thread_id);
 				g_ptr_array_add(ppCordb->threads, thread);
 				ppCordb->pCallback->CreateThread(pCorDebugAppDomain, thread);
 			}
-			
-
-			Buffer sendbuf;
-			buffer_init(&sendbuf, 128);
-			send_event(0, 0, &sendbuf);
 			int i = 0;
 			CordbFunctionBreakpoint* breakpoint;
 			while (i < ppCordb->breakpoints->len) {
@@ -396,20 +404,21 @@ void Connection::process_packet_internal(Buffer *recvbuf)
 		{
 			int method_id = decode_id(recvbuf->buf, &recvbuf->buf, recvbuf->end);
 			long offset = decode_long(recvbuf->buf, &recvbuf->buf, recvbuf->end);
+			
+			DEBUG_PRINTF(1, "EVENT_KIND_STEP - %d - %d - %d\n", thread_id, method_id, offset);
+
 			CordbThread* thread = findThread(ppCordb->threads, thread_id);
 			if (thread == NULL)
 			{
+				DEBUG_PRINTF(1, "criei a thread errada pelo EVENT_KIND_STEP\n");
 				thread = new CordbThread(ppProcess, thread_id);
 				g_ptr_array_add(ppCordb->threads, thread);
 				ppCordb->pCallback->CreateThread(pCorDebugAppDomain, thread);
 			}
-
-
-			Buffer sendbuf;
-			buffer_init(&sendbuf, 128);
-			send_event(0, 0, &sendbuf);
 			ppProcess->suspended = true;
-			ppCordb->pCallback->StepComplete(pCorDebugAppDomain, thread, thread->stepper, STEP_NORMAL);
+			if (!thread->stepper->isComplete)
+				ppCordb->pCallback->StepComplete(pCorDebugAppDomain, thread, thread->stepper, STEP_NORMAL);
+			thread->stepper->isComplete = true;
 		}
 		break;
 		}
@@ -451,13 +460,26 @@ void Connection::loop_send_receive()
 	enable_event(EVENT_KIND_USER_BREAK);
 	enable_event(EVENT_KIND_USER_LOG);
 
-	int buflen = 128;
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+	buffer_add_int(&localbuf, MAJOR_VERSION);
+	buffer_add_int(&localbuf, MINOR_VERSION);
+	int cmdId = send_event(CMD_SET_VM, CMD_VM_SET_PROTOCOL_VERSION, &localbuf);
+	buffer_free(&localbuf);
 
+	buffer_init(&localbuf, 128);
+	cmdId = send_event(CMD_SET_VM, CMD_VM_VERSION, &localbuf);
+	buffer_free(&localbuf);
+
+	Buffer* localbuf2 = get_answer(cmdId);
+	char *vm_version = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int major_version = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int minor_version = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+	DEBUG_PRINTF (1, "[dbg] Protocol version %d.%d, server protocol version %d.%d.\n", MAJOR_VERSION, MINOR_VERSION, major_version, minor_version);
+	
 	int iResult = 0;
-	Buffer sendbuf;
-	Buffer recvbuf, recvbufheader;
 	// Receive until the peer closes the connection
-
 	do {
 		if (!ppProcess->suspended)
 			iResult = process_packet();

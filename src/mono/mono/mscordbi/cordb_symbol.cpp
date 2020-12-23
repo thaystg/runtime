@@ -924,7 +924,70 @@ ULONG* pchMember,             // [OUT] actual count of char in member name
 PCCOR_SIGNATURE* ppvSigBlob,        // [OUT] point to meta data blob value
 ULONG* pbSig)           // [OUT] actual size of signature blob
 {
-	DEBUG_PRINTF(1, "CordbSymbol - GetMemberRefProps - NOT IMPLEMENTED\n");
+	DEBUG_PRINTF(1, "CordbSymbol - GetMemberRefProps - IMPLEMENTED - %d\n", mr);
+
+	CordbFunction* func = this->pCordbAssembly->pProcess->cordb->findFunctionByToken(mr);
+	int func_id = 0;
+	if (!func)
+	{
+		Buffer localbuf;
+		buffer_init(&localbuf, 128);
+		buffer_add_id(&localbuf, this->pCordbAssembly->id);
+		buffer_add_int(&localbuf, mr);
+		int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_METHOD_FROM_TOKEN, &localbuf);
+		buffer_free(&localbuf);
+
+		Buffer* localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
+
+		func_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+	}
+	else
+		func_id = func->id;
+
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+
+	buffer_add_id(&localbuf, func_id);
+	int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_METHOD, CMD_METHOD_GET_NAME, &localbuf);
+	buffer_free(&localbuf);
+
+	Buffer* localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
+
+	char *method_name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	DEBUG_PRINTF(1, "CordbSymbol - GetMemberRefProps - IMPLEMENTED - 2 - %s\n", method_name);
+
+	if (cchMember > strlen(method_name)) {
+		mbstowcs(szMember, method_name, strlen(method_name) + 1);
+	}
+	if (pchMember)
+		*pchMember = strlen(method_name) + 1;
+
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, this->pCordbAssembly->id);
+	buffer_add_int(&localbuf, mr);
+	cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_INFO_FROM_MEMBERREF_TOKEN, &localbuf);
+	buffer_free(&localbuf);
+	localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
+
+	int blob_len = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	COR_SIGNATURE *ppvSigLocal = new COR_SIGNATURE[blob_len];
+	DEBUG_PRINTF(1, "CordbSymbol - GetMemberRefProps - IMPLEMENTED - blob_len - %d\n", blob_len);
+	for (int i = 0 ; i < blob_len; i++) {
+		ppvSigLocal[i] = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		DEBUG_PRINTF(1, "CordbSymbol - GetMemberRefProps - IMPLEMENTED - %d - %d\n", i, ppvSigLocal[i]);
+	}
+	if (ptk) {
+		*ptk = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	}
+
+	if (pbSig) {
+		*ppvSigBlob = new COR_SIGNATURE[blob_len];
+		memcpy((void*)*ppvSigBlob, ppvSigLocal, blob_len * sizeof(COR_SIGNATURE));
+		*pbSig = blob_len;
+	}
+	
+
 	return S_OK;
 }
 

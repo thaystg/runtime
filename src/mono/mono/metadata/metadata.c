@@ -2126,16 +2126,79 @@ mono_metadata_parse_signature (MonoImage *image, guint32 token)
 	return ret;
 }
 
-
 /*
- * mono_metadata_parse_signature_checked:
+ * mono_metadata_signature_from_memberref_token:
  * @image: metadata context
  * @token: metadata token
  * @error: set on error
  *
  * Decode a method signature stored in the STANDALONESIG table
  *
- * Returns: a MonoMethodSignature describing the signature. On failure
+ * Returns: a MonoMethodHeader describing the header. On failure
+ * returns NULL and sets @error.
+ */
+const char *
+mono_metadata_signature_from_memberref_token (MonoImage *image, guint32 token, int *len_blob, MonoError *error)
+{
+	error_init (error);
+	MonoTableInfo *tables = image->tables;
+	guint32 idx = mono_metadata_token_index (token);
+	const char *ptr;
+	guint32 cols [MONO_MEMBERREF_SIZE];
+
+	if (image_is_dynamic (image)) {
+		return NULL;
+	}
+
+	g_assert (mono_metadata_token_table(token) == MONO_TABLE_MEMBERREF);
+		
+	mono_metadata_decode_row(&tables [MONO_TABLE_MEMBERREF], idx - 1, cols, MONO_MEMBERREF_SIZE);
+	const char *sig = mono_metadata_blob_heap (image, cols [MONO_MEMBERREF_SIGNATURE]);
+	*len_blob = mono_metadata_decode_blob_size (sig, &sig);
+	return sig;
+}
+
+
+/*
+ * mono_metadata_signature_from_memberref_token:
+ * @image: metadata context
+ * @token: metadata token
+ * @error: set on error
+ *
+ * Decode a method signature stored in the STANDALONESIG table
+ *
+ * Returns: a MonoMethodHeader describing the header. On failure
+ * returns NULL and sets @error.
+ */
+int
+mono_metadata_class_from_memberref_token (MonoImage *image, guint32 token, MonoError *error)
+{
+	error_init (error);
+	MonoTableInfo *tables = image->tables;
+	guint32 idx = mono_metadata_token_index (token);
+	const char *ptr;
+	guint32 cols [MONO_MEMBERREF_SIZE];
+
+	if (image_is_dynamic (image)) {
+		return 0;
+	}
+
+	g_assert (mono_metadata_token_table(token) == MONO_TABLE_MEMBERREF);
+		
+	mono_metadata_decode_row(&tables [MONO_TABLE_MEMBERREF], idx - 1, cols, MONO_MEMBERREF_SIZE);
+	return cols [MONO_MEMBERREF_CLASS];
+}
+
+
+/*
+ * mono_metadata_parse_header_checked:
+ * @image: metadata context
+ * @token: metadata token
+ * @error: set on error
+ *
+ * Decode a method signature stored in the STANDALONESIG table
+ *
+ * Returns: a MonoMethodHeader describing the header. On failure
  * returns NULL and sets @error.
  */
 MonoMethodHeader*

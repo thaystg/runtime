@@ -301,7 +301,7 @@ HRESULT CordbModule::GetFunctionFromToken(
 	func = pProcess->cordb->findFunction(id);
 	if (func == NULL)
 	{
-		func = new CordbFunction(methodDef, id, this);
+		func = new CordbFunction(methodDef, id, this, pProcess->connection);
 		g_ptr_array_add(pProcess->cordb->functions, func);
 	}
 	*ppFunction = func;

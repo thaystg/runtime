@@ -13,6 +13,7 @@ CordbStepper::CordbStepper(CordbThread* thread)
 {
 	this->thread = thread;
 	hasStepped = false;
+	isComplete = false;
 }
 
 HRESULT STDMETHODCALLTYPE CordbStepper::IsActive(BOOL* pbActive)
@@ -47,6 +48,7 @@ HRESULT STDMETHODCALLTYPE CordbStepper::Step(BOOL bStepIn)
 
 HRESULT STDMETHODCALLTYPE CordbStepper::StepRange(BOOL bStepIn, COR_DEBUG_STEP_RANGE ranges[], ULONG32 cRangeCount)
 {
+	isComplete = false;
 	hasStepped = true;
 	Buffer sendbuf;
 	int buflen = 128;
@@ -70,8 +72,26 @@ HRESULT STDMETHODCALLTYPE CordbStepper::StepRange(BOOL bStepIn, COR_DEBUG_STEP_R
 
 HRESULT STDMETHODCALLTYPE CordbStepper::StepOut(void)
 {
-	DEBUG_PRINTF(1, "CordbStepper - StepOut - NOT IMPLEMENTED\n");
-	return E_NOTIMPL;
+	isComplete = false;
+	hasStepped = true;
+	Buffer sendbuf;
+	int buflen = 128;
+	buffer_init(&sendbuf, buflen);
+	buffer_add_byte(&sendbuf, EVENT_KIND_STEP);
+	buffer_add_byte(&sendbuf, SUSPEND_POLICY_ALL);
+	buffer_add_byte(&sendbuf, 1); //modifiers
+	buffer_add_byte(&sendbuf, MOD_KIND_STEP);
+
+	buffer_add_id(&sendbuf, thread->thread_id);
+	buffer_add_int(&sendbuf, STEP_SIZE_MIN);
+	buffer_add_int(&sendbuf, STEP_DEPTH_OUT);
+	buffer_add_int(&sendbuf, STEP_FILTER_NONE);
+
+	this->thread->ppProcess->connection->send_event(CMD_SET_EVENT_REQUEST, CMD_EVENT_REQUEST_SET, &sendbuf);
+	buffer_free(&sendbuf);
+
+	DEBUG_PRINTF(1, "CordbStepper - StepOut - IMPLEMENTED\n");
+	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbStepper::SetRangeIL(BOOL bIL)

@@ -7180,8 +7180,29 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		return err;
 
 	switch (command) {
+	case CMD_ASSEMBLY_GET_INFO_FROM_MEMBERREF_TOKEN: {
+		ERROR_DECL (error);
+		DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_INFO_FROM_MEMBERREF_TOKEN\n");
+		int token = decode_int (p, &p, end);
+		DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_INFO_FROM_MEMBERREF_TOKEN - 1 - %d\n", token);
+		DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_INFO_FROM_MEMBERREF_TOKEN - 2 - %d\n", token);
+		int blob_len;
+		const char *ret = mono_metadata_signature_from_memberref_token (ass->image, token, &blob_len, &error);
+		if (ret) {
+			DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_INFO_FROM_MEMBERREF_TOKEN - 2.1 - %d\n", blob_len);
+			buffer_add_int (buf, blob_len);
+			for (int i = 0 ; i < blob_len; i++) {
+				DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_INFO_FROM_MEMBERREF_TOKEN - 2.1.%d - %d\n", i, ret[i]);
+				buffer_add_int (buf, ret[i]);
+			}
+		}
+		int class_token = mono_metadata_class_from_memberref_token (ass->image, token, &error);
+		DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_INFO_FROM_MEMBERREF_TOKEN - 3 - %d\n", class_token);
+		buffer_add_int (buf, class_token);
+		break;
+	}
 	case CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN: {
-		ErrorCode error;
+		ERROR_DECL (error);
 		DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN\n");
 		int token = decode_int (p, &p, end);
 		DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 1 - %d\n", token);
@@ -8577,6 +8598,16 @@ method_commands_internal (int command, MonoMethod *method, MonoDomain *domain, g
 		MonoMethodHeaderSummary header;
 		mono_method_get_header_summary (method, &header);
 		buffer_add_int(buf, header.rva);
+		break;
+	}
+	case CMD_METHOD_TOKEN: {
+		DEBUG_PRINTF(1, "CMD_METHOD_TOKEN - %d\n", method->token);
+		buffer_add_int(buf, method->token);
+		break;
+	}
+	case CMD_METHOD_ASSEMBLY: {
+		DEBUG_PRINTF(1, "CMD_METHOD_ASSEMBLY\n");
+		buffer_add_assemblyid(buf, mono_domain_get (), m_class_get_image(method->klass)->assembly);
 		break;
 	}
 	default:

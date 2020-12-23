@@ -212,12 +212,12 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetActiveFrame(
 	for (int i = 0; i < nframes; i++)
 	{
 		int frameid = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		int methoid = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int methodId = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 		int il_offset = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 		int flags = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 		if (i == 0)
 		{
-			CordbNativeFrame* frame = new CordbNativeFrame(frameid, methoid, il_offset, flags, this);
+			CordbNativeFrame* frame = new CordbNativeFrame(frameid, methodId, il_offset, flags, this);
 			*ppFrame = static_cast<ICorDebugFrame*>(frame);
 		}
 	}
