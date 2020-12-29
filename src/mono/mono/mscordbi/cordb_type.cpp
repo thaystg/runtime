@@ -13,10 +13,11 @@
 
 
 using namespace std;
-CordbType::CordbType(CorElementType type, CordbClass* klass)
+CordbType::CordbType(CorElementType type, CordbClass* klass, CordbType* typeParameter)
 {
 	this->klass = klass;
 	this->type = type;
+	this->typeParameter = typeParameter;
 }
 
 HRESULT STDMETHODCALLTYPE CordbType::GetType(CorElementType* ty)
@@ -40,7 +41,7 @@ HRESULT STDMETHODCALLTYPE CordbType::GetClass(ICorDebugClass** ppClass)
 
 HRESULT STDMETHODCALLTYPE CordbType::EnumerateTypeParameters(ICorDebugTypeEnum** ppTyParEnum)
 {
-	CordbTypeEnum* tp = new CordbTypeEnum();
+	CordbTypeEnum* tp = new CordbTypeEnum(typeParameter);
 	*ppTyParEnum = static_cast<ICorDebugTypeEnum*>(tp);
 
 	DEBUG_PRINTF(1, "CordbType - EnumerateTypeParameters - IMPLEMENTED\n");
@@ -49,8 +50,9 @@ HRESULT STDMETHODCALLTYPE CordbType::EnumerateTypeParameters(ICorDebugTypeEnum**
 
 HRESULT STDMETHODCALLTYPE CordbType::GetFirstTypeParameter(ICorDebugType** value)
 {
-	DEBUG_PRINTF(1, "CordbType - GetFirstTypeParameter - NOT IMPLEMENTED\n");
-	return E_NOTIMPL;
+	DEBUG_PRINTF(1, "CordbType - GetFirstTypeParameter - IMPLEMENTED\n");
+	*value = static_cast<ICorDebugType*>(typeParameter);
+	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbType::GetBase(ICorDebugType** pBase)
@@ -104,10 +106,17 @@ HRESULT STDMETHODCALLTYPE CordbType::GetTypeID(COR_TYPEID* id)
 	return E_NOTIMPL;
 }
 
+CordbTypeEnum::CordbTypeEnum(CordbType *type)
+{
+	this->type = type;
+}
+
 HRESULT STDMETHODCALLTYPE CordbTypeEnum::Next(ULONG celt, ICorDebugType* values[], ULONG* pceltFetched)
 {
 	*pceltFetched = celt;
-	DEBUG_PRINTF(1, "CordbTypeEnum - Next - IMPLEMENTED\n");
+	if (type != NULL)
+		values[0] = type;
+	DEBUG_PRINTF(1, "CordbTypeEnum - Next - IMPLEMENTED - %x\n", type);
 	return S_OK;
 }
 
@@ -131,7 +140,11 @@ HRESULT STDMETHODCALLTYPE CordbTypeEnum::Clone(ICorDebugEnum** ppEnum)
 
 HRESULT STDMETHODCALLTYPE CordbTypeEnum::GetCount(ULONG* pcelt)
 {
-	*pcelt = 0;
+	if (type != NULL)
+		*pcelt = 1;
+	else
+		*pcelt = 0;
+	DEBUG_PRINTF(1, "CordbTypeEnum - GetCount - IMPLEMENTED - %d\n", *pcelt);
 	return S_OK;
 }
 

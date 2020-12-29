@@ -7207,22 +7207,14 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		int token = decode_int (p, &p, end);
 		DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 1 - %d\n", token);
 		DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 2 - %d\n", token);
-		int blob_len;
-		MonoMethodHeader *ret = mono_metadata_parse_header_checked (ass->image, token, &blob_len, &error);
+		int blob_len;		
+		const char *ret = mono_metadata_local_signature_from_token (ass->image, token, &blob_len, &error);
 		if (ret) {
+			DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 2.1 - %d\n", blob_len);
 			buffer_add_int (buf, blob_len);
-			buffer_add_int (buf, 7);
-			buffer_add_int (buf, ret->num_locals);
-			for (int i = 0; i < ret->num_locals; i++) {
-				DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 2.1 - %d\n", ret->locals[i]->type);
-				buffer_add_int (buf, ret->locals[i]->type);
-				if (ret->locals[i]->type == MONO_TYPE_CLASS) {
-					DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 3 - %d\n", ret->locals[i]->attrs);
-					DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 3.1 - %d\n", ret->locals[i]->data.klass->class_kind);
-					DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 3.2 - %d\n", ret->locals[i]->data.klass->type_token);
-					DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 3.3 - %d\n", mono_metadata_token_table(ret->locals[i]->data.klass->type_token));
-					buffer_add_int (buf,  mono_metadata_token_table(ret->locals[i]->data.klass->type_token));
-				}
+			for (int i = 0 ; i < blob_len; i++) {
+				DEBUG_PRINTF(1, "CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN - 2.1.%d - %d\n", i, ret[i]);
+				buffer_add_int (buf, ret[i]);
 			}
 		}
 		break;
@@ -9076,6 +9068,12 @@ array_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		return err;
 
 	switch (command) {
+	case CMD_ARRAY_REF_GET_TYPE:
+		{
+			buffer_add_byte(buf, m_class_get_byval_arg (m_class_get_element_class (arr->obj.vtable->klass))->type);
+			buffer_add_int (buf, m_class_get_rank (arr->obj.vtable->klass));
+		}
+		break;
 	case CMD_ARRAY_REF_GET_LENGTH:
 		buffer_add_int (buf, m_class_get_rank (arr->obj.vtable->klass));
 		if (!arr->bounds) {

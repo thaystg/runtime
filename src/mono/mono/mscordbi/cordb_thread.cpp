@@ -168,11 +168,8 @@ HRESULT STDMETHODCALLTYPE CordbThread::ClearCurrentException(void)
 HRESULT STDMETHODCALLTYPE CordbThread::CreateStepper(
 	/* [out] */ ICorDebugStepper** ppStepper)
 {
-	if (!this->stepper)
-	{
-		CordbStepper* stepper = new CordbStepper(this);
-		this->stepper = stepper;
-	}
+	CordbStepper* stepper = new CordbStepper(this);
+	this->stepper = stepper;
 	*ppStepper = static_cast<ICorDebugStepper*>(stepper);
 
 	DEBUG_PRINTF(1, "CordbThread - CreateStepper - IMPLEMENTED\n");

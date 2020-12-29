@@ -198,6 +198,7 @@ typedef enum {
 	CMD_ARRAY_REF_GET_LENGTH = 1,
 	CMD_ARRAY_REF_GET_VALUES = 2,
 	CMD_ARRAY_REF_SET_VALUES = 3,
+	CMD_ARRAY_REF_GET_TYPE = 4
 } CmdArray;
 
 typedef enum {

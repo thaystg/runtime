@@ -175,7 +175,7 @@ ULONG STDMETHODCALLTYPE CordbReferenceValue::Release(void)
 }
 HRESULT STDMETHODCALLTYPE CordbReferenceValue::GetExactType(ICorDebugType** ppType)
 {
-	DEBUG_PRINTF(1, "CordbReferenceValue - GetExactType - IMPLEMENTED\n");
+	DEBUG_PRINTF(1, "CordbReferenceValue - GetExactType - IMPLEMENTED - %d\n", type);
 	if (klass != NULL) {
 		CordbType* tp = new CordbType(type, klass);
 		*ppType = static_cast<ICorDebugType*>(tp);
@@ -207,8 +207,23 @@ HRESULT STDMETHODCALLTYPE CordbReferenceValue::GetExactType(ICorDebugType** ppTy
 		int token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 
 		klass = new CordbClass(conn, token, module_id);
-		CordbType* tp = new CordbType(type, klass);
-		*ppType = static_cast<ICorDebugType*>(tp);
+		cordbtype = new CordbType(type, klass);
+		*ppType = static_cast<ICorDebugType*>(cordbtype);
+		return S_OK;
+	}
+	if (type == ELEMENT_TYPE_SZARRAY && object_id != -1) {
+		Buffer localbuf;
+		buffer_init(&localbuf, 128);
+		buffer_add_id(&localbuf, object_id);
+
+		int cmdId = conn->send_event(CMD_SET_ARRAY_REF, CMD_ARRAY_REF_GET_TYPE, &localbuf);
+		buffer_free(&localbuf);
+		Buffer* localbuf2 = conn->get_answer(cmdId);
+		int type_id = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		DEBUG_PRINTF(1, "ELEMENT_TYPE_SZARRAY - %d\n", type_id);
+		cordbtype = new CordbType(type, NULL, new CordbType((CorElementType)type_id));
+		*ppType = static_cast<ICorDebugType*>(cordbtype);
+		DEBUG_PRINTF(1, "CordbArrayValue - GetExactType - IMPLEMENTED\n");
 		return S_OK;
 	}
 	CordbType* tp = new CordbType(type);
@@ -255,8 +270,16 @@ HRESULT STDMETHODCALLTYPE CordbReferenceValue::Dereference(/* [out] */ ICorDebug
 {
 	if (object_id == -1)
 		return CORDBG_E_BAD_REFERENCE_VALUE;
-	CordbObjectValue* objectValue = new CordbObjectValue(conn, type, object_id, klass);
-	objectValue->QueryInterface(IID_ICorDebugValue, (void**)ppValue);
+	if (type == ELEMENT_TYPE_SZARRAY || type == ELEMENT_TYPE_ARRAY)
+	{
+		CordbArrayValue* objectValue = new CordbArrayValue(conn, cordbtype, object_id, klass);
+		objectValue->QueryInterface(IID_ICorDebugValue, (void**)ppValue);
+	}
+	else
+	{
+		CordbObjectValue* objectValue = new CordbObjectValue(conn, type, object_id, klass);
+		objectValue->QueryInterface(IID_ICorDebugValue, (void**)ppValue);
+	}
 	DEBUG_PRINTF(1, "CordbReferenceValue - Dereference - IMPLEMENTED\n");
 	return S_OK;
 }
@@ -271,6 +294,7 @@ CordbReferenceValue::CordbReferenceValue(Connection* conn, CorElementType type, 
 	this->object_id = object_id;
 	this->conn = conn;
 	this->klass = klass;
+	this->cordbtype = NULL;
 }
 
 CordbObjectValue::CordbObjectValue(Connection* conn, CorElementType type, int object_id, CordbClass* klass) {
@@ -483,6 +507,7 @@ HRESULT CordbObjectValue::CreateCordbValue(Connection* conn, Buffer* localbuf2, 
 		DEBUG_PRINTF(1, "long value - %ld\n", value.longValue);
 		break;
 	case MONO_TYPE_CLASS:
+	case MONO_TYPE_SZARRAY:
 	case MONO_TYPE_STRING:
 	{
 		int object_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
@@ -635,4 +660,319 @@ HRESULT STDMETHODCALLTYPE CordbObjectValue::QueryInterface(REFIID id, void** pIn
 		return E_NOINTERFACE;
 	}
 	return S_OK;
+}
+
+CordbArrayValue::CordbArrayValue(Connection* conn, CordbType *type, int object_id, CordbClass* klass)
+{
+	this->type = type;
+	this->object_id = object_id;
+	this->conn = conn;
+	this->klass = klass;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetClass(ICorDebugClass** ppClass)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetClass - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetFieldValue(ICorDebugClass* pClass, mdFieldDef fieldDef, ICorDebugValue** ppValue)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetFieldValue - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetVirtualMethod(mdMemberRef memberRef, ICorDebugFunction** ppFunction)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetVirtualMethod - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetContext(ICorDebugContext** ppContext)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetContext - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::IsValueClass(BOOL* pbIsValueClass)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - IsValueClass - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetManagedCopy(IUnknown** ppObject)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetManagedCopy - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::SetFromManagedCopy(IUnknown* pObject)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - SetFromManagedCopy - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetType(CorElementType* pType)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetType - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetSize(ULONG32* pSize)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetSize - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetAddress(CORDB_ADDRESS* pAddress)
+{
+	*pAddress = (CORDB_ADDRESS)&object_id;
+	DEBUG_PRINTF(1, "CordbArrayValue - GetAddress - IMPLEMENTED\n");
+	return S_OK;
+
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::CreateBreakpoint(ICorDebugValueBreakpoint** ppBreakpoint)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - CreateBreakpoint - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::QueryInterface(REFIID id, void** pInterface)
+{
+	if (id == IID_ICorDebugValue)
+	{
+		*pInterface = static_cast<ICorDebugValue*>(static_cast<ICorDebugArrayValue*>(this));
+	}
+	else if (id == IID_ICorDebugValue2)
+	{
+		*pInterface = static_cast<ICorDebugValue2*>(this);
+	}
+	else if (id == IID_ICorDebugValue3)
+	{
+		*pInterface = static_cast<ICorDebugValue3*>(this);
+	}
+	else if (id == IID_ICorDebugArrayValue)
+	{
+		*pInterface = static_cast<ICorDebugArrayValue*>(this);
+	}
+	else if (id == IID_ICorDebugGenericValue)
+	{
+		*pInterface = static_cast<ICorDebugGenericValue*>(this);
+	}
+	else if (id == IID_ICorDebugHeapValue)
+	{
+		*pInterface = static_cast<ICorDebugHeapValue*>(this);
+	}
+	else if (id == IID_ICorDebugHeapValue2)
+	{
+		*pInterface = static_cast<ICorDebugHeapValue2*>(this);
+	}
+	else if (id == IID_ICorDebugHeapValue3)
+	{
+		*pInterface = static_cast<ICorDebugHeapValue3*>(this);
+	}
+	else if (id == IID_IUnknown)
+	{
+		*pInterface = static_cast<IUnknown*>(static_cast<ICorDebugArrayValue*>(this));
+	}
+	else
+	{
+		*pInterface = NULL;
+		return E_NOINTERFACE;
+	}
+
+	return S_OK;
+}
+
+ULONG STDMETHODCALLTYPE CordbArrayValue::AddRef(void)
+{
+	return 0;
+}
+
+ULONG STDMETHODCALLTYPE CordbArrayValue::Release(void)
+{
+	return 0;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetVirtualMethodAndType(mdMemberRef memberRef, ICorDebugFunction** ppFunction, ICorDebugType** ppType)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetVirtualMethodAndType - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetValue(void* pTo)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetValue - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::SetValue(void* pFrom)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - SetValue - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetLength(ULONG32* pcchString)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetLength - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetString(ULONG32 cchString, ULONG32* pcchString, WCHAR szString[])
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetString - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::IsValid(BOOL* pbValid)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - IsValid - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::CreateRelocBreakpoint(ICorDebugValueBreakpoint** ppBreakpoint)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - CreateRelocBreakpoint - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetExactType(ICorDebugType** ppType)
+{
+	*ppType = static_cast<ICorDebugType*>(type);
+	DEBUG_PRINTF(1, "CordbArrayValue - GetExactType - NOT IMPLEMENTED\n");
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetSize64(ULONG64* pSize)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetSize64 - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::CreateHandle(CorDebugHandleType type, ICorDebugHandleValue** ppHandle)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - CreateHandle - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetThreadOwningMonitorLock(ICorDebugThread** ppThread, DWORD* pAcquisitionCount)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetThreadOwningMonitorLock - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetMonitorEventWaitList(ICorDebugThreadEnum** ppThreadEnum)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetMonitorEventWaitList - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::EnumerateExceptionCallStack(ICorDebugExceptionObjectCallStackEnum** ppCallStackEnum)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - EnumerateExceptionCallStack - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetCachedInterfaceTypes(BOOL bIInspectableOnly, ICorDebugTypeEnum** ppInterfacesEnum)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetCachedInterfaceTypes - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetCachedInterfacePointers(BOOL bIInspectableOnly, ULONG32 celt, ULONG32* pcEltFetched, CORDB_ADDRESS* ptrs)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetCachedInterfacePointers - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetTarget(ICorDebugReferenceValue** ppObject)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetTarget - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetFunction(ICorDebugFunction** ppFunction)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetFunction - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetElementType(CorElementType* pType)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetElementType - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetRank(ULONG32* pnRank)
+{
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, object_id);
+
+	int cmdId = conn->send_event(CMD_SET_ARRAY_REF, CMD_ARRAY_REF_GET_LENGTH, &localbuf);
+	buffer_free(&localbuf);
+	Buffer* localbuf2 = conn->get_answer(cmdId);
+	int rank = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	DEBUG_PRINTF(1, "CordbArrayValue - GetRank - IMPLEMENTED - %d\n", rank);
+	*pnRank = rank;
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetCount(ULONG32* pnCount)
+{
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, object_id);
+
+	int cmdId = conn->send_event(CMD_SET_ARRAY_REF, CMD_ARRAY_REF_GET_LENGTH, &localbuf);
+	buffer_free(&localbuf);
+	Buffer* localbuf2 = conn->get_answer(cmdId);
+	int rank = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	count = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	DEBUG_PRINTF(1, "CordbArrayValue - GetCount - IMPLEMENTED - %d\n", count);
+	*pnCount = count;
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetDimensions(ULONG32 cdim, ULONG32 dims[])
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetDimensions - IMPLEMENTED\n");
+	dims[0] = count;
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::HasBaseIndicies(BOOL* pbHasBaseIndicies)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - HasBaseIndicies - NOT IMPLEMENTED\n");
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetBaseIndicies(ULONG32 cdim, ULONG32 indicies[])
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetBaseIndicies - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetElement(ULONG32 cdim, ULONG32 indices[], ICorDebugValue** ppValue)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetElement - IMPLEMENTED - %d - %d\n", cdim, indices[0]);
+
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, object_id);
+	buffer_add_int(&localbuf, indices[cdim-1]);
+	buffer_add_int(&localbuf, 1);
+
+	int cmdId = conn->send_event(CMD_SET_ARRAY_REF, CMD_ARRAY_REF_GET_VALUES, &localbuf);
+	buffer_free(&localbuf);
+	Buffer* localbuf2 = conn->get_answer(cmdId);
+	CordbObjectValue::CreateCordbValue(conn, localbuf2, ppValue);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbArrayValue::GetElementAtPosition(ULONG32 nPosition, ICorDebugValue** ppValue)
+{
+	DEBUG_PRINTF(1, "CordbArrayValue - GetElementAtPosition - NOT IMPLEMENTED\n");
+	return E_NOTIMPL;
 }

@@ -974,7 +974,7 @@ MonoMethodSignature  *mono_metadata_parse_signature_checked (MonoImage *image,
 							     MonoError *error);
 
 
-MonoMethodHeader *mono_metadata_parse_header_checked  (MonoImage *image, 
+const char *mono_metadata_local_signature_from_token  (MonoImage *image, 
 								guint32 token, 
 								int *len_blob, 
 								MonoError *error);

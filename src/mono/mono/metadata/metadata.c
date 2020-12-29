@@ -2201,8 +2201,8 @@ mono_metadata_class_from_memberref_token (MonoImage *image, guint32 token, MonoE
  * Returns: a MonoMethodHeader describing the header. On failure
  * returns NULL and sets @error.
  */
-MonoMethodHeader*
-mono_metadata_parse_header_checked (MonoImage *image, guint32 token, int *len_blob, MonoError *error)
+const char*
+mono_metadata_local_signature_from_token (MonoImage *image, guint32 token, int *len_blob, MonoError *error)
 {
 	error_init (error);
 	MonoTableInfo *tables = image->tables;
@@ -2221,14 +2221,7 @@ mono_metadata_parse_header_checked (MonoImage *image, guint32 token, int *len_bl
 	const char *locals_ptr = mono_metadata_blob_heap (image, cols [MONO_STAND_ALONE_SIGNATURE]);
 	*len_blob = mono_metadata_decode_blob_size (locals_ptr, &locals_ptr);
 
-	locals_ptr++;
-	int len = mono_metadata_decode_value (locals_ptr, &locals_ptr);
-	MonoMethodHeader *mh = (MonoMethodHeader *)g_malloc0 (MONO_SIZEOF_METHOD_HEADER + len * sizeof (MonoType*));
-	mh->num_locals = len;
-	for (int i = 0; i < len; ++i) {
-		mh->locals [i] = mono_metadata_parse_type_internal (image, NULL, 0, TRUE, locals_ptr, &locals_ptr, error);
-	}
-	return mh;
+	return locals_ptr;
 }
 
 

@@ -9,8 +9,9 @@ class CordbType:
 {
     CorElementType type;
     CordbClass* klass;
+    CordbType* typeParameter;
 public:
-    CordbType(CorElementType type, CordbClass* klass = NULL);
+    CordbType(CorElementType type, CordbClass* klass = NULL, CordbType* typeParameter = NULL);
     HRESULT STDMETHODCALLTYPE GetType(CorElementType* ty);
     HRESULT STDMETHODCALLTYPE GetClass(ICorDebugClass** ppClass);
     HRESULT STDMETHODCALLTYPE EnumerateTypeParameters(ICorDebugTypeEnum** ppTyParEnum);
@@ -27,7 +28,9 @@ public:
 class CordbTypeEnum :
     public ICorDebugTypeEnum
 {
+    CordbType* type;
 public:
+    CordbTypeEnum(CordbType *type);
     virtual HRESULT STDMETHODCALLTYPE Next(ULONG celt, ICorDebugType* values[], ULONG* pceltFetched);
     HRESULT STDMETHODCALLTYPE Skip(ULONG celt);
     HRESULT STDMETHODCALLTYPE Reset(void);

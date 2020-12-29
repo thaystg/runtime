@@ -64,12 +64,12 @@ namespace HelloWorld
             bool myBool2 = c == 51;
             char myLetter2 = 'b';
 
-            /*int[] numeros = new int[5];
+            int[] numeros = new int[5];
             numeros[0] = 1;
             numeros[1] = 600;
             numeros[2] = 257;
             numeros[3] = 12;
-            numeros[4] = 42;*/
+            numeros[4] = 42;
 
             myString = myString + myLetter;
             Console.WriteLine(myLetter);
@@ -79,7 +79,7 @@ namespace HelloWorld
             Console.WriteLine(myLong);
             Console.WriteLine(myInt);
             Console.WriteLine(myString);
-            Console.WriteLine(t.ToString());
+            Console.WriteLine(numeros.ToString());
         }
     }
 }
