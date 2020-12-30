@@ -7,7 +7,13 @@ using System.Diagnostics;
 
 namespace HelloWorld
 {
-    public class Leone{
+    public class LeonePai {
+        public int myLeonePaiValue;
+        public LeonePai() {
+            myLeonePaiValue = 55;
+        }
+    }
+    public class Leone : LeonePai{
         public int myLeoneValue;
         public Leone(int c) {
             myLeoneValue = c;
@@ -15,6 +21,7 @@ namespace HelloWorld
     }
     public class Thays
     {
+        public static int testStatic;
         public long myLong;
         public int myInt;
         public char myLetter;
@@ -55,12 +62,13 @@ namespace HelloWorld
         }
         private static void AnotherFunctionCall(int c)
         {
+            Thays.testStatic = 10;
             long myLong = c + 10000;
             int myInt = c + 10;
             char myLetter = 'a';
             bool myBool = c == 50;
             string myString = "thays";
-            Thays t = new Thays(c + 1);
+
             bool myBool2 = c == 51;
             char myLetter2 = 'b';
 
@@ -71,6 +79,17 @@ namespace HelloWorld
             numeros[3] = 12;
             numeros[4] = 42;
 
+            string[] strings = new string[2];
+            strings[0] = "thays";
+            strings[1] = "leone";
+
+            Thays t = new Thays(c + 1);
+
+            Thays[] thayss = new Thays[3];
+            thayss[0] = new Thays(50);
+            thayss[1] = new Thays(51);
+            thayss[2] = new Thays(52);
+
             myString = myString + myLetter;
             Console.WriteLine(myLetter);
             Console.WriteLine(myLetter2);
@@ -79,7 +98,7 @@ namespace HelloWorld
             Console.WriteLine(myLong);
             Console.WriteLine(myInt);
             Console.WriteLine(myString);
-            Console.WriteLine(numeros.ToString());
+            Console.WriteLine(thayss.ToString());
         }
     }
 }

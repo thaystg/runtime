@@ -45,7 +45,7 @@ class CordbReferenceValue : public ICorDebugReferenceValue, public ICorDebugValu
     CordbClass* klass;
     CordbType *cordbtype;
 public:
-    CordbReferenceValue(Connection *conn, CorElementType type, int object_id, CordbClass* klass = NULL);
+    CordbReferenceValue(Connection *conn, CorElementType type, int object_id, CordbClass* klass = NULL, CordbType *cordbtype = NULL);
     HRESULT STDMETHODCALLTYPE GetType(CorElementType* pType);
     HRESULT STDMETHODCALLTYPE GetSize(ULONG32* pSize);
     HRESULT STDMETHODCALLTYPE GetAddress(CORDB_ADDRESS* pAddress);

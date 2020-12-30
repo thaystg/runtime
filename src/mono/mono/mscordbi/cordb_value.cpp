@@ -176,9 +176,15 @@ ULONG STDMETHODCALLTYPE CordbReferenceValue::Release(void)
 HRESULT STDMETHODCALLTYPE CordbReferenceValue::GetExactType(ICorDebugType** ppType)
 {
 	DEBUG_PRINTF(1, "CordbReferenceValue - GetExactType - IMPLEMENTED - %d\n", type);
+	if (cordbtype) {
+		DEBUG_PRINTF(1, "CordbReferenceValue - GetExactType - IMPLEMENTED - %d - tinha cordbtype\n", type);
+		*ppType = static_cast<ICorDebugType*>(cordbtype);
+		return S_OK;
+	}
 	if (klass != NULL) {
-		CordbType* tp = new CordbType(type, klass);
-		*ppType = static_cast<ICorDebugType*>(tp);
+		DEBUG_PRINTF(1, "CordbReferenceValue - GetExactType - IMPLEMENTED - %d - tinha klass\n", type);
+		cordbtype = new CordbType(type, klass);
+		*ppType = static_cast<ICorDebugType*>(cordbtype);
 		return S_OK;
 	}
 	if (type == ELEMENT_TYPE_CLASS && object_id != -1) {
@@ -205,13 +211,14 @@ HRESULT STDMETHODCALLTYPE CordbReferenceValue::GetExactType(ICorDebugType** ppTy
 		type_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 		int type_id2 = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 		int token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-
+		DEBUG_PRINTF(1, "CordbReferenceValue - GetExactType - IMPLEMENTED - 1.0 - %d - %d\n", type_id, token);
 		klass = new CordbClass(conn, token, module_id);
 		cordbtype = new CordbType(type, klass);
 		*ppType = static_cast<ICorDebugType*>(cordbtype);
 		return S_OK;
 	}
 	if (type == ELEMENT_TYPE_SZARRAY && object_id != -1) {
+		CordbClass* klass = NULL;
 		Buffer localbuf;
 		buffer_init(&localbuf, 128);
 		buffer_add_id(&localbuf, object_id);
@@ -221,9 +228,32 @@ HRESULT STDMETHODCALLTYPE CordbReferenceValue::GetExactType(ICorDebugType** ppTy
 		Buffer* localbuf2 = conn->get_answer(cmdId);
 		int type_id = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 		DEBUG_PRINTF(1, "ELEMENT_TYPE_SZARRAY - %d\n", type_id);
-		cordbtype = new CordbType(type, NULL, new CordbType((CorElementType)type_id));
+		int rank = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		if (type_id == ELEMENT_TYPE_CLASS) {
+			int klass_id = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+			buffer_init(&localbuf, 128);
+			buffer_add_id(&localbuf, klass_id);
+
+			cmdId = conn->send_event(CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
+			buffer_free(&localbuf);
+			localbuf2 = conn->get_answer(cmdId);
+			char* namespace_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			char* class_name_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			char* class_fullname_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			int assembly_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			int module_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			int type_id3 = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			int type_id2 = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			int token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			DEBUG_PRINTF(1, "CordbReferenceValue - GetExactType - IMPLEMENTED - 1.1 - %d - %d\n", klass_id, token);
+			klass = new CordbClass(conn, token, module_id);
+		}
+
+		cordbtype = new CordbType(type, NULL, new CordbType((CorElementType)type_id, klass));
 		*ppType = static_cast<ICorDebugType*>(cordbtype);
-		DEBUG_PRINTF(1, "CordbArrayValue - GetExactType - IMPLEMENTED\n");
+		DEBUG_PRINTF(1, "CordbReferenceValue - GetExactType - IMPLEMENTED\n");
+
 		return S_OK;
 	}
 	CordbType* tp = new CordbType(type);
@@ -289,12 +319,12 @@ HRESULT STDMETHODCALLTYPE CordbReferenceValue::DereferenceStrong(/* [out] */ ICo
 	return E_NOTIMPL;
 }
 
-CordbReferenceValue::CordbReferenceValue(Connection* conn, CorElementType type, int object_id, CordbClass* klass) {
+CordbReferenceValue::CordbReferenceValue(Connection* conn, CorElementType type, int object_id, CordbClass* klass, CordbType* cordbtype) {
 	this->type = type;
 	this->object_id = object_id;
 	this->conn = conn;
 	this->klass = klass;
-	this->cordbtype = NULL;
+	this->cordbtype = cordbtype;
 }
 
 CordbObjectValue::CordbObjectValue(Connection* conn, CorElementType type, int object_id, CordbClass* klass) {
@@ -479,6 +509,7 @@ HRESULT CordbObjectValue::CreateCordbValue(Connection* conn, Buffer* localbuf2, 
 {
 	CorElementType type = (CorElementType)decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 
+	DEBUG_PRINTF(1, "CreateCordbValue type - %x\n", type);
 	CordbContent value;
 	switch (type)
 	{
@@ -518,26 +549,59 @@ HRESULT CordbObjectValue::CreateCordbValue(Connection* conn, Buffer* localbuf2, 
 	case VALUE_TYPE_ID_NULL:
 	{
 		CorElementType type = (CorElementType) decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		int klass_id = (CorElementType) decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		
-		Buffer localbuf;
-		buffer_init(&localbuf, 128);
-		buffer_add_id(&localbuf, klass_id);
-		int cmdId = conn->send_event(CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
-		buffer_free(&localbuf);
-		localbuf2 = conn->get_answer(cmdId);
-		char* namespace_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		char* class_name_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		char* class_fullname_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		int assembly_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		int module_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		int type_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		int type_id2 = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		int token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		DEBUG_PRINTF(1, "NULL value - type - %d\n", type);		
+		if (type == MONO_TYPE_CLASS || type == MONO_TYPE_STRING) {
+			int klass_id = (CorElementType) decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			
+			Buffer localbuf;
+			buffer_init(&localbuf, 128);
+			buffer_add_id(&localbuf, klass_id);
+			int cmdId = conn->send_event(CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
+			buffer_free(&localbuf);
+			localbuf2 = conn->get_answer(cmdId);
+			char* namespace_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			char* class_name_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			char* class_fullname_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			int assembly_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			int module_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			int type_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			int type_id2 = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			int token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 
-		CordbClass *klass = new CordbClass(conn, token, module_id);
-		CordbReferenceValue* refValue = new CordbReferenceValue(conn, type, -1, klass);
-		refValue->QueryInterface(IID_ICorDebugValue, (void**)ppValue);
+			CordbClass *klass = new CordbClass(conn, token, module_id);
+			CordbReferenceValue* refValue = new CordbReferenceValue(conn, type, -1, klass);
+			refValue->QueryInterface(IID_ICorDebugValue, (void**)ppValue);
+		}
+		if (type == MONO_TYPE_SZARRAY) {
+			DEBUG_PRINTF(1, "NULL value - MONO_TYPE_SZARRAY\n");
+			CordbClass *klass = NULL;
+			int type_id = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			if (type_id == ELEMENT_TYPE_CLASS) {
+				DEBUG_PRINTF(1, "NULL value - MONO_TYPE_SZARRAY - ELEMENT_TYPE_CLASS\n");
+				int klass_id = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+				Buffer localbuf;
+				buffer_init(&localbuf, 128);
+				buffer_add_id(&localbuf, klass_id);
+
+				int cmdId = conn->send_event(CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
+				buffer_free(&localbuf);
+				localbuf2 = conn->get_answer(cmdId);
+				char* namespace_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+				char* class_name_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+				char* class_fullname_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+				int assembly_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+				int module_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+				int type_id3 = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+				int type_id2 = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+				int token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+				DEBUG_PRINTF(1, "CreateCordbValue - IMPLEMENTED - 1.1 - %d - %d\n", klass_id, token);
+				klass = new CordbClass(conn, token, module_id);
+			}
+			CordbType *cordbtype = new CordbType(type, NULL, new CordbType((CorElementType)type_id, klass));
+			CordbReferenceValue* refValue = new CordbReferenceValue(conn, type, -1, klass, cordbtype);
+			refValue->QueryInterface(IID_ICorDebugValue, (void**)ppValue);
+		}
 		return S_OK;
 	}
 	default:

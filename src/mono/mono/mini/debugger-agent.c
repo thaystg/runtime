@@ -4938,6 +4938,7 @@ buffer_add_value_full (Buffer *buf, MonoType *t, void *addr, MonoDomain *domain,
 
 	if (t->byref) {
 		if (!(*(void**)addr)) {
+			DEBUG_PRINTF(1, "!(*(void**)addr)\n");
 			/* This can happen with compiler generated locals */
 			//printf ("%s\n", mono_type_full_name (t));
 			buffer_add_byte (buf, VALUE_TYPE_ID_NULL);
@@ -5024,15 +5025,25 @@ buffer_add_value_full (Buffer *buf, MonoType *t, void *addr, MonoDomain *domain,
 	case MONO_TYPE_OBJECT:
 	case MONO_TYPE_CLASS:
 	case MONO_TYPE_ARRAY:
+		DEBUG_PRINTF(1, "type - %x\n", t->type);
 		obj = *(MonoObject**)addr;
 
 		if (!obj) {
+			DEBUG_PRINTF(1, "nao tem objeto\n");
 			buffer_add_byte (buf, VALUE_TYPE_ID_NULL);
 			if (CHECK_PROTOCOL_VERSION (2, 58)) {
 				buffer_add_byte (buf, t->type);
-				buffer_add_typeid (buf, domain, mono_class_from_mono_type_internal (t));
+				if (t->type == MONO_TYPE_CLASS || t->type == MONO_TYPE_STRING)
+					buffer_add_typeid (buf, domain, mono_class_from_mono_type_internal (t));
+				if (t->type == MONO_TYPE_SZARRAY || t->type == MONO_TYPE_ARRAY) {
+					buffer_add_byte(buf, m_class_get_byval_arg (m_class_get_element_class (mono_class_from_mono_type_internal (t)))->type);
+					buffer_add_int (buf, m_class_get_rank (mono_class_from_mono_type_internal (t)));
+					if (m_class_get_byval_arg (m_class_get_element_class (mono_class_from_mono_type_internal (t)))->type == MONO_TYPE_CLASS)
+						buffer_add_typeid (buf, domain, m_class_get_element_class (mono_class_from_mono_type_internal (t)));
+				}
 			}
 		} else {
+			DEBUG_PRINTF(1, "tem objeto\n");
 			if (m_class_is_valuetype (obj->vtable->klass)) {
 				t = m_class_get_byval_arg (obj->vtable->klass);
 				addr = mono_object_unbox_internal (obj);
@@ -9072,6 +9083,8 @@ array_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		{
 			buffer_add_byte(buf, m_class_get_byval_arg (m_class_get_element_class (arr->obj.vtable->klass))->type);
 			buffer_add_int (buf, m_class_get_rank (arr->obj.vtable->klass));
+			if (m_class_get_byval_arg (m_class_get_element_class (arr->obj.vtable->klass))->type == MONO_TYPE_CLASS)
+				buffer_add_typeid (buf, arr->obj.vtable->domain, m_class_get_element_class (arr->obj.vtable->klass));
 		}
 		break;
 	case CMD_ARRAY_REF_GET_LENGTH:
