@@ -275,8 +275,8 @@ static int packet_id = 0;
 
 #define HEADER_LENGTH 11
 
-#define MAJOR_VERSION 2
-#define MINOR_VERSION 58
+#define MAJOR_VERSION 3
+#define MINOR_VERSION 0
 
 
 /*
@@ -5025,13 +5025,10 @@ buffer_add_value_full (Buffer *buf, MonoType *t, void *addr, MonoDomain *domain,
 	case MONO_TYPE_OBJECT:
 	case MONO_TYPE_CLASS:
 	case MONO_TYPE_ARRAY:
-		DEBUG_PRINTF(1, "type - %x\n", t->type);
 		obj = *(MonoObject**)addr;
-
 		if (!obj) {
-			DEBUG_PRINTF(1, "nao tem objeto\n");
 			buffer_add_byte (buf, VALUE_TYPE_ID_NULL);
-			if (CHECK_PROTOCOL_VERSION (2, 58)) {
+			if (CHECK_PROTOCOL_VERSION (3, 0)) {
 				buffer_add_byte (buf, t->type);
 				if (t->type == MONO_TYPE_CLASS || t->type == MONO_TYPE_STRING)
 					buffer_add_typeid (buf, domain, mono_class_from_mono_type_internal (t));
@@ -5043,7 +5040,6 @@ buffer_add_value_full (Buffer *buf, MonoType *t, void *addr, MonoDomain *domain,
 				}
 			}
 		} else {
-			DEBUG_PRINTF(1, "tem objeto\n");
 			if (m_class_is_valuetype (obj->vtable->klass)) {
 				t = m_class_get_byval_arg (obj->vtable->klass);
 				addr = mono_object_unbox_internal (obj);
@@ -7457,7 +7453,7 @@ module_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		}
 		g_free (basename);
 		g_free (sourcelink);
-		if (CHECK_PROTOCOL_VERSION (2, 58))
+		if (CHECK_PROTOCOL_VERSION (3, 0))
 			buffer_add_byte_array(buf, mono_metadata_module_mvid (image), 16);
 		break;			
 	}
@@ -7482,7 +7478,7 @@ field_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		buffer_add_typeid (buf, domain, f->parent);
 		buffer_add_typeid (buf, domain, mono_class_from_mono_type_internal (f->type));
 		buffer_add_int (buf, f->type->attrs);
-		if (CHECK_PROTOCOL_VERSION (2, 58)) {
+		if (CHECK_PROTOCOL_VERSION (3, 0)) {
 			buffer_add_int (buf, f->type->type);
 			buffer_add_int (buf, m_class_get_type_token (f->parent));
 			buffer_add_int (buf, m_class_get_type_token (mono_class_from_mono_type_internal (f->type)));
@@ -8715,7 +8711,7 @@ thread_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 			 */
 			buffer_add_byte (buf, tls->frames [i]->flags);
 		}
-		if (CHECK_PROTOCOL_VERSION (2, 58))
+		if (CHECK_PROTOCOL_VERSION (3, 0))
 			buffer_add_byte_array(buf, ((guint8 *)&tls->context.ctx), (guint32)sizeof(MonoContext));
 		break;
 	}
