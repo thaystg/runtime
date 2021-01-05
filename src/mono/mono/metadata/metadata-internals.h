@@ -761,6 +761,7 @@ typedef struct {
 	guint16      max_stack;
 	gboolean     has_clauses;
 	gboolean     has_locals;
+	guint32 rva;
 } MonoMethodHeaderSummary;
 
 // FIXME? offsetof (MonoMethodHeader, locals)?
@@ -971,6 +972,22 @@ mono_metadata_parse_mh_full                 (MonoImage             *image,
 MonoMethodSignature  *mono_metadata_parse_signature_checked (MonoImage *image, 
 							     uint32_t    token,
 							     MonoError *error);
+
+const char *mono_metadata_local_signature_from_token  (MonoImage *image, 
+								guint32 token, 
+								int *len_blob, 
+								MonoError *error);
+
+int
+mono_metadata_class_from_memberref_token (MonoImage *image, 
+								guint32 token, 
+								MonoError *error);
+
+const char *
+mono_metadata_signature_from_memberref_token (MonoImage *image, 
+								guint32 token, 
+								int *len_blob, 
+								MonoError *error);	
 
 gboolean
 mono_method_get_header_summary (MonoMethod *method, MonoMethodHeaderSummary *summary);
