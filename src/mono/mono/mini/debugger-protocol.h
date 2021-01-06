@@ -42,6 +42,7 @@ typedef enum {
 	CMD_SET_TYPE = 23,
 	CMD_SET_MODULE = 24,
 	CMD_SET_FIELD = 25,
+	CMD_SET_PROPERTY = 26,
 	CMD_SET_EVENT = 64,
 	CMD_SET_POINTER = 65
 } CommandSet;
@@ -135,7 +136,8 @@ typedef enum {
 	CMD_ASSEMBLY_GET_CATTRS = 14,
 	CMD_ASSEMBLY_GET_CUSTOM_ATTRIBUTES = 15,
 	CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN = 16,
-	CMD_ASSEMBLY_GET_INFO_FROM_MEMBERREF_TOKEN = 17
+	CMD_ASSEMBLY_GET_INFO_FROM_MEMBERREF_TOKEN = 17,
+	CMD_ASSEMBLY_GET_SIMPLE_NAME = 18
 } CmdAssembly;
 
 typedef enum {
@@ -145,6 +147,11 @@ typedef enum {
 typedef enum {
 	CMD_FIELD_GET_INFO = 1,
 } CmdField;
+
+typedef enum {
+	CMD_PROPERTY_GET_INFO = 1,
+} CmdProperty;
+
 
 typedef enum {
 	CMD_METHOD_GET_NAME = 1,

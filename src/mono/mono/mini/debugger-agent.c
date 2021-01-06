@@ -1007,7 +1007,7 @@ socket_transport_connect (const char *address)
 			MONO_HINT_UNSPECIFIED
 		};
 
-		mono_network_init ();
+		mono_networking_init ();
 
 		for (int i = 0; i < sizeof(hints) / sizeof(int); i++) {
 			/* Obtain address(es) matching host/port */
@@ -7418,6 +7418,11 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 
 		break;
 	}
+	case CMD_ASSEMBLY_GET_SIMPLE_NAME: {
+		PRINT_DEBUG_MSG(1, "THAYSTHAYS - CMD_ASSEMBLY_GET_SIMPLE_NAME - %s\n", ass->aname.name);
+		buffer_add_string (buf, ass->aname.name);
+		break;
+	}
 	case CMD_ASSEMBLY_GET_NAME: {
 		gchar *name;
 		MonoAssembly *mass = ass;
@@ -7487,6 +7492,7 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
         error_init (error);
         MonoMethod* mono_method = mono_get_method_checked (ass->image, token, NULL, NULL, error);
         if (!is_ok (error)) {
+			PRINT_DEBUG_MSG(1, "THAYSTHAYS - ERROR - %s - %s\n", mono_error_get_message (error), ass->aname.name);
             add_error_string (buf, mono_error_get_message (error));
             mono_error_cleanup (error);
             return ERR_INVALID_ARGUMENT;
@@ -7580,6 +7586,43 @@ field_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 			buffer_add_int (buf, f->type->type);
 			buffer_add_int (buf, m_class_get_type_token (f->parent));
 			buffer_add_int (buf, m_class_get_type_token (mono_class_from_mono_type_internal (f->type)));
+		}
+		break;
+	}
+	default:
+		return ERR_NOT_IMPLEMENTED;
+	}
+
+	return ERR_NONE;
+}
+
+
+
+static ErrorCode
+property_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
+{
+	ErrorCode err;
+	MonoDomain *domain;
+
+	switch (command) {
+	case CMD_PROPERTY_GET_INFO: {
+		MonoProperty *prop = decode_propertyid (p, &p, end, &domain, &err);
+		buffer_add_string (buf, prop->name);
+		PRINT_DEBUG_MSG(1, "THAYSTHAYS - CMD_PROPERTY_GET_INFO - %s\n", prop->name);
+		if (prop->set)
+			buffer_add_int (buf, prop->set->token);
+		else
+			buffer_add_int (buf, 0);
+		if (prop->get)
+			buffer_add_int (buf, prop->get->token);
+		else
+			buffer_add_int (buf, 0);	
+		buffer_add_int (buf, m_class_get_type_token (prop->parent));
+		PRINT_DEBUG_MSG(1, "THAYSTHAYS - CMD_PROPERTY_GET_INFO - 1.0 - %d\n", prop->type[0]);
+		buffer_add_int (buf, prop->type[0]);
+		for (int i = 1 ; i <= prop->type[0]; i++) {
+			PRINT_DEBUG_MSG(1, "THAYSTHAYS - CMD_PROPERTY_GET_INFO - 1.1 - %d\n", prop->type[i]);
+			buffer_add_int (buf, prop->type[i]);
 		}
 		break;
 	}
@@ -7720,6 +7763,9 @@ type_commands_internal (int command, MonoClass *klass, MonoDomain *domain, guint
 
 		while ((m = mono_class_get_methods (klass, &iter))) {
 			buffer_add_methodid (buf, domain, m);
+			if (CHECK_PROTOCOL_VERSION (3, 0))
+				buffer_add_int(buf, m->token);
+			PRINT_DEBUG_MSG(1, "THAYSTHAYS - m->token - %d\n", m->token);
 			i ++;
 		}
 		g_assert (i == nmethods);
@@ -9470,6 +9516,8 @@ command_set_to_string (CommandSet command_set)
 		return "EVENT";
 	case CMD_SET_POINTER:
 		return "POINTER";
+	case CMD_SET_PROPERTY:
+		return "PROPERTY";		
 	default:
 		return "";
 	}
@@ -9540,6 +9588,10 @@ static const char* module_cmds_str[] = {
 };
 
 static const char* field_cmds_str[] = {
+	"GET_INFO",
+};
+
+static const char* property_cmds_str[] = {
 	"GET_INFO",
 };
 
@@ -9671,6 +9723,10 @@ cmd_to_string (CommandSet set, int command)
 	case CMD_SET_FIELD:
 		cmds = field_cmds_str;
 		cmds_len = G_N_ELEMENTS (field_cmds_str);
+		break;
+	case CMD_SET_PROPERTY:
+		cmds = property_cmds_str;
+		cmds_len = G_N_ELEMENTS (property_cmds_str);
 		break;
 	case CMD_SET_EVENT:
 		cmds = event_cmds_str;
@@ -9839,6 +9895,9 @@ debugger_thread (void *arg)
 		case CMD_SET_FIELD:
 			err = field_commands (command, p, end, &buf);
 			break;
+		case CMD_SET_PROPERTY:
+			err = property_commands (command, p, end, &buf);
+			break;
 		case CMD_SET_TYPE:
 			err = type_commands (command, p, end, &buf);
 			break;
@@ -9876,7 +9935,7 @@ debugger_thread (void *arg)
 				buffer_reply_packet (id, err, &buf);
 			} else {
 				send_reply_packet (id, err, &buf);
-				//PRINT_DEBUG_MSG (1, "[dbg] Sent reply to %d [at=%lx].\n", id, (long)mono_100ns_ticks () / 10000);
+				PRINT_DEBUG_MSG (1, "[dbg] Sent reply to %d [at=%lx].\n", id, (long)mono_100ns_ticks () / 10000);
 			}
 		}
 

@@ -2189,7 +2189,6 @@ mono_metadata_class_from_memberref_token (MonoImage *image, guint32 token, MonoE
 	return cols [MONO_MEMBERREF_CLASS];
 }
 
-
 /*
  * mono_metadata_parse_header_checked:
  * @image: metadata context

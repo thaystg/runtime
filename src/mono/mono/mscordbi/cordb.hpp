@@ -43,6 +43,13 @@ class CordbSymbol;
 class CordbRegisteSet;
 class CordbClass;
 
+typedef struct ReceivedReplyPacket {
+	int error;
+	int error_2;
+	Buffer *buf;
+} ReceivedReplyPacket;
+
+
 int convert_mono_type_2_icordbg_size(int type);
 
 struct M128BIT {
@@ -291,6 +298,7 @@ public:
 	int send_event(int cmd_set, int cmd, Buffer* sendbuf);
 	int process_packet(bool is_answer = false);
     Buffer* get_answer(int cmdId);
+    ReceivedReplyPacket* get_answer_with_error(int cmdId);
     CordbThread* findThread(GPtrArray *threads, long thread_id);
 };
 
@@ -299,5 +307,7 @@ static FILE* log_file = fopen("c:\\thays\\example.txt", "a+");
 
 #define DEBUG(level,s) do { if (G_UNLIKELY ((level) <= log_level)) { s; fflush (log_file); } } while (0)
 #define DEBUG_PRINTF(level, ...) do { if (G_UNLIKELY ((level) <= log_level)) { fprintf (log_file, __VA_ARGS__); fflush (log_file); } } while (0)
+
+#define CHECK_ERROR_RETURN_FALSE(localbuf) do { if (localbuf->error > 0 || localbuf->error_2 > 0) {DEBUG_PRINTF(1, "retornando erro\n"); return S_FALSE;}} while (0)
 
 #endif

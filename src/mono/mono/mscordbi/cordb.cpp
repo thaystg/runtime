@@ -294,7 +294,11 @@ void Connection::receive()
 		dbg_lock ();
 		if (header.flags == REPLY_PACKET) {
 			DEBUG_PRINTF(1, "header->id - %d - header->error - %d - header->error_2 - %d\n", header.id, header.error, header.error_2);
-			g_hash_table_insert(received_replies, (gpointer)(gssize)(header.id), recvbuf);
+			ReceivedReplyPacket *rp = (ReceivedReplyPacket *)g_malloc0 (sizeof(ReceivedReplyPacket));
+			rp->error = header.error;
+			rp->error_2 = header.error_2;
+			rp->buf = recvbuf;
+			g_hash_table_insert(received_replies, (gpointer)(gssize)(header.id), rp);
 		}
 		else {
 			g_ptr_array_add(received_replies_to_process, recvbuf);
@@ -305,10 +309,21 @@ void Connection::receive()
 
 Buffer* Connection::get_answer(int cmdId)
 {
-	Buffer* ret = NULL;
+	ReceivedReplyPacket* ret = NULL;
 	while (ret == NULL) {
 		dbg_lock ();
-		ret = (Buffer*)g_hash_table_lookup(received_replies, (gpointer)(gssize)(cmdId));
+		ret = (ReceivedReplyPacket*)g_hash_table_lookup(received_replies, (gpointer)(gssize)(cmdId));
+		dbg_unlock ();		
+	}
+	return ret->buf;
+}
+
+ReceivedReplyPacket* Connection::get_answer_with_error(int cmdId)
+{
+	ReceivedReplyPacket* ret = NULL;
+	while (ret == NULL) {
+		dbg_lock ();
+		ret = (ReceivedReplyPacket*)g_hash_table_lookup(received_replies, (gpointer)(gssize)(cmdId));
 		dbg_unlock ();		
 	}
 	return ret;
@@ -468,7 +483,7 @@ void Connection::loop_send_receive()
 	buffer_free(&localbuf);
 
 	Buffer* localbuf2 = get_answer(cmdId);
-	char *vm_version = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	char *vm_version = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	int major_version = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	int minor_version = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
 

@@ -978,6 +978,11 @@ const char *mono_metadata_local_signature_from_token  (MonoImage *image,
 								int *len_blob, 
 								MonoError *error);
 
+const char *mono_metadata_property_signature_from_token  (MonoImage *image, 
+								guint32 token, 
+								int *len_blob, 
+								MonoError *error);
+
 int
 mono_metadata_class_from_memberref_token (MonoImage *image, 
 								guint32 token, 
