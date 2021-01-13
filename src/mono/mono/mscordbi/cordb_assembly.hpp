@@ -16,6 +16,7 @@ public:
 	CordbAssembly* pAssembly;
     guint8* assembly_metadata_blob;
     guint32 assembly_metadata_len;
+    unsigned long dwFlags;
 
     CordbModule(CordbProcess* process, CordbAssembly* assembly, int id_assembly);
 

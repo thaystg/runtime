@@ -12,6 +12,7 @@
 #include <cordb_breakpoint.hpp>
 #include <cordb_code.hpp>
 #include <cordb_symbol.hpp>
+#include <cordb-eval.hpp>
 
 int convert_mono_type_2_icordbg_size(int type)
 {
@@ -196,34 +197,34 @@ ULONG Cordb::AddRef(void)
 
 ULONG Cordb::Release(void)
 {
-	return S_OK;
+return S_OK;
 }
 
 HRESULT Cordb::CreateProcessEx(
-/* [in] */ ICorDebugRemoteTarget* pRemoteTarget,
-/* [in] */ LPCWSTR lpApplicationName,
-/* [annotation][in] */
-_In_  LPWSTR lpCommandLine,
-/* [in] */ LPSECURITY_ATTRIBUTES lpProcessAttributes,
-/* [in] */ LPSECURITY_ATTRIBUTES lpThreadAttributes,
-/* [in] */ BOOL bInheritHandles,
-/* [in] */ DWORD dwCreationFlags,
-/* [in] */ PVOID lpEnvironment,
-/* [in] */ LPCWSTR lpCurrentDirectory,
-/* [in] */ LPSTARTUPINFOW lpStartupInfo,
-/* [in] */ LPPROCESS_INFORMATION lpProcessInformation,
-/* [in] */ CorDebugCreateProcessFlags debuggingFlags,
-/* [out] */ ICorDebugProcess** ppProcess)
+	/* [in] */ ICorDebugRemoteTarget* pRemoteTarget,
+	/* [in] */ LPCWSTR lpApplicationName,
+	/* [annotation][in] */
+	_In_  LPWSTR lpCommandLine,
+	/* [in] */ LPSECURITY_ATTRIBUTES lpProcessAttributes,
+	/* [in] */ LPSECURITY_ATTRIBUTES lpThreadAttributes,
+	/* [in] */ BOOL bInheritHandles,
+	/* [in] */ DWORD dwCreationFlags,
+	/* [in] */ PVOID lpEnvironment,
+	/* [in] */ LPCWSTR lpCurrentDirectory,
+	/* [in] */ LPSTARTUPINFOW lpStartupInfo,
+	/* [in] */ LPPROCESS_INFORMATION lpProcessInformation,
+	/* [in] */ CorDebugCreateProcessFlags debuggingFlags,
+	/* [out] */ ICorDebugProcess** ppProcess)
 {
 	DEBUG_PRINTF(1, "Cordb - CreateProcessEx - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
 HRESULT Cordb::DebugActiveProcessEx(
-/* [in] */ ICorDebugRemoteTarget* pRemoteTarget,
-/* [in] */ DWORD dwProcessId,
-/* [in] */ BOOL fWin32Attach,
-/* [out] */ ICorDebugProcess** ppProcess)
+	/* [in] */ ICorDebugRemoteTarget* pRemoteTarget,
+	/* [in] */ DWORD dwProcessId,
+	/* [in] */ BOOL fWin32Attach,
+	/* [out] */ ICorDebugProcess** ppProcess)
 {
 	DEBUG_PRINTF(1, "Cordb - DebugActiveProcessEx - NOT IMPLEMENTED\n");
 	return S_OK;
@@ -237,15 +238,16 @@ Connection::Connection(CordbProcess* proc, Cordb* cordb)
 	ppCordb = cordb;
 	pCorDebugAppDomain = NULL;
 	received_replies = g_hash_table_new(NULL, NULL);
-	received_replies_to_process = g_ptr_array_new();
+	received_packets_to_process = g_ptr_array_new();
 	is_answer_pending = false;
+	pending_eval = g_ptr_array_new();
 }
 
 CordbThread* Connection::findThread(GPtrArray* threads, long thread_id)
 {
 	int i = 0;
 	while (i < threads->len) {
-		CordbThread *thread = (CordbThread*)g_ptr_array_index(threads, i);
+		CordbThread* thread = (CordbThread*)g_ptr_array_index(threads, i);
 		if (thread->thread_id == thread_id) {
 			return thread;
 		}
@@ -259,17 +261,17 @@ void Connection::receive()
 	while (true) {
 		Buffer recvbuf_header;
 		buffer_init(&recvbuf_header, HEADER_LEN);
-		
+
 		int iResult = recv(connect_socket, (char*)recvbuf_header.buf, HEADER_LEN, 0);
-		
+
 		if (iResult == -1)
 			break;
 		while (iResult == 0) {
-			DEBUG_PRINTF (1, "[dbg] transport_recv () sleep returned %d, expected %d.\n", iResult, HEADER_LEN);
+			DEBUG_PRINTF(1, "[dbg] transport_recv () sleep returned %d, expected %d.\n", iResult, HEADER_LEN);
 			iResult = recv(connect_socket, (char*)recvbuf_header.buf, HEADER_LEN, 0);
 			Sleep(1000);
 		}
-		
+
 		Header header;
 		Buffer* recvbuf = new Buffer();
 		decode_command_header(&recvbuf_header, &header);
@@ -286,22 +288,22 @@ void Connection::receive()
 			int totalRead = iResult;
 			while (totalRead < header.len - HEADER_LEN)
 			{
-				iResult = recv(connect_socket, (char*)recvbuf->buf+ totalRead, (header.len - HEADER_LEN) - totalRead, 0);
+				iResult = recv(connect_socket, (char*)recvbuf->buf + totalRead, (header.len - HEADER_LEN) - totalRead, 0);
 				totalRead += iResult;
 			}
 		}
 
-		dbg_lock ();
+		dbg_lock();
 		if (header.flags == REPLY_PACKET) {
 			DEBUG_PRINTF(1, "header->id - %d - header->error - %d - header->error_2 - %d\n", header.id, header.error, header.error_2);
-			ReceivedReplyPacket *rp = (ReceivedReplyPacket *)g_malloc0 (sizeof(ReceivedReplyPacket));
+			ReceivedReplyPacket* rp = (ReceivedReplyPacket*)g_malloc0(sizeof(ReceivedReplyPacket));
 			rp->error = header.error;
 			rp->error_2 = header.error_2;
 			rp->buf = recvbuf;
 			g_hash_table_insert(received_replies, (gpointer)(gssize)(header.id), rp);
 		}
 		else {
-			g_ptr_array_add(received_replies_to_process, recvbuf);
+			g_ptr_array_add(received_packets_to_process, recvbuf);
 		}
 		dbg_unlock ();
 	}
@@ -447,13 +449,23 @@ int Connection::process_packet(bool is_answer)
 void Connection::process_packet_from_queue()
 {
 	int i = 0;
-	while (i < received_replies_to_process->len) {
-		Buffer* req = (Buffer*)g_ptr_array_index(received_replies_to_process, i);
+	while (i < received_packets_to_process->len) {
+		Buffer* req = (Buffer*)g_ptr_array_index(received_packets_to_process, i);
 		process_packet_internal(req);
 		dbg_lock ();
-		g_ptr_array_remove_index_fast(received_replies_to_process, i);
+		g_ptr_array_remove_index_fast(received_packets_to_process, i);
 		dbg_unlock ();
 		g_free(req);
+		i--;
+	}
+	while (i < pending_eval->len) {
+		CordbEval* eval = (CordbEval*)g_ptr_array_index(pending_eval, i);
+		Buffer* recvbuf = get_answer(eval->cmdId);
+		eval->EvalComplete(recvbuf);
+		dbg_lock();
+		g_ptr_array_remove_index_fast(pending_eval, i);
+		dbg_unlock();
+		i--;
 	}
 }
 
@@ -495,6 +507,14 @@ void Connection::loop_send_receive()
 		if (!ppProcess->suspended)
 			iResult = process_packet();
 		Sleep(100);
+// 		if (iResult == 1 && ppProcess->suspended == true) {
+// 			if (ppProcess->managed_event_queue->HasQueuedCallbacks(NULL)) {
+// 				ManagedEvent* managed = ppProcess->managed_event_queue->Dequeue();
+// 				ManagedEvent::DispatchArgs args((ICorDebugManagedCallback*)ppProcess->cordb->pCallback, (ICorDebugManagedCallback2*)ppProcess->cordb->pCallback, (ICorDebugManagedCallback3*)ppProcess->cordb->pCallback, (ICorDebugManagedCallback4*)ppProcess->cordb->pCallback);
+// 				managed->Dispatch(args);
+// 				ppProcess->suspended = true;
+// 			}
+// 		}
 	} while (iResult >= 0);
 }
 
@@ -540,11 +560,11 @@ void Connection::start_connection()
 	hints.ai_protocol = IPPROTO_TCP;
 
 	
-	DEBUG_PRINTF(1, "Listening to 127.0.0.1:1002\n");
+	DEBUG_PRINTF(1, "Listening to 127.0.0.1:1003\n");
 
 
 	// Resolve the server address and port
-	iResult = getaddrinfo("127.0.0.1", "1002", &hints, &result);
+	iResult = getaddrinfo("127.0.0.1", "1003", &hints, &result);
 	if (iResult != 0) {
 		WSACleanup();
 		return;
@@ -561,14 +581,6 @@ void Connection::start_connection()
 			WSACleanup();
 			return;
 		}
-
-		// Connect to server.
-		/*iResult = connect(connect_socket, ptr->ai_addr, (int)ptr->ai_addrlen);
-		if (iResult == SOCKET_ERROR) {
-			closesocket(connect_socket);
-			connect_socket = INVALID_SOCKET;
-			continue;
-		}*/
 
 		int flag = 1;
 		if (setsockopt(connect_socket,
@@ -687,11 +699,8 @@ HRESULT CordbAssembly::GetProcess(
 	return S_OK;
 }
 
-HRESULT CordbSymbol::GetAssemblyFromScope(mdAssembly* ptkAssembly)
+
+CordbBaseMono::CordbBaseMono(Connection* conn)
 {
-	*ptkAssembly = pCordbAssembly->id;
-	DEBUG_PRINTF(1, "CordbSymbol - GetAssemblyFromScope - IMPLEMENTED - id\n");
-	return S_OK;
+	this->conn = conn;
 }
-
-

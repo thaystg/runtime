@@ -282,7 +282,8 @@ public:
 	Cordb* ppCordb;
     CordbAppDomain* pCorDebugAppDomain;
 	GHashTable* received_replies;
-	GPtrArray* received_replies_to_process;
+    GPtrArray* pending_eval;
+	GPtrArray* received_packets_to_process;
 	Connection(CordbProcess* proc, Cordb* cordb);
 	void loop_send_receive();
 	void process_packet_internal(Buffer* recvbuf);
@@ -301,6 +302,15 @@ public:
     ReceivedReplyPacket* get_answer_with_error(int cmdId);
     CordbThread* findThread(GPtrArray *threads, long thread_id);
 };
+
+class CordbBaseMono
+{
+protected:
+    Connection* conn;
+public:
+    CordbBaseMono(Connection* conn);
+};
+
 
 static int log_level = 10;
 static FILE* log_file = fopen("c:\\thays\\example.txt", "a+");

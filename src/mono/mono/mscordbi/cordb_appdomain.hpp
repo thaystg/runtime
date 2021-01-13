@@ -11,7 +11,6 @@ class CordbAppDomain :
 {
 public:
     CordbAppDomain(ICorDebugProcess* ppProcess);
-private:
 	ICorDebugProcess* pProcess;
     HRESULT STDMETHODCALLTYPE Stop(/* [in] */ DWORD dwTimeoutIgnored);
     HRESULT STDMETHODCALLTYPE Continue(/* [in] */ BOOL fIsOutOfBand);
@@ -44,8 +43,10 @@ private:
 };
 
 class CordbAppDomainEnum : public ICorDebugAppDomainEnum {
-
+    int current_pos;
+    CordbProcess* pProcess;
 public:
+    CordbAppDomainEnum(CordbProcess* ppProcess);
     HRESULT STDMETHODCALLTYPE Next(ULONG celt, ICorDebugAppDomain* values[], ULONG* pceltFetched);
     HRESULT STDMETHODCALLTYPE Skip(ULONG celt);
     HRESULT STDMETHODCALLTYPE Reset(void);

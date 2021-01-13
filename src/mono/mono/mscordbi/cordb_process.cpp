@@ -13,7 +13,10 @@ using namespace std;
 
 CordbProcess::CordbProcess()
 {
-    suspended = false;
+	suspended = false;
+	appdomains = g_ptr_array_new();
+	managed_event_queue = new ManagedEventQueue();
+	//eval_count = 0;
 }
 
 HRESULT CordbProcess::EnumerateLoaderHeapMemoryRegions(
@@ -246,7 +249,7 @@ HRESULT CordbProcess::ModifyLogSwitch(
 
 HRESULT CordbProcess::EnumerateAppDomains(
 	/* [out] */ ICorDebugAppDomainEnum** ppAppDomains) {
-	*ppAppDomains = new CordbAppDomainEnum();
+	*ppAppDomains = new CordbAppDomainEnum(this);
 	DEBUG_PRINTF(1, "CordbProcess - EnumerateAppDomains - IMPLEMENTED\n");
 	return S_OK;
 }
@@ -409,9 +412,14 @@ HRESULT CordbProcess::Stop(
 HRESULT CordbProcess::Continue(
 	/* [in] */ BOOL fIsOutOfBand)
 {
+	/*if (eval_count > 0) {
+		DEBUG_PRINTF(1, "RESUME pra rodar eval\n");
+		eval_count--;
+		return S_OK;
+	}*/
 	if (suspended == false) {
 		DEBUG_PRINTF(1, "RESUME SEM ESTAR SUSPENSO - fIsOutOfBand \n");
-	return S_OK;
+		return S_OK;
 	}
 	suspended = false;
 	DEBUG_PRINTF(1, "CordbProcess - Continue - IMPLEMENTED\n");
@@ -424,7 +432,8 @@ HRESULT CordbProcess::Continue(
 
 HRESULT CordbProcess::IsRunning(
 	/* [out] */ BOOL* pbRunning) {
-	DEBUG_PRINTF(1, "CordbProcess - IsRunning - NOT IMPLEMENTED\n");
+	*pbRunning = true;
+	DEBUG_PRINTF(1, "CordbProcess - IsRunning - IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -432,7 +441,12 @@ HRESULT CordbProcess::HasQueuedCallbacks(
 	/* [in] */ ICorDebugThread* pThread,
 	/* [out] */ BOOL* pbQueued) {
 	//connection->process_packet_from_queue();
-	DEBUG_PRINTF(1, "CordbProcess - HasQueuedCallbacks - NOT IMPLEMENTED\n");
+	if (!managed_event_queue->HasQueuedCallbacks(pThread)) {
+		*pbQueued = false;
+		return S_OK;
+	}
+	*pbQueued = true;
+	DEBUG_PRINTF(1, "CordbProcess - HasQueuedCallbacks - IMPLEMENTED\n");
 	return S_OK;
 }
 
@@ -474,4 +488,165 @@ HRESULT CordbProcess::CommitChanges(
 	/* [out] */ ICorDebugErrorInfoEnum** pError) {
 	DEBUG_PRINTF(1, "CordbProcess - CommitChanges - NOT IMPLEMENTED\n");
 	return S_OK;
+}
+
+ManagedEvent::~ManagedEvent()
+{
+
+}
+
+HRESULT ManagedEvent::Dispatch(DispatchArgs args)
+{
+	return S_OK;
+}
+
+
+ManagedEvent::ManagedEvent(ICorDebugThread* pThread)
+{
+	m_dwThreadId = 0;
+	m_pNext = NULL;
+}
+
+ManagedEvent::ManagedEvent()
+{
+	m_dwThreadId = 0;
+	m_pNext = NULL;
+}
+
+ManagedEvent::DispatchArgs::DispatchArgs(ICorDebugManagedCallback* pCallback1, ICorDebugManagedCallback2* pCallback2, ICorDebugManagedCallback3* pCallback3, ICorDebugManagedCallback4* pCallback4)
+{
+	m_pCallback1 = pCallback1;
+	m_pCallback2 = pCallback2;
+	m_pCallback3 = pCallback3;
+	m_pCallback4 = pCallback4;
+}
+
+ICorDebugManagedCallback* ManagedEvent::DispatchArgs::GetCallback1()
+{
+	return m_pCallback1;
+}
+
+ICorDebugManagedCallback2* ManagedEvent::DispatchArgs::GetCallback2()
+{
+	return m_pCallback2;
+}
+
+ICorDebugManagedCallback3* ManagedEvent::DispatchArgs::GetCallback3()
+{
+	return m_pCallback3;
+}
+
+ICorDebugManagedCallback4* ManagedEvent::DispatchArgs::GetCallback4()
+{
+	return m_pCallback4;
+}
+
+DWORD ManagedEvent::GetOSTid()
+{
+	return m_dwThreadId;
+}
+
+ManagedEventQueue::ManagedEventQueue()
+{
+	m_pFirstEvent = m_pLastEvent = NULL;
+}
+
+void ManagedEventQueue::Init()
+{
+
+}
+
+ManagedEvent* ManagedEventQueue::Dequeue()
+{
+	if (m_pFirstEvent == NULL)
+	{
+		return NULL;
+	}
+
+	ManagedEvent* pEvent = m_pFirstEvent;
+	m_pFirstEvent = m_pFirstEvent->m_pNext;
+	if (m_pFirstEvent == NULL)
+	{
+		m_pLastEvent = NULL;
+	}
+
+	pEvent->m_pNext = NULL;
+	return pEvent;
+}
+
+void ManagedEventQueue::QueueEvent(ManagedEvent* pEvent)
+{
+	if (m_pLastEvent == NULL)
+	{
+		_ASSERTE(m_pFirstEvent == NULL);
+		m_pFirstEvent = m_pLastEvent = pEvent;
+	}
+	else
+	{
+		m_pLastEvent->m_pNext = pEvent;
+		m_pLastEvent = pEvent;
+	}
+}
+
+bool ManagedEventQueue::IsEmpty()
+{
+	if (m_pFirstEvent != NULL)
+	{
+		_ASSERTE(m_pLastEvent != NULL);
+		return false;
+	}
+
+	_ASSERTE(m_pLastEvent == NULL);
+	return true;
+}
+
+void ManagedEventQueue::DeleteAll()
+{
+
+}
+
+BOOL ManagedEventQueue::HasQueuedCallbacks(ICorDebugThread* pThread)
+{
+	if (pThread == NULL)
+	{
+		return !IsEmpty();
+	}
+
+	// If we have a thread, look for events with thread affinity.
+	DWORD dwThreadID = 0;
+	HRESULT hr = pThread->GetID(&dwThreadID);
+
+	ManagedEvent* pCurrent = m_pFirstEvent;
+	while (pCurrent != NULL)
+	{
+		if (pCurrent->GetOSTid() == dwThreadID)
+		{
+			return true;
+		}
+		pCurrent = pCurrent->m_pNext;
+	}
+	return false;
+}
+
+void ManagedEventQueue::SuspendQueue()
+{
+
+}
+
+void ManagedEventQueue::RestoreSuspendedQueue()
+{
+
+}
+
+EvalCompleteEvent::EvalCompleteEvent(ICorDebugAppDomain* pAppDomain, ICorDebugThread* pThread, ICorDebugEval* pEval) :
+	ManagedEvent(pThread)
+{
+	this->m_pAppDomain = pAppDomain;
+	this->m_pThread = pThread;
+	this->m_pEval = pEval;
+}
+
+HRESULT EvalCompleteEvent::Dispatch(DispatchArgs args)
+{
+	return args.GetCallback1()->EvalComplete(m_pAppDomain, m_pThread, m_pEval);
 }

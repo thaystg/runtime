@@ -110,8 +110,9 @@ HRESULT STDMETHODCALLTYPE CordbValue::GetValue(void* pTo)
 
 HRESULT STDMETHODCALLTYPE CordbValue::SetValue(void* pFrom)
 {
-	DEBUG_PRINTF(1, "CordbValue - SetValue - NOT IMPLEMENTED\n");
-	return E_NOTIMPL;
+	memcpy(&value, pFrom, size);
+	DEBUG_PRINTF(1, "CordbValue - SetValue - IMPLEMENTED\n");
+	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbReferenceValue::GetType(CorElementType* pType)
@@ -498,11 +499,12 @@ HRESULT STDMETHODCALLTYPE CordbObjectValue::GetFieldValue(ICorDebugClass* pClass
 
 	int cmdId = conn->send_event(CMD_SET_OBJECT_REF, CMD_OBJECT_REF_GET_VALUES, &localbuf);
 	buffer_free(&localbuf);
-	Buffer* localbuf2 = conn->get_answer(cmdId);
+	
+	ReceivedReplyPacket *received_reply_packet = conn->get_answer_with_error(cmdId);
+	CHECK_ERROR_RETURN_FALSE (received_reply_packet);
+	Buffer *localbuf2 = received_reply_packet->buf;
 
 	return CreateCordbValue(conn, localbuf2, ppValue);
-
-	
 }
 
 HRESULT CordbObjectValue::CreateCordbValue(Connection* conn, Buffer* localbuf2, ICorDebugValue** ppValue)

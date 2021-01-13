@@ -6,6 +6,7 @@
 #define HEADER_LEN 11
 #define REPLY_PACKET 0x80
 
+
 typedef enum {
 	CMD_COMPOSITE = 100
 } CmdComposite;
@@ -137,7 +138,8 @@ typedef enum {
 	CMD_ASSEMBLY_GET_CUSTOM_ATTRIBUTES = 15,
 	CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN = 16,
 	CMD_ASSEMBLY_GET_INFO_FROM_MEMBERREF_TOKEN = 17,
-	CMD_ASSEMBLY_GET_SIMPLE_NAME = 18
+	CMD_ASSEMBLY_GET_SIMPLE_NAME = 18,
+	CMD_ASSEMBLY_GET_TYPEDEFS = 19
 } CmdAssembly;
 
 typedef enum {
@@ -164,9 +166,11 @@ typedef enum {
 	CMD_METHOD_RESOLVE_TOKEN = 8,
 	CMD_METHOD_GET_CATTRS = 9,
 	CMD_METHOD_MAKE_GENERIC_METHOD = 10,
-	CMD_METHOD_RVA = 11,
+	CMD_METHOD_RVA_FLAGS = 11,
 	CMD_METHOD_TOKEN = 12,
-	CMD_METHOD_ASSEMBLY = 13
+	CMD_METHOD_ASSEMBLY = 13,
+	CMD_METHOD_SIGNATURE = 14,
+	CMD_METHOD_GET_PARAMS_ICORDBG = 15
 } CmdMethod;
 
 typedef enum {
@@ -320,6 +324,23 @@ typedef enum {
 	STEP_FILTER_DEBUGGER_STEP_THROUGH = 4,
 	STEP_FILTER_DEBUGGER_NON_USER_CODE = 8
 } StepFilter;
+
+
+/*
+ * IDS
+ */
+
+typedef enum {
+	ID_ASSEMBLY = 0,
+	ID_MODULE = 1,
+	ID_TYPE = 2,
+	ID_METHOD = 3,
+	ID_FIELD = 4,
+	ID_DOMAIN = 5,
+	ID_PROPERTY = 6,
+	ID_PARAMETER = 7,
+	ID_NUM
+} IdType;
 
 
 int buffer_add_command_header(Buffer* recvbuf, int cmd_set, int cmd, Buffer* out);

@@ -1705,21 +1705,6 @@ buffer_add_objid (Buffer *buf, MonoObject *o)
 }
 
 /*
- * IDS
- */
-
-typedef enum {
-	ID_ASSEMBLY = 0,
-	ID_MODULE = 1,
-	ID_TYPE = 2,
-	ID_METHOD = 3,
-	ID_FIELD = 4,
-	ID_DOMAIN = 5,
-	ID_PROPERTY = 6,
-	ID_NUM
-} IdType;
-
-/*
  * Represents a runtime structure accessible to the debugger client
  */
 typedef struct {
@@ -5935,10 +5920,12 @@ do_invoke_method (DebuggerTlsData *tls, Buffer *buf, InvokeData *invoke, guint8 
 		return ERR_INVALID_ARGUMENT;
 	} else if (m_class_is_valuetype (m->klass) && (m->flags & METHOD_ATTRIBUTE_STATIC)) {
 		/* Should be null */
-		int type = decode_byte (p, &p, end);
-		if (type != VALUE_TYPE_ID_NULL) {
-			PRINT_DEBUG_MSG (1, "[%p] Error: Static vtype method invoked with this argument.\n", (gpointer) (gsize) mono_native_thread_id_get ());
-			return ERR_INVALID_ARGUMENT;
+		if (!CHECK_PROTOCOL_VERSION (3, 0)) {
+			int type = decode_byte (p, &p, end);
+			if (type != VALUE_TYPE_ID_NULL) {
+				PRINT_DEBUG_MSG (1, "[%p] Error: Static vtype method invoked with this argument.\n", (gpointer) (gsize) mono_native_thread_id_get ());
+				return ERR_INVALID_ARGUMENT;
+			}
 		}
 		memset (this_buf, 0, mono_class_instance_size (m->klass));
 	} else if (m_class_is_valuetype (m->klass) && !strcmp (m->name, ".ctor")) {
@@ -5955,12 +5942,14 @@ do_invoke_method (DebuggerTlsData *tls, Buffer *buf, InvokeData *invoke, guint8 
 					return err;
 			}
 	} else {
-		err = decode_value (m_class_get_byval_arg (m->klass), domain, this_buf, p, &p, end, FALSE);
-		if (err != ERR_NONE)
-			return err;
+		if (!(m->flags & METHOD_ATTRIBUTE_STATIC && CHECK_PROTOCOL_VERSION(3, 0))) {
+			err = decode_value(m_class_get_byval_arg(m->klass), domain, this_buf, p, &p, end, FALSE);
+			if (err != ERR_NONE)
+				return err;
+		}
 	}
 
-	if (!m_class_is_valuetype (m->klass))
+	if (!m_class_is_valuetype (m->klass) && !(m->flags & METHOD_ATTRIBUTE_STATIC && CHECK_PROTOCOL_VERSION(3, 0)))
 		this_arg = *(MonoObject**)this_buf;
 	else
 		this_arg = NULL;
@@ -6740,14 +6729,15 @@ vm_commands (int command, int id, guint8 *p, guint8 *end, Buffer *buf)
 		tls->pending_invoke->endp = tls->pending_invoke->p + (end - p);
 		tls->pending_invoke->suspend_count = suspend_count;
 		tls->pending_invoke->nmethods = nmethods;
-
-		if (flags & INVOKE_FLAG_SINGLE_THREADED) {
-			resume_thread (THREAD_TO_INTERNAL (thread));
-		}
-		else {
-			count = suspend_count;
-			for (i = 0; i < count; ++i)
-				resume_vm ();
+		if (!CHECK_PROTOCOL_VERSION(3, 0)) {
+			if (flags & INVOKE_FLAG_SINGLE_THREADED) {
+				resume_thread(THREAD_TO_INTERNAL(thread));
+			}
+			else {
+				count = suspend_count;
+				for (i = 0; i < count; ++i)
+					resume_vm();
+			}
 		}
 		break;
 	}
@@ -7526,6 +7516,11 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 			return err;
 		break;
 	}
+	case CMD_ASSEMBLY_GET_TYPEDEFS: {
+		MonoTableInfo *tdef = &ass->image->tables [MONO_TABLE_TYPEDEF];
+		buffer_add_int(buf, tdef->rows);
+		break;
+	}
 	default:
 		return ERR_NOT_IMPLEMENTED;
 	}
@@ -8285,18 +8280,25 @@ method_commands_internal (int command, MonoMethod *method, MonoDomain *domain, g
 		buffer_add_int (buf, sig->param_count);
 		buffer_add_int (buf, sig->generic_param_count);
 		buffer_add_typeid (buf, domain, mono_class_from_mono_type_internal (sig->ret));
-		for (i = 0; i < sig->param_count; ++i) {
-			/* FIXME: vararg */
-			buffer_add_typeid (buf, domain, mono_class_from_mono_type_internal (sig->params [i]));
-		}
-
+		
 		/* Emit parameter names */
 		names = g_new (char *, sig->param_count);
 		mono_method_get_param_names (method, (const char **) names);
-		for (i = 0; i < sig->param_count; ++i)
-			buffer_add_string (buf, names [i]);
-		g_free (names);
 
+		for (i = 0; i < sig->param_count; ++i) {
+			/* FIXME: vararg */
+			if (CHECK_PROTOCOL_VERSION (3, 0))
+				buffer_add_int (buf, sig->params [i]->type);
+			buffer_add_typeid (buf, domain, mono_class_from_mono_type_internal (sig->params [i]));
+			if (CHECK_PROTOCOL_VERSION (3, 0))
+				buffer_add_string (buf, names [i]);
+		}
+
+		if (!CHECK_PROTOCOL_VERSION (3, 0))
+			for (i = 0; i < sig->param_count; ++i)
+				buffer_add_string (buf, names [i]);
+
+		g_free (names);
 		break;
 	}
 	case CMD_METHOD_GET_LOCALS_INFO: {
@@ -8624,14 +8626,26 @@ method_commands_internal (int command, MonoMethod *method, MonoDomain *domain, g
 		buffer_add_methodid (buf, domain, inflated);
 		break;
 	}
-	case CMD_METHOD_RVA: {
+	case CMD_METHOD_RVA_FLAGS: {
 		MonoMethodHeaderSummary header;
 		mono_method_get_header_summary (method, &header);
 		buffer_add_int(buf, header.rva);
+		buffer_add_int(buf, method->flags);
 		break;
 	}
 	case CMD_METHOD_TOKEN: {
 		buffer_add_int(buf, method->token);
+		break;
+	}
+	case CMD_METHOD_SIGNATURE: {
+		ERROR_DECL (error);
+		int len_blob;
+		const char *ret = mono_metadata_method_signature_from_token(m_class_get_image (method->klass), method->token, &len_blob, &error);
+		buffer_add_int (buf, len_blob);
+		for (int i = 0 ; i <= len_blob; i++) {
+			PRINT_DEBUG_MSG(1, "THAYSTHAYS - CMD_METHOD_SIGNATURE - 1.1 - %d\n", ret[i]);
+			buffer_add_int (buf, ret[i]);
+		}
 		break;
 	}
 	case CMD_METHOD_ASSEMBLY: {
@@ -9524,6 +9538,7 @@ command_set_to_string (CommandSet command_set)
 }
 
 static const char* vm_cmds_str [] = {
+	"",
 	"VERSION",
 	"ALL_THREADS",
 	"SUSPEND",
@@ -9536,7 +9551,9 @@ static const char* vm_cmds_str [] = {
 	"SET_KEEPALIVE"
 	"GET_TYPES_FOR_SOURCE_FILE",
 	"GET_TYPES",
-	"INVOKE_METHODS"
+	"INVOKE_METHODS",
+	"START_BUFFERING",
+	"STOP_BUFFERING"
 };
 
 static const char* thread_cmds_str[] = {

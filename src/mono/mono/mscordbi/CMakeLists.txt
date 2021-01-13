@@ -39,6 +39,8 @@ set(mscorbi_sources_base
     cordb_class.hpp
     cordb_code.cpp
     cordb_code.hpp
+    cordb-eval.cpp
+    cordb-eval.hpp
     cordb_frame.cpp
     cordb_frame.hpp
     cordb_function.cpp

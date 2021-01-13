@@ -4,16 +4,33 @@
 #include <cordb.hpp>
 
 
+class HENUMInternal {
+public:
+	GPtrArray* items;
+	int currentIdx;
+};
+
+class CordbParameter {
+public:
+   int type;
+   char* name;
+   int method_token;
+   CordbParameter(int type, char* name, int method_token);
+};
 
 class CordbSymbol :
     public IMetaDataImport2,
     public IMetaDataAssemblyImport
 {
-    CordbAssembly* pCordbAssembly;
-    int module_id;
+   int token_id;
+   GHashTable* parameters;
+   CordbAssembly* pCordbAssembly;
+   int module_id;
 public:
 
     CordbSymbol(CordbAssembly* cordbAssembly);
+    HRESULT findMethodByToken(mdMethodDef mb, int& func_id);
+    HRESULT findTypeByToken(mdToken mb, int& type_id);
 
     STDMETHOD(EnumGenericParams)(
         HCORENUM* phEnum,                // [IN|OUT] Pointer to the enum.
@@ -186,7 +203,10 @@ public:
         LPCWSTR     szTypeDef,              // [IN] Name of the Type.
         mdToken     tkEnclosingClass,       // [IN] TypeDef/TypeRef for Enclosing class.
         mdTypeDef* ptd);             // [OUT] Put the TypeDef token here.
-	
+
+     HRESULT STDMETHODCALLTYPE FindTypeDefByNameInternal(LPCWSTR szTypeDef, int &klass_id);
+
+
 
      HRESULT STDMETHODCALLTYPE GetScopeProps(               // S_OK or error.
         __out_ecount_part_opt(cchName, *pchName)
@@ -360,7 +380,6 @@ public:
         ULONG* pcbSigBlob,            // [OUT] actual size of signature blob
         ULONG* pulCodeRVA,            // [OUT] codeRVA
         DWORD* pdwImplFlags);    // [OUT] Impl. Flags
-
 
 
      HRESULT STDMETHODCALLTYPE GetMemberRefProps(           // S_OK or error.

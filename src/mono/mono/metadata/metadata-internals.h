@@ -973,6 +973,11 @@ MonoMethodSignature  *mono_metadata_parse_signature_checked (MonoImage *image,
 							     uint32_t    token,
 							     MonoError *error);
 
+const char *mono_metadata_method_signature_from_token (MonoImage *image, 
+								guint32 token, 
+								int *len_blob, 
+								MonoError *error);
+
 const char *mono_metadata_local_signature_from_token  (MonoImage *image, 
 								guint32 token, 
 								int *len_blob, 

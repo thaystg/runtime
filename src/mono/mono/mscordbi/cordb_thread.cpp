@@ -10,6 +10,7 @@
 #include <cordb_blocking_obj.hpp>
 #include <cordb_chain.hpp>
 #include <cordb_process.hpp>
+#include <cordb-eval.hpp>
 
 using namespace std;
 
@@ -138,16 +139,17 @@ HRESULT STDMETHODCALLTYPE CordbThread::SetDebugState(
 HRESULT STDMETHODCALLTYPE CordbThread::GetDebugState(
 	/* [out] */ CorDebugThreadState* pState)
 {
-	DEBUG_PRINTF(1, "CordbThread - GetDebugState - NOT IMPLEMENTED\n");
-	return E_NOTIMPL;
+	DEBUG_PRINTF(1, "CordbThread - GetDebugState - NOT IMPLEMENTED - %p\n", this);
+	*pState = THREAD_RUN;
+	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::GetUserState(
 	/* [out] */ CorDebugUserState* pState)
 {
-	DEBUG_PRINTF(1, "CordbThread - GetUserState - NOT IMPLEMENTED\n");
+	DEBUG_PRINTF(1, "CordbThread - GetUserState - NOT IMPLEMENTED - %p\n", this);
 
-	*pState = USER_SUSPENDED;
+	*pState = (CorDebugUserState)0;
 	return S_OK;
 }
 
@@ -242,8 +244,10 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetRegisterSet(
 HRESULT STDMETHODCALLTYPE CordbThread::CreateEval(
 	/* [out] */ ICorDebugEval** ppEval)
 {
-	DEBUG_PRINTF(1, "CordbThread - CreateEval - NOT IMPLEMENTED\n");
-	return E_NOTIMPL;
+	DEBUG_PRINTF(1, "CordbThread - CreateEval - IMPLEMENTED\n");
+	CordbEval* eval = new CordbEval(this->ppProcess->connection, this);
+	eval->QueryInterface(IID_ICorDebugEval, (void**)ppEval);
+	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbThread::GetObject(

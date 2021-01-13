@@ -9,6 +9,7 @@
 #include <cordb_process.hpp>
 #include <cordb_assembly.hpp>
 #include <cordb_appdomain.hpp>
+#include <cordb_process.hpp>
 
 using namespace std;
 
@@ -16,6 +17,7 @@ using namespace std;
 CordbAppDomain::CordbAppDomain(ICorDebugProcess* ppProcess)
 {
 	pProcess = ppProcess;
+	g_ptr_array_add(((CordbProcess*)(ppProcess))->appdomains, this);
 }
 
 HRESULT CordbAppDomain::Stop(/* [in] */ DWORD dwTimeoutIgnored)
@@ -195,6 +197,7 @@ HRESULT CordbAppDomain::Attach(void)
 
 HRESULT CordbAppDomain::GetID(/* [out] */ ULONG32* pId)
 {
+	*pId = 0;
 	DEBUG_PRINTF(1, "CordbAppDomain - GetID - IMPLEMENTED\n");
 	return S_OK;
 }
@@ -233,32 +236,43 @@ HRESULT CordbAppDomain::GetObjectForCCW(/* [in] */ CORDB_ADDRESS ccwPointer,/* [
 
 HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::Next(ULONG celt, ICorDebugAppDomain* values[], ULONG* pceltFetched)
 {
+	DEBUG_PRINTF(1, "CordbAppDomainEnum - Next - NOT IMPLEMENTED\n");
 	*pceltFetched = celt;
-	DEBUG_PRINTF(1, "CordbAppDomainEnum - Next - IMPLEMENTED\n");
+	for (int i = 0; i < celt; i++) {
+		if (current_pos >= pProcess->appdomains->len) {
+			*pceltFetched = 0;
+			return S_FALSE;
+		}
+		CordbAppDomain *appdomain = (CordbAppDomain*) g_ptr_array_index (pProcess->appdomains, current_pos);
+		appdomain->QueryInterface(IID_ICorDebugAppDomain, (void**)values + current_pos);
+		current_pos++;
+	}
 	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::Skip(ULONG celt)
 {
-	DEBUG_PRINTF(1, "CordbAppDomain - Skip - NOT IMPLEMENTED\n");
+	DEBUG_PRINTF(1, "CordbAppDomainEnum - Skip - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::Reset(void)
 {
-	DEBUG_PRINTF(1, "CordbAppDomain - Reset - NOT IMPLEMENTED\n");
+	current_pos = 0;
+	DEBUG_PRINTF(1, "CordbAppDomainEnum - Reset - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::Clone(ICorDebugEnum** ppEnum)
 {
-	DEBUG_PRINTF(1, "CordbAppDomain - Clone - NOT IMPLEMENTED\n");
+	DEBUG_PRINTF(1, "CordbAppDomainEnum - Clone - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::GetCount(ULONG* pcelt)
 {
-	*pcelt = 0;
+	DEBUG_PRINTF(1, "CordbAppDomainEnum - GetCount - IMPLEMENTED\n");
+	*pcelt = pProcess->appdomains->len;
 	return S_OK;
 }
 
@@ -285,4 +299,10 @@ ULONG STDMETHODCALLTYPE CordbAppDomainEnum::AddRef(void)
 ULONG STDMETHODCALLTYPE CordbAppDomainEnum::Release(void)
 {
 	return 1;
+}
+
+CordbAppDomainEnum::CordbAppDomainEnum(CordbProcess* ppProcess)
+{
+	current_pos = 0;
+	this->pProcess = ppProcess;
 }

@@ -3,6 +3,100 @@
 
 #include <cordb.hpp>
 
+//based on ManagedEvent class of src/coreclr/debug/di/shimpriv.h
+class ManagedEvent
+{
+public:
+    virtual ~ManagedEvent();
+    class DispatchArgs
+    {
+    public:
+        DispatchArgs(ICorDebugManagedCallback* pCallback1, ICorDebugManagedCallback2* pCallback2, ICorDebugManagedCallback3* pCallback3, ICorDebugManagedCallback4* pCallback4);
+
+        ICorDebugManagedCallback* GetCallback1();
+        ICorDebugManagedCallback2* GetCallback2();
+        ICorDebugManagedCallback3* GetCallback3();
+        ICorDebugManagedCallback4* GetCallback4();
+
+
+    protected:
+        ICorDebugManagedCallback* m_pCallback1;
+        ICorDebugManagedCallback2* m_pCallback2;
+        ICorDebugManagedCallback3* m_pCallback3;
+        ICorDebugManagedCallback4* m_pCallback4;
+    };
+    virtual HRESULT Dispatch(DispatchArgs args) = 0;
+    // Returns 0 if none.
+    DWORD GetOSTid();
+
+protected:
+    // Ctor for events with thread-affinity
+    ManagedEvent(ICorDebugThread* pThread);
+
+    // Ctor for events without thread affinity.
+    ManagedEvent();
+
+    friend class ManagedEventQueue;
+    ManagedEvent* m_pNext;
+
+    DWORD m_dwThreadId;
+};
+
+//
+//based on ManagedEventQueue class of src/coreclr/debug/di/shimpriv.h
+class ManagedEventQueue
+{
+public:
+    ManagedEventQueue();
+
+
+    void Init();
+
+    // Remove event from the top. Caller then takes ownership of Event and will call Delete on it.
+    // Caller checks IsEmpty() first.
+    ManagedEvent* Dequeue();
+
+    // Queue owns the event and will delete it (unless it's dequeued first).
+    void QueueEvent(ManagedEvent* pEvent);
+
+    // Test if event queue is empty
+    bool IsEmpty();
+
+    // Empty event queue and delete all objects
+    void DeleteAll();
+
+    // Nothrows
+    BOOL HasQueuedCallbacks(ICorDebugThread* pThread);
+
+    // Save the current queue and start with a new empty queue
+    void SuspendQueue();
+
+    // Restore the saved queue onto the end of the current queue
+    void RestoreSuspendedQueue();
+
+protected:
+    // If empty,  First + Last are both NULL.
+    // Else first points to the head of the queue; and Last points to the end of the queue.
+    ManagedEvent* m_pFirstEvent;
+    ManagedEvent* m_pLastEvent;
+
+};
+
+
+class EvalCompleteEvent : public ManagedEvent
+{
+    // callbacks parameters. These are strong references
+    ICorDebugAppDomain *m_pAppDomain;
+    ICorDebugThread *m_pThread;
+    ICorDebugEval  *m_pEval;
+
+public:
+    // Ctor
+    EvalCompleteEvent(ICorDebugAppDomain* pAppDomain, ICorDebugThread* pThread, ICorDebugEval* pEval);
+
+    HRESULT Dispatch(DispatchArgs args);
+};
+
 class CordbProcess :
 	public ICorDebugProcess,
 	public ICorDebugProcess2,
@@ -15,9 +109,12 @@ class CordbProcess :
 	public ICorDebugProcess11
 {
 public:
+    GPtrArray* appdomains;
     Connection *connection;
     int suspended;
 	Cordb* cordb;
+    //int eval_count;
+    ManagedEventQueue* managed_event_queue;
     CordbProcess();
     HRESULT STDMETHODCALLTYPE EnumerateLoaderHeapMemoryRegions(/* [out] */ ICorDebugMemoryRangeEnum** ppRanges);
     HRESULT STDMETHODCALLTYPE EnableGCNotificationEvents(BOOL fEnable);

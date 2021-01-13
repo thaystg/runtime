@@ -2222,6 +2222,39 @@ mono_metadata_local_signature_from_token (MonoImage *image, guint32 token, int *
 }
 
 /*
+ * mono_metadata_method_signature_from_token:
+ * @image: metadata context
+ * @token: metadata token
+ * @error: set on error
+ *
+ * Decode a method signature stored in the MONO_TABLE_METHOD table
+ *
+ * Returns: a buffer describing the signature. On failure
+ * returns NULL and sets @error.
+ */
+const char*
+mono_metadata_method_signature_from_token (MonoImage *image, guint32 token, int *len_blob, MonoError *error)
+{
+	error_init (error);
+	MonoTableInfo *tables = image->tables;
+	guint32 idx = mono_metadata_token_index (token);
+	guint32 cols [MONO_METHOD_SIZE];
+
+	if (image_is_dynamic (image)) {
+		return NULL;
+	}
+
+	g_assert (mono_metadata_token_table(token) == MONO_TABLE_METHOD);
+		
+	mono_metadata_decode_row(&tables [MONO_TABLE_METHOD], idx - 1, cols, MONO_METHOD_SIZE);
+	const char *locals_ptr = mono_metadata_blob_heap (image, cols [MONO_METHOD_SIGNATURE]);
+	*len_blob = mono_metadata_decode_blob_size (locals_ptr, &locals_ptr);
+
+	return locals_ptr;
+}
+
+
+/*
  * mono_metadata_parse_signature_checked:
  * @image: metadata context
  * @token: metadata token

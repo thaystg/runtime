@@ -9,20 +9,22 @@
 #include <cordb_assembly.hpp>
 #include <cordb_process.hpp>
 #include <cordb_function.hpp>
+#include <mono/utils/atomic.h>
 
 using namespace std;
 
-class HENUMInternal {
-public:
-	GPtrArray* items;
-	int currentIdx;
-};
-
+CordbParameter::CordbParameter(int type, char* name, int method_token){
+	this->type = type;
+	this->name = name;
+	this->method_token = method_token;
+}
 
 CordbSymbol::CordbSymbol(CordbAssembly* cordbAssembly)
 {
 	module_id = -1;
 	pCordbAssembly = cordbAssembly;
+	parameters = g_hash_table_new (NULL, NULL);
+	token_id = 0;
 }
 
 HRESULT CordbSymbol::EnumGenericParams(
@@ -307,7 +309,45 @@ HRESULT CordbSymbol::ResetEnum(HCORENUM hEnum, ULONG ulPos)
 HRESULT CordbSymbol::EnumTypeDefs(HCORENUM* phEnum, mdTypeDef rTypeDefs[],
 ULONG cMax, ULONG* pcTypeDefs)
 {
-	DEBUG_PRINTF(1, "CordbSymbol - EnumTypeDefs - NOT IMPLEMENTED\n");
+	DEBUG_PRINTF(1, "CordbSymbol - EnumTypeDefs - %d\n", this->pCordbAssembly->id);
+	if (*phEnum == NULL)
+	{
+		Buffer localbuf;
+		buffer_init(&localbuf, 128);
+		buffer_add_id(&localbuf, this->pCordbAssembly->id);
+		int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_TYPEDEFS, &localbuf);
+		buffer_free(&localbuf);
+		ReceivedReplyPacket *received_reply_packet = pCordbAssembly->pProcess->connection->get_answer_with_error(cmdId);
+		CHECK_ERROR_RETURN_FALSE (received_reply_packet);
+		Buffer *localbuf2 = received_reply_packet->buf;
+		int count = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+		DEBUG_PRINTF(1, "CordbSymbol - EnumTypeDefs - 1\n");
+		
+		GPtrArray *typedefs = g_ptr_array_new();
+		for (int i = 1; i < count; i++) {
+			DEBUG_PRINTF(1, "CordbSymbol - EnumTypeDefs - 2\n");
+			int* typedef_id = new int;
+			*typedef_id = (i + 1) | MONO_TOKEN_TYPE_DEF;
+			g_ptr_array_add(typedefs, typedef_id);
+		}
+		HENUMInternal* enumInternal = new HENUMInternal();
+		enumInternal->items = typedefs;
+		enumInternal->currentIdx = 0;
+		*phEnum = enumInternal;
+	}
+	HENUMInternal* enumInternal = static_cast<HENUMInternal*>(*phEnum);
+	for (int i = 0; i < cMax; i++) {
+		DEBUG_PRINTF(1, "CordbSymbol - EnumTypeDefs - to fazendo o loop - %d - %d\n", enumInternal->currentIdx, enumInternal->items->len);
+		if (enumInternal->currentIdx >= enumInternal->items->len) {
+			*pcTypeDefs = i;
+			return S_OK;
+		}
+		rTypeDefs[i] = *(int*)(g_ptr_array_index(enumInternal->items, enumInternal->currentIdx));
+		DEBUG_PRINTF(1, "CordbSymbol - EnumTypeDefs - to fazendo o loop - %d\n", rTypeDefs[i]);
+		enumInternal->currentIdx++;
+	}
+	*pcTypeDefs = cMax;
 	return S_OK;
 }
 
@@ -332,29 +372,19 @@ LPCWSTR     szTypeDef,              // [IN] Name of the Type.
 mdToken     tkEnclosingClass,       // [IN] TypeDef/TypeRef for Enclosing class.
 mdTypeDef* ptd)             // [OUT] Put the TypeDef token here.
 {
-	Buffer sendbuf;
-	buffer_init(&sendbuf, 128);
+	int klass_id;
+	if (FindTypeDefByNameInternal(szTypeDef, klass_id) != S_OK)
+		return S_FALSE;
 
-	char output[256];
-	sprintf(output, "%ws", szTypeDef);
-	buffer_add_string(&sendbuf, output);
-	buffer_add_byte(&sendbuf, true);
-	int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_VM, CMD_VM_GET_TYPES, &sendbuf);
-	buffer_free(&sendbuf);
-
-	Buffer* localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
-
-	int count_class = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int klass_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 
 	Buffer localbuf;
 	buffer_init(&localbuf, 128);
 
 	buffer_add_id(&localbuf, klass_id);
-	cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
+	int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
 	buffer_free(&localbuf);
 
-	localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
+	Buffer *localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
 
 	char* namespace_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	char* class_name_str = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
@@ -366,6 +396,29 @@ mdTypeDef* ptd)             // [OUT] Put the TypeDef token here.
 	int token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	*ptd = token;
 	DEBUG_PRINTF(1, "CordbSymbol - FindTypeDefByName - IMPLEMENTED - %ws - %d\n", szTypeDef, token);
+	return S_OK;
+}
+
+HRESULT STDMETHODCALLTYPE CordbSymbol::FindTypeDefByNameInternal(LPCWSTR szTypeDef, int& klass_id)
+{
+	Buffer sendbuf;
+	buffer_init(&sendbuf, 128);
+
+	char output[256];
+	sprintf(output, "%ws", szTypeDef);
+	buffer_add_string(&sendbuf, output);
+	buffer_add_byte(&sendbuf, true);
+	int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_VM, CMD_VM_GET_TYPES, &sendbuf);
+	buffer_free(&sendbuf);
+
+	ReceivedReplyPacket* received_reply_packet = pCordbAssembly->pProcess->connection->get_answer_with_error(cmdId);
+	CHECK_ERROR_RETURN_FALSE(received_reply_packet);
+	Buffer* localbuf2 = received_reply_packet->buf;
+
+	int count_class = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	if (count_class == 0)
+		return S_FALSE;
+	klass_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	return S_OK;
 }
 
@@ -591,7 +644,11 @@ ULONG* pcTokens)        // [OUT] Put # put here.
 		buffer_add_int(&localbuf, cl);
 		int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN, &localbuf);
 		buffer_free(&localbuf);
-		Buffer* localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
+
+		ReceivedReplyPacket *received_reply_packet = pCordbAssembly->pProcess->connection->get_answer_with_error(cmdId);
+		CHECK_ERROR_RETURN_FALSE (received_reply_packet);
+		Buffer *localbuf2 = received_reply_packet->buf;
+
 		int klass_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 
 		DEBUG_PRINTF(1, "CordbSymbol - EnumMethod - 1\n");
@@ -692,17 +749,17 @@ ULONG* pcTokens)        // [OUT] Put # put here.
 		}
 		HENUMInternal* enumInternal = new HENUMInternal();
 		enumInternal->items = fields;
-		enumInternal->currentIdx = 1;
+		enumInternal->currentIdx = 0;
 		*phEnum = enumInternal;
 	}
 	HENUMInternal* enumInternal = static_cast<HENUMInternal*>(*phEnum);
 	for (int i = 0; i < cMax; i++) {
 		DEBUG_PRINTF(1, "CordbSymbol - EnumFields - to fazendo o loop - %d - %d\n", enumInternal->currentIdx, enumInternal->items->len);
-		if (enumInternal->currentIdx > enumInternal->items->len) {
+		if (enumInternal->currentIdx >= enumInternal->items->len) {
 			*pcTokens = i;
 			return S_OK;
 		}
-		rFields[i] = *(int*)(g_ptr_array_index(enumInternal->items, enumInternal->currentIdx - 1));
+		rFields[i] = *(int*)(g_ptr_array_index(enumInternal->items, enumInternal->currentIdx));
 		DEBUG_PRINTF(1, "CordbSymbol - EnumFields - to fazendo o loop - %d\n", rFields[i]);
 		enumInternal->currentIdx++;
 	}
@@ -730,7 +787,56 @@ mdParamDef  rParams[],              // [OUT] Put ParamDefs here.
 ULONG       cMax,                   // [IN] Max ParamDefs to put.
 ULONG* pcTokens)        // [OUT] Put # put here.
 {
-	DEBUG_PRINTF(1, "CordbSymbol - EnumParams - NOT IMPLEMENTED\n");
+	DEBUG_PRINTF(1, "CordbSymbol - EnumParams - %d - %d\n", mb, this->pCordbAssembly->id);
+	if (*phEnum == NULL)
+	{
+		int method_id;
+		if (findMethodByToken(mb, method_id) != S_OK)
+			return S_FALSE;
+
+		Buffer localbuf;
+		buffer_init(&localbuf, 128);
+		buffer_add_id(&localbuf, this->pCordbAssembly->id);
+		buffer_add_int(&localbuf, method_id);
+		int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_METHOD, CMD_METHOD_GET_PARAM_INFO, &localbuf);
+		buffer_free(&localbuf);
+		ReceivedReplyPacket *received_reply_packet = pCordbAssembly->pProcess->connection->get_answer_with_error(cmdId);
+		CHECK_ERROR_RETURN_FALSE (received_reply_packet);
+		Buffer *localbuf2 = received_reply_packet->buf;
+		int call_convention = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int param_count = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int generic_param_count = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		int ret_type = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		GPtrArray *params = g_ptr_array_new();
+		for (int i = 0; i < param_count; i++) {
+			int *param_id = new int;
+			*param_id = mono_atomic_inc_i32(&token_id) | ID_PARAMETER;
+			int type_id = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			char *param_name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+			DEBUG_PRINTF(1, "CordbSymbol - EnumParams - 3 -  %d - %s\n", *param_id, param_name);
+			g_ptr_array_add(params, param_id);
+			CordbParameter* parm = new CordbParameter(type_id, param_name, mb);
+			g_hash_table_insert (parameters, GINT_TO_POINTER(*param_id), parm);
+		}
+
+		HENUMInternal* enumInternal = new HENUMInternal();
+		enumInternal->items = params;
+		enumInternal->currentIdx = 0;
+		*phEnum = enumInternal;
+	}
+	HENUMInternal* enumInternal = static_cast<HENUMInternal*>(*phEnum);
+	for (int i = 0; i < cMax; i++) {
+		DEBUG_PRINTF(1, "CordbSymbol - EnumParams - to fazendo o loop - %d - %d\n", enumInternal->currentIdx, enumInternal->items->len);
+		if (enumInternal->currentIdx >= enumInternal->items->len) {
+			*pcTokens = i;
+			return S_OK;
+		}
+		rParams[i] = *(int*)(g_ptr_array_index(enumInternal->items, enumInternal->currentIdx));
+		DEBUG_PRINTF(1, "CordbSymbol - EnumParams - to fazendo o loop - %d\n", rParams[i]);
+		enumInternal->currentIdx++;
+	}
+	*pcTokens = cMax;
 	return S_OK;
 }
 
@@ -827,57 +933,41 @@ ULONG* pulCodeRVA,            // [OUT] codeRVA
 DWORD* pdwImplFlags)    // [OUT] Impl. Flags
 {
 	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 1 - %d\n", mb);
-	CordbFunction* func = this->pCordbAssembly->pProcess->cordb->findFunctionByToken(mb);
-	int func_id = 0;
-	if (!func)
-	{
-		DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - NAO TINHA FUNC\n");
-		Buffer localbuf;
-		buffer_init(&localbuf, 128);
-		buffer_add_id(&localbuf, this->pCordbAssembly->id);
-		buffer_add_int(&localbuf, mb);
-		int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_METHOD_FROM_TOKEN, &localbuf);
-		buffer_free(&localbuf);
-
-		ReceivedReplyPacket *received_reply_packet = pCordbAssembly->pProcess->connection->get_answer_with_error(cmdId);
-		CHECK_ERROR_RETURN_FALSE (received_reply_packet);
-		Buffer *localbuf2 = received_reply_packet->buf;
-		func_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-
-	}
-	else {
-		DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - TINHA FUNC\n");
-		func_id = func->id;
-	}
-
-	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 1.5 - %d - %d\n", mb, func_id);
-
-	{
-		Buffer localbuf;
-		buffer_init(&localbuf, 128);
-
-		buffer_add_id(&localbuf, func_id);
-		int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_METHOD, CMD_METHOD_GET_NAME, &localbuf);
-		buffer_free(&localbuf);
-
-		Buffer* localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
-
-		char *method_name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 2 - %s\n", method_name);
-	}
-
+	int method_id;
+	if (findMethodByToken(mb, method_id) != S_OK)
+		return S_FALSE;
 		
-
-	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 2\n");
 
 	Buffer localbuf;
 	buffer_init(&localbuf, 128);
 
-	buffer_add_id(&localbuf, func_id);
-	int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_METHOD, CMD_METHOD_GET_DECLARING_TYPE, &localbuf);
+	buffer_add_id(&localbuf, method_id);
+	int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_METHOD, CMD_METHOD_GET_NAME, &localbuf);
 	buffer_free(&localbuf);
 
 	Buffer* localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
+
+	char* method_name = decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	if (!stricmp(method_name, "localMethod"))
+	{
+		DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 2 - %s\n", method_name);
+	}
+	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 2 - %s\n", method_name);
+	if (cchMethod > strlen(method_name)) {
+		mbstowcs(szMethod, method_name, strlen(method_name) + 1);
+	}
+	if (pchMethod)
+		*pchMethod = strlen(method_name) + 1;
+
+	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 2\n");
+
+	buffer_init(&localbuf, 128);
+
+	buffer_add_id(&localbuf, method_id);
+	cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_METHOD, CMD_METHOD_GET_DECLARING_TYPE, &localbuf);
+	buffer_free(&localbuf);
+
+	localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
 
 	int klass_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 
@@ -897,28 +987,45 @@ DWORD* pdwImplFlags)    // [OUT] Impl. Flags
 	int type_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	int type_id2 = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
 	int token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	*pClass = mdTypeDefNil;
-	if (cchMethod > strlen(class_name_str)) {
-		mbstowcs(szMethod, class_name_str, strlen(class_name_str) + 1);
-	}
-	if (pchMethod)
-		*pchMethod = strlen(class_name_str) + 1;
+	*pClass = token;
+		
 	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 3\n");
-	COR_SIGNATURE tempSignature[5] = { 0, 1, 8, 8 };
-	if (ppvSigBlob)
-	{
-		*ppvSigBlob = new COR_SIGNATURE[4];
-		memcpy((void*)*ppvSigBlob, tempSignature, 4 * sizeof(COR_SIGNATURE));
-		*pcbSigBlob = 4;
-	}
 	buffer_init(&localbuf, 128);
-	buffer_add_id(&localbuf, func_id);
-	cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_METHOD, CMD_METHOD_RVA, &localbuf);
+	buffer_add_id(&localbuf, method_id);
+	cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_METHOD, CMD_METHOD_SIGNATURE, &localbuf);
+	buffer_free(&localbuf);
+
+	localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
+	int signature_len = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - SIGNATURE_LEN - %d\n", signature_len);
+	COR_SIGNATURE *tempSignature = new COR_SIGNATURE[signature_len];
+	for (int i = 0 ; i < signature_len; i++) {
+		tempSignature[i] = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	}
+
+	if (ppvSigBlob) {
+		DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - TINHA - ppvSigBlob\n");
+		*ppvSigBlob = new COR_SIGNATURE[signature_len];
+		memcpy((void*)*ppvSigBlob, tempSignature, signature_len * sizeof(COR_SIGNATURE));
+	}
+
+	if (pcbSigBlob) {
+		DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - TINHA - pcbSigBlob\n");
+	 	*pcbSigBlob = signature_len;
+	}
+
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, method_id);
+	cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_METHOD, CMD_METHOD_RVA_FLAGS, &localbuf);
 	buffer_free(&localbuf);
 
 	localbuf2 = pCordbAssembly->pProcess->connection->get_answer(cmdId);
 
 	int rva = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	int flags = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+	if (pdwAttr) 
+		*pdwAttr = flags;
 	if (pulCodeRVA)
 	{
 		*pulCodeRVA = rva;
@@ -926,6 +1033,51 @@ DWORD* pdwImplFlags)    // [OUT] Impl. Flags
 	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - rva - %d\n", rva);
 	return S_OK;
 }
+
+HRESULT CordbSymbol::findMethodByToken(mdMethodDef mb, int &func_id)
+{
+	CordbFunction* func = this->pCordbAssembly->pProcess->cordb->findFunctionByToken(mb);
+	if (!func)
+	{
+		DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - NAO TINHA FUNC\n");
+		Buffer localbuf;
+		buffer_init(&localbuf, 128);
+		buffer_add_id(&localbuf, this->pCordbAssembly->id);
+		buffer_add_int(&localbuf, mb);
+		int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_METHOD_FROM_TOKEN, &localbuf);
+		buffer_free(&localbuf);
+
+		ReceivedReplyPacket* received_reply_packet = pCordbAssembly->pProcess->connection->get_answer_with_error(cmdId);
+		CHECK_ERROR_RETURN_FALSE(received_reply_packet);
+		Buffer* localbuf2 = received_reply_packet->buf;
+		func_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+
+	}
+	else {
+		DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - TINHA FUNC\n");
+		func_id = func->id;
+	}
+	return S_OK;
+}
+
+
+HRESULT CordbSymbol::findTypeByToken(mdToken mb, int& type_id)
+{
+	DEBUG_PRINTF(1, "CordbSymbol - GetMethodProps - IMPLEMENTED - NAO TINHA FUNC\n");
+	Buffer localbuf;
+	buffer_init(&localbuf, 128);
+	buffer_add_id(&localbuf, this->pCordbAssembly->id);
+	buffer_add_int(&localbuf, mb);
+	int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN, &localbuf);
+	buffer_free(&localbuf);
+
+	ReceivedReplyPacket* received_reply_packet = pCordbAssembly->pProcess->connection->get_answer_with_error(cmdId);
+	CHECK_ERROR_RETURN_FALSE(received_reply_packet);
+	Buffer* localbuf2 = received_reply_packet->buf;
+	type_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	return S_OK;
+}
+
 
 HRESULT CordbSymbol::GetMemberRefProps(           // S_OK or error.
 mdMemberRef mr,                     // [IN] given memberref
@@ -1514,7 +1666,21 @@ DWORD* pdwCPlusTypeFlag,      // [OUT] Flag for value type. selected ELEMENT_TYP
 UVCP_CONSTANT* ppValue,             // [OUT] Constant value.
 ULONG* pcchValue)       // [OUT] size of constant string in chars, 0 for non-strings.
 {
-	DEBUG_PRINTF(1, "CordbSymbol - GetParamProps - NOT IMPLEMENTED\n");
+	CordbParameter *ret = (CordbParameter*)g_hash_table_lookup(parameters, GINT_TO_POINTER(tk));
+	DEBUG_PRINTF(1, "CordbSymbol - GetParamProps - IMPLEMENTED - %s\n", ret->name);
+	*pmd = ret->method_token;
+	if (cchName >= strlen(ret->name)) {
+		mbstowcs(szName, ret->name, strlen(ret->name) + 1);
+	}
+	*pchName = strlen(ret->name)+1;
+	*pdwCPlusTypeFlag = ret->type;
+	return S_OK;
+}
+
+HRESULT CordbSymbol::GetAssemblyFromScope(mdAssembly* ptkAssembly)
+{
+	*ptkAssembly = mono_metadata_make_token(MONO_TABLE_ASSEMBLY, pCordbAssembly->id);
+	DEBUG_PRINTF(1, "CordbSymbol - GetAssemblyFromScope - IMPLEMENTED - id\n");
 	return S_OK;
 }
 
@@ -1524,6 +1690,52 @@ LPCWSTR     szName,                 // [IN] Name of desired Custom Attribute.
 const void** ppData,               // [OUT] Put pointer to data here.
 ULONG* pcbData)         // [OUT] Put size of data here.
 {
+	int custom_attribute_id;
+	int method_type_id;
+	int type = mono_metadata_token_table(tkObj);
+	Buffer* localbuf2 = NULL;
+	DEBUG_PRINTF(1, "CordbSymbol - GetCustomAttributeByName - IMPLEMENTED\n");
+
+	if (FindTypeDefByNameInternal(szName, custom_attribute_id) != S_OK)
+		return S_FALSE;
+	if (type == MONO_TABLE_ASSEMBLY) {
+		Buffer localbuf;
+		buffer_init(&localbuf, 128);
+		buffer_add_int(&localbuf, mono_metadata_token_index(tkObj));
+		buffer_add_int(&localbuf, custom_attribute_id);
+		int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_CATTRS, &localbuf);
+		buffer_free(&localbuf);
+		ReceivedReplyPacket* received_reply_packet = pCordbAssembly->pProcess->connection->get_answer_with_error(cmdId);
+		CHECK_ERROR_RETURN_FALSE(received_reply_packet);
+		localbuf2 = received_reply_packet->buf;
+	}
+	else if (type == MONO_TABLE_METHOD && findMethodByToken(tkObj, method_type_id) == S_OK){
+		Buffer localbuf;
+		buffer_init(&localbuf, 128);
+		buffer_add_int(&localbuf, method_type_id);
+		buffer_add_int(&localbuf, custom_attribute_id);
+		int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_METHOD, CMD_METHOD_GET_CATTRS, &localbuf);
+		buffer_free(&localbuf);
+		ReceivedReplyPacket* received_reply_packet = pCordbAssembly->pProcess->connection->get_answer_with_error(cmdId);
+		CHECK_ERROR_RETURN_FALSE(received_reply_packet);
+		localbuf2 = received_reply_packet->buf;
+	}
+	else if (type == MONO_TABLE_TYPEDEF && findTypeByToken(tkObj, method_type_id) == S_OK) {
+		Buffer localbuf;
+		buffer_init(&localbuf, 128);
+		buffer_add_int(&localbuf, method_type_id);
+		buffer_add_int(&localbuf, custom_attribute_id);
+		int cmdId = this->pCordbAssembly->pProcess->connection->send_event(CMD_SET_TYPE, CMD_TYPE_GET_CATTRS, &localbuf);
+		buffer_free(&localbuf);
+		ReceivedReplyPacket* received_reply_packet = pCordbAssembly->pProcess->connection->get_answer_with_error(cmdId);
+		CHECK_ERROR_RETURN_FALSE(received_reply_packet);
+		localbuf2 = received_reply_packet->buf;
+	}
+
+	int cinfo = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+	if (cinfo == 0)
+		return S_FALSE;
+
 	DEBUG_PRINTF(1, "CordbSymbol - GetCustomAttributeByName - IMPLEMENTED\n");
 
 	if (!wcscmp(szName, L"System.Diagnostics.DebuggerNonUserCodeAttribute") || !wcscmp(szName, L"System.Diagnostics.DebuggerStepThroughAttribute"))
@@ -1538,8 +1750,8 @@ ULONG* pcbData)         // [OUT] Put size of data here.
 	byte *ret = new byte[6];
 	ret[0] = 1;
 	ret[1] = 0;
-	ret[2] = 0;
-	ret[3] = 0;
+	ret[2] = 7;
+	ret[3] = 1;
 	ret[4] = 0;
 	ret[5] = 0;
 	*ppData = ret;
@@ -1551,7 +1763,6 @@ BOOL CordbSymbol::IsValidToken(         // True or False.
 mdToken     tk)               // [IN] Given token.
 {
 	DEBUG_PRINTF(1, "CordbSymbol - IsValidToken - IMPLEMENTED - %d\n", tk);
-
 	return 1;
 }
 

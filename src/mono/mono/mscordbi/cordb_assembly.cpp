@@ -103,6 +103,7 @@ CordbModule::CordbModule(CordbProcess* process, CordbAssembly* assembly, int id_
 	pCordbSymbol = NULL;
 	pAssembly = assembly;
 	id = id_assembly;
+	dwFlags = 0;
 }
 
 HRESULT CordbModule::QueryInterface(REFIID id, void** pInterface)
@@ -183,6 +184,7 @@ HRESULT CordbModule::ApplyChanges(
 HRESULT CordbModule::SetJITCompilerFlags(
 	/* [in] */ DWORD dwFlags)
 {
+	this->dwFlags = dwFlags;
 	DEBUG_PRINTF(1, "CordbModule - SetJITCompilerFlags - NOT IMPLEMENTED\n");
 	return S_OK;
 }
@@ -190,6 +192,7 @@ HRESULT CordbModule::SetJITCompilerFlags(
 HRESULT CordbModule::GetJITCompilerFlags(
 	/* [out] */ DWORD* pdwFlags)
 {
+	*pdwFlags = dwFlags;
 	DEBUG_PRINTF(1, "CordbModule - GetJITCompilerFlags - NOT IMPLEMENTED\n");
 	return S_OK;
 }
