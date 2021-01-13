@@ -13,76 +13,67 @@
 
 
 using namespace std;
-CordbType::CordbType(CorElementType type, CordbClass* klass, CordbType* typeParameter)
-{
+
+CordbType::CordbType (CorElementType type, CordbClass *klass, CordbType *typeParameter) {
 	this->klass = klass;
 	this->type = type;
 	this->typeParameter = typeParameter;
 }
 
-HRESULT STDMETHODCALLTYPE CordbType::GetType(CorElementType* ty)
-{
+HRESULT STDMETHODCALLTYPE CordbType::GetType (CorElementType *ty) {
 	*ty = type;
-	DEBUG_PRINTF(1, "CordbType - GetType - IMPLEMENTED\n");
+	DEBUG_PRINTF (1, "CordbType - GetType - IMPLEMENTED\n");
 	return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE CordbType::GetClass(ICorDebugClass** ppClass)
-{
-	DEBUG_PRINTF(1, "CordbType - GetClass - IMPLEMENTED\n");
-	if (!klass)
-	{
-		DEBUG_PRINTF(1, "CordbType - GetClass - SEM CLASSE\n");
+HRESULT STDMETHODCALLTYPE CordbType::GetClass (ICorDebugClass **ppClass) {
+	DEBUG_PRINTF (1, "CordbType - GetClass - IMPLEMENTED\n");
+	if (!klass) {
+		DEBUG_PRINTF (1, "CordbType - GetClass - SEM CLASSE\n");
 		return S_OK;
 	}
-	*ppClass = static_cast<ICorDebugClass*>(klass);
+	*ppClass = static_cast<ICorDebugClass*> (klass);
 	return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE CordbType::EnumerateTypeParameters(ICorDebugTypeEnum** ppTyParEnum)
-{
-	CordbTypeEnum* tp = new CordbTypeEnum(typeParameter);
-	*ppTyParEnum = static_cast<ICorDebugTypeEnum*>(tp);
+HRESULT STDMETHODCALLTYPE CordbType::EnumerateTypeParameters (ICorDebugTypeEnum **ppTyParEnum) {
+	CordbTypeEnum *tp = new CordbTypeEnum (typeParameter);
+	*ppTyParEnum = static_cast<ICorDebugTypeEnum*> (tp);
 
-	DEBUG_PRINTF(1, "CordbType - EnumerateTypeParameters - IMPLEMENTED\n");
+	DEBUG_PRINTF (1, "CordbType - EnumerateTypeParameters - IMPLEMENTED\n");
 	return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE CordbType::GetFirstTypeParameter(ICorDebugType** value)
-{
-	DEBUG_PRINTF(1, "CordbType - GetFirstTypeParameter - IMPLEMENTED\n");
-	*value = static_cast<ICorDebugType*>(typeParameter);
+HRESULT STDMETHODCALLTYPE CordbType::GetFirstTypeParameter (ICorDebugType **value) {
+	DEBUG_PRINTF (1, "CordbType - GetFirstTypeParameter - IMPLEMENTED\n");
+	*value = static_cast<ICorDebugType*> (typeParameter);
 	return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE CordbType::GetBase(ICorDebugType** pBase)
-{
-	DEBUG_PRINTF(1, "CordbType - GetBase - IMPLEMENTED\n");
+HRESULT STDMETHODCALLTYPE CordbType::GetBase (ICorDebugType **pBase) {
+	DEBUG_PRINTF (1, "CordbType - GetBase - IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
-HRESULT STDMETHODCALLTYPE CordbType::GetStaticFieldValue(mdFieldDef fieldDef, ICorDebugFrame* pFrame, ICorDebugValue** ppValue)
-{
-	DEBUG_PRINTF(1, "CordbType - GetStaticFieldValue - NOT IMPLEMENTED\n");
+HRESULT STDMETHODCALLTYPE CordbType::GetStaticFieldValue (mdFieldDef fieldDef, ICorDebugFrame *pFrame,
+                                                          ICorDebugValue **ppValue) {
+	DEBUG_PRINTF (1, "CordbType - GetStaticFieldValue - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
-HRESULT STDMETHODCALLTYPE CordbType::GetRank(ULONG32* pnRank)
-{
-	DEBUG_PRINTF(1, "CordbType - GetRank - NOT IMPLEMENTED\n");
+HRESULT STDMETHODCALLTYPE CordbType::GetRank (ULONG32 *pnRank) {
+	DEBUG_PRINTF (1, "CordbType - GetRank - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
-HRESULT STDMETHODCALLTYPE CordbType::QueryInterface(REFIID id, void** pInterface)
-{
+HRESULT STDMETHODCALLTYPE CordbType::QueryInterface (REFIID id, void **pInterface) {
 	if (id == IID_ICorDebugType)
-		*pInterface = static_cast<ICorDebugType*>(this);
+		*pInterface = static_cast<ICorDebugType*> (this);
 	else if (id == IID_ICorDebugType2)
-		*pInterface = static_cast<ICorDebugType2*>(this);
+		*pInterface = static_cast<ICorDebugType2*> (this);
 	else if (id == IID_IUnknown)
-		*pInterface = static_cast<IUnknown*>(static_cast<ICorDebugType*>(this));
-	else
-	{
+		*pInterface = static_cast<IUnknown*> (static_cast<ICorDebugType*> (this));
+	else {
 		*pInterface = NULL;
 		return E_NOINTERFACE;
 	}
@@ -90,75 +81,64 @@ HRESULT STDMETHODCALLTYPE CordbType::QueryInterface(REFIID id, void** pInterface
 	return S_OK;
 }
 
-ULONG STDMETHODCALLTYPE CordbType::AddRef(void)
-{
+ULONG STDMETHODCALLTYPE CordbType::AddRef (void) {
 	return 0;
 }
 
-ULONG STDMETHODCALLTYPE CordbType::Release(void)
-{
+ULONG STDMETHODCALLTYPE CordbType::Release (void) {
 	return 0;
 }
 
-HRESULT STDMETHODCALLTYPE CordbType::GetTypeID(COR_TYPEID* id)
-{
-	DEBUG_PRINTF(1, "CordbType - GetTypeID - NOT IMPLEMENTED\n");
+HRESULT STDMETHODCALLTYPE CordbType::GetTypeID (COR_TYPEID *id) {
+	DEBUG_PRINTF (1, "CordbType - GetTypeID - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
-CordbTypeEnum::CordbTypeEnum(CordbType *type)
-{
+CordbTypeEnum::CordbTypeEnum (CordbType *type) {
 	this->type = type;
 }
 
-HRESULT STDMETHODCALLTYPE CordbTypeEnum::Next(ULONG celt, ICorDebugType* values[], ULONG* pceltFetched)
-{
+HRESULT STDMETHODCALLTYPE CordbTypeEnum::Next (ULONG celt, ICorDebugType *values[], ULONG *pceltFetched) {
 	*pceltFetched = celt;
 	if (type != NULL)
 		values[0] = type;
-	DEBUG_PRINTF(1, "CordbTypeEnum - Next - IMPLEMENTED\n");
+	DEBUG_PRINTF (1, "CordbTypeEnum - Next - IMPLEMENTED\n");
 	return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE CordbTypeEnum::Skip(ULONG celt)
-{
-	DEBUG_PRINTF(1, "CordbTypeEnum - Skip - NOT IMPLEMENTED\n");
+HRESULT STDMETHODCALLTYPE CordbTypeEnum::Skip (ULONG celt) {
+	DEBUG_PRINTF (1, "CordbTypeEnum - Skip - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
-HRESULT STDMETHODCALLTYPE CordbTypeEnum::Reset(void)
-{
-	DEBUG_PRINTF(1, "CordbTypeEnum - Reset - NOT IMPLEMENTED\n");
+HRESULT STDMETHODCALLTYPE CordbTypeEnum::Reset (void) {
+	DEBUG_PRINTF (1, "CordbTypeEnum - Reset - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
-HRESULT STDMETHODCALLTYPE CordbTypeEnum::Clone(ICorDebugEnum** ppEnum)
-{
-	DEBUG_PRINTF(1, "CordbTypeEnum - Clone - NOT IMPLEMENTED\n");
+HRESULT STDMETHODCALLTYPE CordbTypeEnum::Clone (ICorDebugEnum **ppEnum) {
+	DEBUG_PRINTF (1, "CordbTypeEnum - Clone - NOT IMPLEMENTED\n");
 	return E_NOTIMPL;
 }
 
-HRESULT STDMETHODCALLTYPE CordbTypeEnum::GetCount(ULONG* pcelt)
-{
+HRESULT STDMETHODCALLTYPE CordbTypeEnum::GetCount (ULONG *pcelt) {
 	if (type != NULL)
 		*pcelt = 1;
 	else
 		*pcelt = 0;
-	DEBUG_PRINTF(1, "CordbTypeEnum - GetCount - IMPLEMENTED - %d\n", *pcelt);
+	DEBUG_PRINTF (1, "CordbTypeEnum - GetCount - IMPLEMENTED - %d\n", *pcelt);
 	return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE CordbTypeEnum::QueryInterface(REFIID id, void** pInterface)
-{
+HRESULT STDMETHODCALLTYPE CordbTypeEnum::QueryInterface (REFIID id, void **pInterface) {
 	if (id == IID_ICorDebugEnum)
-		*pInterface = static_cast<ICorDebugEnum*>(this);
+		*pInterface = static_cast<ICorDebugEnum*> (this);
 	else if (id == IID_ICorDebugTypeEnum)
-		*pInterface = static_cast<ICorDebugTypeEnum*>(this);
+		*pInterface = static_cast<ICorDebugTypeEnum*> (this);
 	else if (id == IID_IUnknown)
-		*pInterface = static_cast<IUnknown*>(static_cast<ICorDebugTypeEnum*>(this));
-	else
-	{
-		DEBUG_PRINTF(1, "CordbTypeEnum - QueryInterface - E_NOTIMPL\n");
+		*pInterface = static_cast<IUnknown*> (static_cast<ICorDebugTypeEnum*> (this));
+	else {
+		DEBUG_PRINTF (1, "CordbTypeEnum - QueryInterface - E_NOTIMPL\n");
 		*pInterface = NULL;
 		return E_NOINTERFACE;
 	}
@@ -166,12 +146,10 @@ HRESULT STDMETHODCALLTYPE CordbTypeEnum::QueryInterface(REFIID id, void** pInter
 	return S_OK;
 }
 
-ULONG STDMETHODCALLTYPE CordbTypeEnum::AddRef(void)
-{
+ULONG STDMETHODCALLTYPE CordbTypeEnum::AddRef (void) {
 	return 0;
 }
 
-ULONG STDMETHODCALLTYPE CordbTypeEnum::Release(void)
-{
+ULONG STDMETHODCALLTYPE CordbTypeEnum::Release (void) {
 	return 0;
 }

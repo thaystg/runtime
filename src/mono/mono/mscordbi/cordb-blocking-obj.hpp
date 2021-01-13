@@ -4,18 +4,17 @@
 #include <cordb.hpp>
 
 class CordbBlockingObjectEnum :
-    public ICorDebugBlockingObjectEnum
+	public ICorDebugBlockingObjectEnum
 {
-
 public:
-    HRESULT STDMETHODCALLTYPE Next(ULONG celt, CorDebugBlockingObject values[], ULONG* pceltFetched);
-    HRESULT STDMETHODCALLTYPE Skip(ULONG celt);
-    HRESULT STDMETHODCALLTYPE Reset(void);
-    HRESULT STDMETHODCALLTYPE Clone(ICorDebugEnum** ppEnum);
-    HRESULT STDMETHODCALLTYPE GetCount(ULONG* pcelt);
-    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject);
-    ULONG STDMETHODCALLTYPE AddRef(void);
-    ULONG STDMETHODCALLTYPE Release(void);
+	HRESULT STDMETHODCALLTYPE Next (ULONG celt, CorDebugBlockingObject values[], ULONG *pceltFetched);
+	HRESULT STDMETHODCALLTYPE Skip (ULONG celt);
+	HRESULT STDMETHODCALLTYPE Reset (void);
+	HRESULT STDMETHODCALLTYPE Clone (ICorDebugEnum **ppEnum);
+	HRESULT STDMETHODCALLTYPE GetCount (ULONG *pcelt);
+	HRESULT STDMETHODCALLTYPE QueryInterface (REFIID riid, void **ppvObject);
+	ULONG STDMETHODCALLTYPE AddRef (void);
+	ULONG STDMETHODCALLTYPE Release (void);
 };
 
 #endif
