@@ -2,14 +2,14 @@
 #include <fstream>
 
 #include <cordb.hpp>
-#include <cordb_frame.hpp>
-#include <cordb_thread.hpp>
-#include <cordb_stepper.hpp>
-#include <cordb_breakpoint.hpp>
-#include <cordb_function.hpp>
-#include <cordb_class.hpp>
-#include <cordb_value.hpp>
-#include <cordb_type.hpp>
+#include <cordb-frame.hpp>
+#include <cordb-thread.hpp>
+#include <cordb-stepper.hpp>
+#include <cordb-breakpoint.hpp>
+#include <cordb-function.hpp>
+#include <cordb-class.hpp>
+#include <cordb-value.hpp>
+#include <cordb-type.hpp>
 
 
 using namespace std;

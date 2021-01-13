@@ -2,7 +2,7 @@
 #define __MONO_DEBUGGER_CORDB_VALUE_H__
 
 #include <cordb.hpp>
-#include <cordb_type.hpp>
+#include <cordb-type.hpp>
 
 union CordbContent
 {

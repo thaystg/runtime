@@ -2,16 +2,16 @@
 #include <fstream>
 
 #include <cordb.hpp>
-#include <cordb_frame.hpp>
-#include <cordb_thread.hpp>
-#include <cordb_stepper.hpp>
-#include <cordb_function.hpp>
-#include <cordb_process.hpp>
-#include <cordb_assembly.hpp>
-#include <cordb_appdomain.hpp>
-#include <cordb_breakpoint.hpp>
-#include <cordb_code.hpp>
-#include <cordb_symbol.hpp>
+#include <cordb-frame.hpp>
+#include <cordb-thread.hpp>
+#include <cordb-stepper.hpp>
+#include <cordb-function.hpp>
+#include <cordb-process.hpp>
+#include <cordb-assembly.hpp>
+#include <cordb-appdomain.hpp>
+#include <cordb-breakpoint.hpp>
+#include <cordb-code.hpp>
+#include <cordb-symbol.hpp>
 #include <cordb-eval.hpp>
 
 int convert_mono_type_2_icordbg_size(int type)

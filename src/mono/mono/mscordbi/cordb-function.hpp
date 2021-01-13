@@ -2,7 +2,7 @@
 #define __MONO_DEBUGGER_CORDB_FUNCTION_H__
 
 #include <cordb.hpp>
-#include <cordb_assembly.hpp>
+#include <cordb-assembly.hpp>
 
 class CordbFunction :
     public ICorDebugFunction,

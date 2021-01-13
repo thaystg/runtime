@@ -25,40 +25,40 @@ include(../eglib/CMakeLists.txt)
 set(mscorbi_sources_base
     cordb.cpp
     cordb.hpp
-    cordb_appdomain.cpp
-    cordb_appdomain.hpp
-    cordb_assembly.cpp
-    cordb_assembly.hpp
-    cordb_blocking_obj.cpp
-    cordb_blocking_obj.hpp
-    cordb_breakpoint.cpp
-    cordb_breakpoint.hpp
-    cordb_chain.cpp
-    cordb_chain.hpp
-    cordb_class.cpp
-    cordb_class.hpp
-    cordb_code.cpp
-    cordb_code.hpp
+    cordb-appdomain.cpp
+    cordb-appdomain.hpp
+    cordb-assembly.cpp
+    cordb-assembly.hpp
+    cordb-blocking-obj.cpp
+    cordb-blocking-obj.hpp
+    cordb-breakpoint.cpp
+    cordb-breakpoint.hpp
+    cordb-chain.cpp
+    cordb-chain.hpp
+    cordb-class.cpp
+    cordb-class.hpp
+    cordb-code.cpp
+    cordb-code.hpp
     cordb-eval.cpp
     cordb-eval.hpp
-    cordb_frame.cpp
-    cordb_frame.hpp
-    cordb_function.cpp
-    cordb_function.hpp
-    cordb_process.cpp
-    cordb_process.hpp
-    cordb_register.cpp
-    cordb_register.hpp
-    cordb_stepper.cpp
-    cordb_stepper.hpp
-    cordb_symbol.cpp
-    cordb_symbol.hpp
-    cordb_thread.cpp
-    cordb_thread.hpp
-    cordb_type.cpp
-    cordb_type.hpp
-    cordb_value.cpp
-    cordb_value.hpp
+    cordb-frame.cpp
+    cordb-frame.hpp
+    cordb-function.cpp
+    cordb-function.hpp
+    cordb-process.cpp
+    cordb-process.hpp
+    cordb-register.cpp
+    cordb-register.hpp
+    cordb-stepper.cpp
+    cordb-stepper.hpp
+    cordb-symbol.cpp
+    cordb-symbol.hpp
+    cordb-thread.cpp
+    cordb-thread.hpp
+    cordb-type.cpp
+    cordb-type.hpp
+    cordb-value.cpp
+    cordb-value.hpp
 )
 
 if(HOST_WIN32)

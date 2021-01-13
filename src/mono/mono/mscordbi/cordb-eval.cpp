@@ -1,9 +1,9 @@
 #include <cordb.hpp>
-#include "cordb-eval.hpp"
-#include "cordb_value.hpp"
-#include "cordb_thread.hpp"
-#include "cordb_process.hpp"
-#include "cordb_function.hpp"
+#include <cordb-eval.hpp>
+#include <cordb-value.hpp>
+#include <cordb-thread.hpp>
+#include <cordb-process.hpp>
+#include <cordb-function.hpp>
 
 CordbEval::CordbEval(Connection* conn, CordbThread *thread):CordbBaseMono(conn)
 {
