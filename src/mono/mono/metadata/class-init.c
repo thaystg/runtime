@@ -3524,7 +3524,6 @@ mono_class_setup_properties (MonoClass *klass)
 			properties [i - first].parent = klass;
 			properties [i - first].attrs = cols [MONO_PROPERTY_FLAGS];
 			properties [i - first].name = mono_metadata_string_heap (klass->image, cols [MONO_PROPERTY_NAME]);
-			properties [i - first].type = mono_metadata_blob_heap (klass->image, cols [MONO_PROPERTY_TYPE]);
 
 			startm = mono_metadata_methods_from_property (klass->image, i, &endm);
 			int first_idx = mono_class_get_first_method_idx (klass);

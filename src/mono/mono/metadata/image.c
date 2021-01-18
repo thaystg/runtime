@@ -454,7 +454,7 @@ mono_image_load_cli_header (MonoImage *image, MonoCLIImageInfo *iinfo)
  *
  * Return the module mvid GUID or NULL if the image doesn't have a module table.
  */
-const guint8 *
+static const guint8 *
 mono_metadata_module_mvid (MonoImage *image)
 {
 	if (!image->tables [MONO_TABLE_MODULE].base)

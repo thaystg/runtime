@@ -195,7 +195,6 @@ struct _MonoProperty {
 	MonoMethod *get;
 	MonoMethod *set;
 	guint32 attrs;
-	const char *type;
 };
 
 struct _MonoEvent {

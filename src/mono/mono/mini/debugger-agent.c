@@ -7513,8 +7513,6 @@ module_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 			buffer_add_string (buf, sourcelink);
 		g_free (basename);
 		g_free (sourcelink);
-		if (CHECK_PROTOCOL_VERSION (3, 0))
-			buffer_add_byte_array(buf, mono_metadata_module_mvid (image), 16);
 		break;			
 	}
 	default:
