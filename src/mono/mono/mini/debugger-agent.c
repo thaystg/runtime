@@ -1062,8 +1062,7 @@ socket_transport_connect (const char *address)
 
 				mono_socket_address_init (&sockaddr, &sock_len, rp->family, &rp->address, port);
 
-				sfd = socket (rp->family, rp->socktype,
-							  rp->protocol);
+				sfd = socket (rp->family, rp->socktype, rp->protocol);
 				if (sfd == -1)
 					continue;
 
@@ -8210,7 +8209,7 @@ method_commands_internal (int command, MonoMethod *method, MonoDomain *domain, g
 		names = g_new (char*, sig->param_count);
 		mono_method_get_param_names (method, (const char**)names);
 		for (i = 0; i < sig->param_count; ++i)
-				buffer_add_string (buf, names[i]);
+			buffer_add_string (buf, names[i]);
 		g_free (names);
 		break;
 	}
@@ -9510,10 +9509,6 @@ static const char* module_cmds_str[] = {
 };
 
 static const char* field_cmds_str[] = {
-	"GET_INFO",
-};
-
-static const char* property_cmds_str[] = {
 	"GET_INFO",
 };
 
