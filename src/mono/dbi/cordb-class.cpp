@@ -34,6 +34,7 @@ HRESULT STDMETHODCALLTYPE CordbClass::GetToken (mdTypeDef *pTypeDef) {
 
 HRESULT STDMETHODCALLTYPE CordbClass::GetStaticFieldValue (mdFieldDef fieldDef, ICorDebugFrame *pFrame,
                                                            ICorDebugValue **ppValue) {
+	DEBUG_PRINTF (1, "CordbClass - GetStaticFieldValue - NOT IMPLEMENTED - %d\n", fieldDef);
 	CordbContent content_value;
 	content_value.booleanValue = 0;
 	CordbValue *value = new CordbValue (conn, ELEMENT_TYPE_BOOLEAN, content_value, 1);
@@ -70,7 +71,7 @@ ULONG STDMETHODCALLTYPE CordbClass::Release (void) {
 HRESULT STDMETHODCALLTYPE CordbClass::GetParameterizedType (CorElementType elementType, ULONG32 nTypeArgs,
                                                             ICorDebugType *ppTypeArgs[], ICorDebugType **ppType) {
 	DEBUG_PRINTF (1, "CordbClass - GetParameterizedType - NOT IMPLEMENTED\n");
-	return E_NOTIMPL;
+	return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbClass::SetJMCStatus (BOOL bIsJustMyCode) {

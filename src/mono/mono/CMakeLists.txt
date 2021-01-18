@@ -1,6 +1,6 @@
 project(mono)
 
-set(subdirs mini profiler mscordbi)
+set(subdirs mini profiler)
 
 if(ENABLE_PERFTRACING)
   list(APPEND subdirs

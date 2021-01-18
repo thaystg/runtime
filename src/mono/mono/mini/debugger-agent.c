@@ -8741,7 +8741,8 @@ frame_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 	MonoMethodSignature *sig;
 	gssize id;
 	MonoMethodHeader *header;
-
+	ERROR_DECL (error);
+	
 	objid = decode_objid (p, &p, end);
 	err = get_object (objid, (MonoObject**)&thread_obj);
 	if (err != ERR_NONE)
@@ -8794,7 +8795,6 @@ frame_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 
 	switch (command) {
 	case CMD_STACK_FRAME_GET_ARGUMENT: {
-		ERROR_DECL (error);
 		pos = decode_int (p, &p, end);
 		if (sig->hasthis) {
 			if (pos == 0)
@@ -8807,7 +8807,6 @@ frame_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		goto cmd_stack_frame_get_parameter;
 	}
 	case CMD_STACK_FRAME_GET_VALUES: {
-		ERROR_DECL (error);
 		len = decode_int (p, &p, end);
 		header = mono_method_get_header_checked (frame->actual_method, error);
 		mono_error_assert_ok (error); /* FIXME report error */
@@ -9260,7 +9259,7 @@ object_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		MonoClass *dummy_class;
 		int field_token =  decode_int (p, &p, end);
 		i = 0;
-		f = mono_field_from_token(m_class_get_image (obj_type), field_token, &dummy_class, NULL, error);
+		f = mono_field_from_token_checked (m_class_get_image (obj_type), field_token, &dummy_class, NULL, error);
 		if (f) {
 			goto get_field_value;
 		}
