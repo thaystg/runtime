@@ -1,5 +1,19 @@
-#include <iostream>
-#include <fstream>
+#include <mono/utils/atomic.h>
+
+#include "stdafx.h"
+#include "corerror.h"
+#include "rwutil.h"
+#include "mdlog.h"
+#include "switches.h"
+#include "posterror.h"
+#include "stgio.h"
+#include "sstring.h"
+
+#include "mdinternalrw.h"
+#include "importhelper.h"
+
+
+#include <metamodelrw.h>
 
 #include <cordb.hpp>
 #include <cordb-frame.hpp>
@@ -9,59 +23,210 @@
 #include <cordb-assembly.hpp>
 #include <cordb-process.hpp>
 #include <cordb-function.hpp>
-#include <mono/utils/atomic.h>
+
 
 using namespace std;
 
-CordbParameter::CordbParameter (int type, char *name, int method_token) {
-	this->type = type;
-	this->name = name;
-	this->method_token = method_token;
-}
 
-CordbSymbol::CordbSymbol (CordbAssembly *cordbAssembly) {
+RegMeta::RegMeta (CordbAssembly *cordbAssembly, CordbModule* cordbModule) {
 	module_id = -1;
 	pCordbAssembly = cordbAssembly;
+	this->cordbModule = cordbModule;
 	parameters = g_hash_table_new (NULL, NULL);
 	token_id = 0;
+	
+	m_pStgdb = new CLiteWeightStgdbRW();
+	ULONG32 pcchName = 0;
+	cordbModule->GetName(0, &pcchName, NULL);
+
+	wchar_t* full_path;
+	full_path = (wchar_t*)malloc(sizeof(wchar_t) * pcchName);
+	cordbModule->GetName(pcchName, &pcchName, full_path);
+	
+	m_pStgdb->OpenForRead(full_path, NULL, 0, 0);
 }
 
-HRESULT CordbSymbol::EnumGenericParams (
+HRESULT RegMeta::EnumGenericParams (
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
-	mdToken tk, // [IN] TypeDef or MethodDef whose generic parameters are requested
-	mdGenericParam rGenericParams[], // [OUT] Put GenericParams here.
-	ULONG cMax, // [IN] Max GenericParams to put.
-	ULONG *pcGenericParams) {
-	DEBUG_PRINTF (1, "CordbSymbol - EnumGenericParams - NOT IMPLEMENTED - %d\n", tk);
-	*pcGenericParams = 0;
-	return S_OK;
-}
+	mdToken tkOwner, // [IN] TypeDef or MethodDef whose generic parameters are requested
+	mdGenericParam rTokens[], // [OUT] Put GenericParams here.
+	ULONG cMaxTokens, // [IN] Max GenericParams to put.
+	ULONG * pcTokens) {
+		HRESULT             hr = S_OK;
 
-HRESULT CordbSymbol::GetGenericParamProps ( // S_OK or error.
-	mdGenericParam gp, // [IN] GenericParam
-	ULONG *pulParamSeq, // [OUT] Index of the type parameter
-	DWORD *pdwParamFlags, // [OUT] Flags, for future use (e.g. variance)
-	mdToken *ptOwner, // [OUT] Owner (TypeDef or MethodDef)
-	DWORD *reserved, // [OUT] For future use (e.g. non-type parameters)
-	_Out_writes_to_opt_ (cchName, *pchName)
-	LPWSTR wzname, // [OUT] Put name here
-	ULONG cchName, // [IN] Size of buffer
-	ULONG *pchName) {
-	DEBUG_PRINTF (1, "CordbSymbol - GetGenericParamProps - NOT IMPLEMENTED\n");
-	return S_OK;
+	
+		HENUMInternal** ppmdEnum = reinterpret_cast<HENUMInternal**> (phEnum);
+		ULONG               ridStart;
+		ULONG               ridEnd;
+		HENUMInternal* pEnum;
+		GenericParamRec* pRec;
+		ULONG               index;
+		CMiniMdRW* pMiniMd = NULL;
+
+		pMiniMd = &(m_pStgdb->m_MiniMd);
+
+
+		// See if this version of the metadata can do Generics
+		if (!pMiniMd->SupportsGenerics())
+		{
+				if (pcTokens)
+						*pcTokens = 0;
+				hr = S_FALSE;
+				goto ErrExit;
+		}
+
+
+		_ASSERTE(TypeFromToken(tkOwner) == mdtTypeDef || TypeFromToken(tkOwner) == mdtMethodDef);
+
+
+		if (*ppmdEnum == 0)
+		{
+				// instantiating a new ENUM
+
+				//@todo GENERICS: review this. Are we expecting a sorted table or not?
+				if (pMiniMd->IsSorted(TBL_GenericParam))
+				{
+						if (TypeFromToken(tkOwner) == mdtTypeDef)
+						{
+								IfFailGo(pMiniMd->getGenericParamsForTypeDef(RidFromToken(tkOwner), &ridEnd, &ridStart));
+						}
+						else
+						{
+								IfFailGo(pMiniMd->getGenericParamsForMethodDef(RidFromToken(tkOwner), &ridEnd, &ridStart));
+						}
+
+						IfFailGo(HENUMInternal::CreateSimpleEnum(mdtGenericParam, ridStart, ridEnd, &pEnum));
+				}
+				else
+				{
+						// table is not sorted so we have to create dynamic array
+						// create the dynamic enumerator
+						//
+						ridStart = 1;
+						ridEnd = pMiniMd->getCountGenericParams() + 1;
+
+						IfFailGo(HENUMInternal::CreateDynamicArrayEnum(mdtGenericParam, &pEnum));
+
+						for (index = ridStart; index < ridEnd; index++)
+						{
+								IfFailGo(pMiniMd->GetGenericParamRecord(index, &pRec));
+								if (tkOwner == pMiniMd->getOwnerOfGenericParam(pRec))
+								{
+										IfFailGo(HENUMInternal::AddElementToEnum(pEnum, TokenFromRid(index, mdtGenericParam)));
+								}
+						}
+				}
+
+				// set the output parameter
+				*ppmdEnum = pEnum;
+		}
+		else
+		{
+				pEnum = *ppmdEnum;
+		}
+
+		// fill the output token buffer
+		hr = HENUMInternal::EnumWithCount(pEnum, cMaxTokens, rTokens, pcTokens);
+
+ErrExit:
+		HENUMInternal::DestroyEnumIfEmpty(ppmdEnum);
+
+		return hr;
+}
+HRESULT RegMeta::GetGenericParamProps( // S_OK or error.
+mdGenericParam rd,                  // [IN] The type parameter
+ULONG* pulSequence,                 // [OUT] Parameter sequence number
+DWORD* pdwAttr,                     // [OUT] Type parameter flags (for future use)
+mdToken* ptOwner,                   // [OUT] The owner (TypeDef or MethodDef)
+DWORD* reserved,                    // [OUT] The kind (TypeDef/Ref/Spec, for future use)
+__out_ecount_opt(cchName) LPWSTR szName, // [OUT] The name
+ULONG cchName,                      // [IN] Size of name buffer
+ULONG* pchName)                     // [OUT] Actual size of name
+{
+		HRESULT         hr = NOERROR;
+
+		BEGIN_ENTRYPOINT_NOTHROW;
+
+		GenericParamRec* pGenericParamRec;
+		CMiniMdRW* pMiniMd = NULL;
+		RID             ridRD = RidFromToken(rd);
+
+
+
+		pMiniMd = &(m_pStgdb->m_MiniMd);
+
+		// See if this version of the metadata can do Generics
+		if (!pMiniMd->SupportsGenerics())
+				IfFailGo(CLDB_E_INCOMPATIBLE);
+
+
+		if ((TypeFromToken(rd) == mdtGenericParam) && (ridRD != 0))
+		{
+				IfFailGo(pMiniMd->GetGenericParamRecord(RidFromToken(rd), &pGenericParamRec));
+
+				if (pulSequence)
+						*pulSequence = pMiniMd->getNumberOfGenericParam(pGenericParamRec);
+				if (pdwAttr)
+						*pdwAttr = pMiniMd->getFlagsOfGenericParam(pGenericParamRec);
+				if (ptOwner)
+						*ptOwner = pMiniMd->getOwnerOfGenericParam(pGenericParamRec);
+				// This call has to be last to set 'hr', so CLDB_S_TRUNCATION is not rewritten with S_OK
+				if (pchName || szName)
+						IfFailGo(pMiniMd->getNameOfGenericParam(pGenericParamRec, szName, cchName, pchName));
+		}
+		else
+				hr = META_E_BAD_INPUT_PARAMETER;
+
+ErrExit:
+		
+		return hr;
 } // [OUT] Put size of name (wide chars) here.
 
-HRESULT CordbSymbol::GetMethodSpecProps (
+HRESULT RegMeta::GetMethodSpecProps (
 	mdMethodSpec mi, // [IN] The method instantiation
 	mdToken *tkParent, // [OUT] MethodDef or MemberRef
 	PCCOR_SIGNATURE *ppvSigBlob, // [OUT] point to the blob value of meta data
 	ULONG *pcbSigBlob) {
 
-	DEBUG_PRINTF (1, "CordbSymbol - GetMethodSpecProps - NOT IMPLEMENTED\n");
-	return S_OK;
+	HRESULT         hr = NOERROR;
+
+    MethodSpecRec  *pMethodSpecRec;
+    CMiniMdRW       *pMiniMd = NULL;
+
+
+    pMiniMd = &(m_pStgdb->m_MiniMd);
+
+
+    // See if this version of the metadata can do Generics
+    if (!pMiniMd->SupportsGenerics())
+        IfFailGo(CLDB_E_INCOMPATIBLE);
+
+    _ASSERTE(TypeFromToken(mi) == mdtMethodSpec && RidFromToken(mi));
+
+    IfFailGo(pMiniMd->GetMethodSpecRecord(RidFromToken(mi), &pMethodSpecRec));
+
+    if (tkParent)
+        *tkParent = pMiniMd->getMethodOfMethodSpec(pMethodSpecRec);
+
+    if (ppvSigBlob || pcbSigBlob)
+    {
+        // caller wants signature information
+        PCCOR_SIGNATURE pvSigTmp;
+        ULONG           cbSig;
+        IfFailGo(pMiniMd->getInstantiationOfMethodSpec(pMethodSpecRec, &pvSigTmp, &cbSig));
+        if ( ppvSigBlob )
+            *ppvSigBlob = pvSigTmp;
+        if ( pcbSigBlob)
+            *pcbSigBlob = cbSig;
+    }
+
+
+ErrExit:
+
+    return hr;
 } // [OUT] actual size of signature blob
 
-HRESULT CordbSymbol::EnumGenericParamConstraints (
+HRESULT RegMeta::EnumGenericParamConstraints (
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdGenericParam tk, // [IN] GenericParam whose constraints are requested
 	mdGenericParamConstraint rGenericParamConstraints[], // [OUT] Put GenericParamConstraints here.
@@ -71,7 +236,7 @@ HRESULT CordbSymbol::EnumGenericParamConstraints (
 	return S_OK;
 } // [OUT] Put # put here.
 
-HRESULT CordbSymbol::GetGenericParamConstraintProps ( // S_OK or error.
+HRESULT RegMeta::GetGenericParamConstraintProps ( // S_OK or error.
 	mdGenericParamConstraint gpc, // [IN] GenericParamConstraint
 	mdGenericParam *ptGenericParam, // [OUT] GenericParam that is constrained
 	mdToken *ptkConstraintType) {
@@ -79,23 +244,62 @@ HRESULT CordbSymbol::GetGenericParamConstraintProps ( // S_OK or error.
 	return S_OK;
 } // [OUT] TypeDef/Ref/Spec constraint
 
-HRESULT CordbSymbol::GetPEKind ( // S_OK or error.
+HRESULT RegMeta::GetPEKind ( // S_OK or error.
 	DWORD *pdwPEKind, // [OUT] The kind of PE (0 - not a PE)
-	DWORD *pdwMAchine) {
-	DEBUG_PRINTF (1, "CordbSymbol - GetPEKind - NOT IMPLEMENTED\n");
-	return S_OK;
+	DWORD *pdwMachine) {
+		HRESULT     hr = NOERROR;
+		MAPPINGTYPE mt = MTYPE_NOMAPPING;
+
+		if (m_pStgdb->m_pStgIO != NULL)
+				mt = m_pStgdb->m_pStgIO->GetMemoryMappedType();
+
+		hr = m_pStgdb->GetPEKind(mt, pdwPEKind, pdwMachine);
+		return hr;
 } // [OUT] Machine as defined in NT header
 
-HRESULT CordbSymbol::GetVersionString ( // S_OK or error.
+HRESULT RegMeta::GetVersionString ( // S_OK or error.
 	_Out_writes_to_opt_ (ccBufSize, *pccBufSize)
 	LPWSTR pwzBuf, // [OUT] Put version string here.
-	DWORD ccBufSize, // [IN] size of the buffer, in wide chars
-	DWORD *pccBufSize) {
-	DEBUG_PRINTF (1, "CordbSymbol - GetVersionString - NOT IMPLEMENTED\n");
-	return S_OK;
+	DWORD cchBufSize, // [IN] size of the buffer, in wide chars
+	DWORD *pchBufSize) {
+		HRESULT         hr = NOERROR;
+
+		DWORD       cch;                    // Length of WideChar string.
+		LPCSTR      pVer;                   // Pointer to version string.
+
+
+		if (m_pStgdb->m_pvMd != NULL)
+		{
+				// For convenience, get a pointer to the version string.
+				// @todo: get from alternate locations when there is no STOREAGESIGNATURE.
+				pVer = reinterpret_cast<const char*>(reinterpret_cast<const STORAGESIGNATURE*>(m_pStgdb->m_pvMd)->pVersion);
+				// Attempt to convert into caller's buffer.
+				cch = WszMultiByteToWideChar(CP_UTF8, 0, pVer, -1, pwzBuf, cchBufSize);
+				// Did the string fit?
+				if (cch == 0)
+				{   // No, didn't fit.  Find out space required.
+						cch = WszMultiByteToWideChar(CP_UTF8, 0, pVer, -1, pwzBuf, 0);
+						// NUL terminate string.
+						if (cchBufSize > 0)
+								pwzBuf[cchBufSize - 1] = W('\0');
+						// Truncation return code.
+						hr = CLDB_S_TRUNCATION;
+				}
+		}
+		else
+		{   // No string.
+				if (cchBufSize > 0)
+						*pwzBuf = W('\0');
+				cch = 0;
+		}
+
+		if (pchBufSize)
+				*pchBufSize = cch;
+
+		return hr;
 } // [OUT] Size of the version string, wide chars, including terminating nul.
 
-HRESULT CordbSymbol::EnumMethodSpecs (
+HRESULT RegMeta::EnumMethodSpecs (
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdToken tk, // [IN] MethodDef or MemberRef whose MethodSpecs are requested
 	mdMethodSpec rMethodSpecs[], // [OUT] Put MethodSpecs here.
@@ -105,7 +309,7 @@ HRESULT CordbSymbol::EnumMethodSpecs (
 	return S_OK;
 } // [OUT] Put actual count here.
 
-HRESULT CordbSymbol::GetAssemblyProps ( // S_OK or error.
+HRESULT RegMeta::GetAssemblyProps ( // S_OK or error.
 	mdAssembly mda, // [IN] The Assembly for which to get the properties.
 	const void **ppbPublicKey, // [OUT] Pointer to the public key.
 	ULONG *pcbPublicKey, // [OUT] Count of bytes in the public key.
@@ -115,30 +319,53 @@ HRESULT CordbSymbol::GetAssemblyProps ( // S_OK or error.
 	ULONG *pchName, // [OUT] Actual # of wide chars in name.
 	ASSEMBLYMETADATA *pMetaData, // [OUT] Assembly MetaData.
 	DWORD *pdwAssemblyFlags) {
-	DEBUG_PRINTF (1, "CordbSymbol - GetAssemblyProps - THAYS - NOT IMPLEMENTED - %d - %d\n", cchName, mda);
+		HRESULT     hr = S_OK;
 
-	Buffer localbuf;
-	buffer_init (&localbuf, 128);
-	buffer_add_id (&localbuf, this->pCordbAssembly->id);
-	int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-		CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_SIMPLE_NAME, &localbuf);
-	buffer_free (&localbuf);
+		BEGIN_ENTRYPOINT_NOTHROW;
 
-	Buffer *localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
+		AssemblyRec* pRecord;
+		CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
 
-	char *assembly_name = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		_ASSERTE(TypeFromToken(mda) == mdtAssembly && RidFromToken(mda));
+		IfFailGo(pMiniMd->GetAssemblyRecord(RidFromToken(mda), &pRecord));
 
-	if (cchName > strlen (assembly_name)) {
-		mbstowcs (szName, assembly_name, strlen (assembly_name) + 1);
-	}
-	*pchName = strlen (assembly_name) + 1;
+		if (ppbPublicKey != NULL)
+		{
+				IfFailGo(pMiniMd->getPublicKeyOfAssembly(pRecord, (const BYTE**)ppbPublicKey, pcbPublicKey));
+		}
+		if (pulHashAlgId)
+				*pulHashAlgId = pMiniMd->getHashAlgIdOfAssembly(pRecord);
+		if (pMetaData)
+		{
+				pMetaData->usMajorVersion = pMiniMd->getMajorVersionOfAssembly(pRecord);
+				pMetaData->usMinorVersion = pMiniMd->getMinorVersionOfAssembly(pRecord);
+				pMetaData->usBuildNumber = pMiniMd->getBuildNumberOfAssembly(pRecord);
+				pMetaData->usRevisionNumber = pMiniMd->getRevisionNumberOfAssembly(pRecord);
+				IfFailGo(pMiniMd->getLocaleOfAssembly(pRecord, pMetaData->szLocale,
+						pMetaData->cbLocale, &pMetaData->cbLocale));
+				pMetaData->ulProcessor = 0;
+				pMetaData->ulOS = 0;
+		}
+		if (pdwAssemblyFlags)
+		{
+				*pdwAssemblyFlags = pMiniMd->getFlagsOfAssembly(pRecord);
 
-	DEBUG_PRINTF (1, "CordbSymbol - GetAssemblyProps - NOT IMPLEMENTED - %d - %d - %s\n", cchName, mda,
-	              assembly_name);
-	return S_OK;
+				// Turn on the afPublicKey if PublicKey blob is not empty
+				DWORD cbPublicKey;
+				const BYTE* pbPublicKey;
+				IfFailGo(pMiniMd->getPublicKeyOfAssembly(pRecord, &pbPublicKey, &cbPublicKey));
+				if (cbPublicKey != 0)
+						*pdwAssemblyFlags |= afPublicKey;
+		}
+		// This call has to be last to set 'hr', so CLDB_S_TRUNCATION is not rewritten with S_OK
+		if (szName || pchName)
+				IfFailGo(pMiniMd->getNameOfAssembly(pRecord, szName, cchName, pchName));
+ErrExit:
+
+		return hr;
 } // [OUT] Flags.
 
-HRESULT CordbSymbol::GetAssemblyRefProps ( // S_OK or error.
+HRESULT RegMeta::GetAssemblyRefProps ( // S_OK or error.
 	mdAssemblyRef mdar, // [IN] The AssemblyRef for which to get the properties.
 	const void **ppbPublicKeyOrToken, // [OUT] Pointer to the public key or token.
 	ULONG *pcbPublicKeyOrToken, // [OUT] Count of bytes in the public key or token.
@@ -149,11 +376,47 @@ HRESULT CordbSymbol::GetAssemblyRefProps ( // S_OK or error.
 	const void **ppbHashValue, // [OUT] Hash blob.
 	ULONG *pcbHashValue, // [OUT] Count of bytes in the hash blob.
 	DWORD *pdwAssemblyRefFlags) {
-	DEBUG_PRINTF (1, "CordbSymbol - GetAssemblyRefProps - NOT IMPLEMENTED\n");
-	return S_OK;
+		HRESULT     hr = S_OK;
+
+		BEGIN_ENTRYPOINT_NOTHROW;
+
+		AssemblyRefRec* pRecord;
+		CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
+
+
+		_ASSERTE(TypeFromToken(mdar) == mdtAssemblyRef && RidFromToken(mdar));
+		IfFailGo(pMiniMd->GetAssemblyRefRecord(RidFromToken(mdar), &pRecord));
+
+		if (ppbPublicKeyOrToken != NULL)
+		{
+				IfFailGo(pMiniMd->getPublicKeyOrTokenOfAssemblyRef(pRecord, (const BYTE**)ppbPublicKeyOrToken, pcbPublicKeyOrToken));
+		}
+		if (pMetaData)
+		{
+				pMetaData->usMajorVersion = pMiniMd->getMajorVersionOfAssemblyRef(pRecord);
+				pMetaData->usMinorVersion = pMiniMd->getMinorVersionOfAssemblyRef(pRecord);
+				pMetaData->usBuildNumber = pMiniMd->getBuildNumberOfAssemblyRef(pRecord);
+				pMetaData->usRevisionNumber = pMiniMd->getRevisionNumberOfAssemblyRef(pRecord);
+				IfFailGo(pMiniMd->getLocaleOfAssemblyRef(pRecord, pMetaData->szLocale,
+						pMetaData->cbLocale, &pMetaData->cbLocale));
+				pMetaData->ulProcessor = 0;
+				pMetaData->ulOS = 0;
+		}
+		if (ppbHashValue != NULL)
+		{
+				IfFailGo(pMiniMd->getHashValueOfAssemblyRef(pRecord, (const BYTE**)ppbHashValue, pcbHashValue));
+		}
+		if (pdwAssemblyRefFlags)
+				*pdwAssemblyRefFlags = pMiniMd->getFlagsOfAssemblyRef(pRecord);
+		// This call has to be last to set 'hr', so CLDB_S_TRUNCATION is not rewritten with S_OK
+		if (szName || pchName)
+				IfFailGo(pMiniMd->getNameOfAssemblyRef(pRecord, szName, cchName, pchName));
+ErrExit:
+
+		return hr;
 } // [OUT] Flags.
 
-HRESULT CordbSymbol::GetFileProps ( // S_OK or error.
+HRESULT RegMeta::GetFileProps ( // S_OK or error.
 	mdFile mdf, // [IN] The File for which to get the properties.
 	_Out_writes_to_opt_ (cchName, *pchName) LPWSTR szName, // [OUT] Buffer to fill with name.
 	ULONG cchName, // [IN] Size of buffer in wide chars.
@@ -165,7 +428,7 @@ HRESULT CordbSymbol::GetFileProps ( // S_OK or error.
 	return S_OK;
 } // [OUT] Flags.
 
-HRESULT CordbSymbol::GetExportedTypeProps ( // S_OK or error.
+HRESULT RegMeta::GetExportedTypeProps ( // S_OK or error.
 	mdExportedType mdct, // [IN] The ExportedType for which to get the properties.
 	_Out_writes_to_opt_ (cchName, *pchName) LPWSTR szName, // [OUT] Buffer to fill with name.
 	ULONG cchName, // [IN] Size of buffer in wide chars.
@@ -173,11 +436,64 @@ HRESULT CordbSymbol::GetExportedTypeProps ( // S_OK or error.
 	mdToken *ptkImplementation, // [OUT] mdFile or mdAssemblyRef or mdExportedType.
 	mdTypeDef *ptkTypeDef, // [OUT] TypeDef token within the file.
 	DWORD *pdwExportedTypeFlags) {
-	DEBUG_PRINTF (1, "CordbSymbol - GetExportedTypeProps - NOT IMPLEMENTED\n");
-	return S_OK;
+		HRESULT     hr = S_OK;              // A result.
+
+
+		ExportedTypeRec* pRecord;          // The exported type.
+		CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
+		int         bTruncation = 0;          // Was there name truncation?
+
+
+		_ASSERTE(TypeFromToken(mdct) == mdtExportedType && RidFromToken(mdct));
+		IfFailGo(pMiniMd->GetExportedTypeRecord(RidFromToken(mdct), &pRecord));
+
+		if (szName || pchName)
+		{
+				LPCSTR  szTypeNamespace;
+				LPCSTR  szTypeName;
+
+				IfFailGo(pMiniMd->getTypeNamespaceOfExportedType(pRecord, &szTypeNamespace));
+				PREFIX_ASSUME(szTypeNamespace != NULL);
+				MAKE_WIDEPTR_FROMUTF8_NOTHROW(wzTypeNamespace, szTypeNamespace);
+				IfNullGo(wzTypeNamespace);
+
+				IfFailGo(pMiniMd->getTypeNameOfExportedType(pRecord, &szTypeName));
+				_ASSERTE(*szTypeName);
+				MAKE_WIDEPTR_FROMUTF8_NOTHROW(wzTypeName, szTypeName);
+				IfNullGo(wzTypeName);
+
+				if (szName)
+						bTruncation = !(ns::MakePath(szName, cchName, wzTypeNamespace, wzTypeName));
+				if (pchName)
+				{
+						if (bTruncation || !szName)
+								*pchName = ns::GetFullLength(wzTypeNamespace, wzTypeName);
+						else
+								*pchName = (ULONG)(wcslen(szName) + 1);
+				}
+		}
+		if (ptkImplementation)
+				*ptkImplementation = pMiniMd->getImplementationOfExportedType(pRecord);
+		if (ptkTypeDef)
+				*ptkTypeDef = pMiniMd->getTypeDefIdOfExportedType(pRecord);
+		if (pdwExportedTypeFlags)
+				*pdwExportedTypeFlags = pMiniMd->getFlagsOfExportedType(pRecord);
+
+		if (bTruncation && hr == S_OK)
+		{
+				if ((szName != NULL) && (cchName > 0))
+				{   // null-terminate the truncated output string
+						szName[cchName - 1] = W('\0');
+				}
+				hr = CLDB_S_TRUNCATION;
+		}
+
+ErrExit:
+
+		return hr;
 } // [OUT] Flags.
 
-HRESULT CordbSymbol::GetManifestResourceProps ( // S_OK or error.
+HRESULT RegMeta::GetManifestResourceProps ( // S_OK or error.
 	mdManifestResource mdmr, // [IN] The ManifestResource for which to get the properties.
 	_Out_writes_to_opt_ (cchName, *pchName)LPWSTR szName, // [OUT] Buffer to fill with name.
 	ULONG cchName, // [IN] Size of buffer in wide chars.
@@ -189,7 +505,7 @@ HRESULT CordbSymbol::GetManifestResourceProps ( // S_OK or error.
 	return S_OK;
 } // [OUT] Flags.
 
-HRESULT CordbSymbol::EnumAssemblyRefs ( // S_OK or error
+HRESULT RegMeta::EnumAssemblyRefs ( // S_OK or error
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdAssemblyRef rAssemblyRefs[], // [OUT] Put AssemblyRefs here.
 	ULONG cMax, // [IN] Max AssemblyRefs to put.
@@ -198,25 +514,105 @@ HRESULT CordbSymbol::EnumAssemblyRefs ( // S_OK or error
 	return S_OK;
 } // [OUT] Put # put here.
 
-HRESULT CordbSymbol::EnumFiles ( // S_OK or error
+HRESULT RegMeta::EnumFiles ( // S_OK or error
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdFile rFiles[], // [OUT] Put Files here.
 	ULONG cMax, // [IN] Max Files to put.
 	ULONG *pcTokens) {
-	DEBUG_PRINTF (1, "CordbSymbol - EnumFiles - NOT IMPLEMENTED\n");
-	return S_OK;
+	HRESULT             hr = NOERROR;
+
+    HENUMInternal       **ppmdEnum = reinterpret_cast<HENUMInternal **> (phEnum);
+    HENUMInternal       *pEnum;
+
+
+    if (*ppmdEnum == 0)
+    {
+        // instantiate a new ENUM.
+        CMiniMdRW       *pMiniMd = &(m_pStgdb->m_MiniMd);
+
+        // create the enumerator.
+        IfFailGo(HENUMInternal::CreateSimpleEnum(
+            mdtFile,
+            1,
+            pMiniMd->getCountFiles() + 1,
+            &pEnum) );
+
+        // set the output parameter.
+        *ppmdEnum = pEnum;
+    }
+    else
+        pEnum = *ppmdEnum;
+
+    // we can only fill the minimum of what the caller asked for or what we have left.
+    IfFailGo(HENUMInternal::EnumWithCount(pEnum, cMax, rFiles, pcTokens));
+ErrExit:
+    HENUMInternal::DestroyEnumIfEmpty(ppmdEnum);
+
+
+    return hr;
 } // [OUT] Put # put here.
 
-HRESULT CordbSymbol::EnumExportedTypes ( // S_OK or error
+HRESULT RegMeta::EnumExportedTypes ( // S_OK or error
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdExportedType rExportedTypes[], // [OUT] Put ExportedTypes here.
 	ULONG cMax, // [IN] Max ExportedTypes to put.
 	ULONG *pcTokens) {
-	DEBUG_PRINTF (1, "CordbSymbol - EnumExportedTypes - NOT IMPLEMENTED\n");
-	return S_OK;
+		HRESULT             hr = NOERROR;
+
+		BEGIN_ENTRYPOINT_NOTHROW;
+
+		HENUMInternal** ppmdEnum = reinterpret_cast<HENUMInternal**> (phEnum);
+		HENUMInternal* pEnum;
+
+
+		if (*ppmdEnum == 0)
+		{
+				// instantiate a new ENUM.
+				CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
+
+				if (pMiniMd->HasDelete())
+				{
+						IfFailGo(HENUMInternal::CreateDynamicArrayEnum(mdtExportedType, &pEnum));
+
+						// add all Types to the dynamic array if name is not _Delete
+						for (ULONG index = 1; index <= pMiniMd->getCountExportedTypes(); index++)
+						{
+								ExportedTypeRec* pRec;
+								IfFailGo(pMiniMd->GetExportedTypeRecord(index, &pRec));
+								LPCSTR szTypeName;
+								IfFailGo(pMiniMd->getTypeNameOfExportedType(pRec, &szTypeName));
+								if (IsDeletedName(szTypeName))
+								{
+										continue;
+								}
+								IfFailGo(HENUMInternal::AddElementToEnum(pEnum, TokenFromRid(index, mdtExportedType)));
+						}
+				}
+				else
+				{
+						// create the enumerator.
+						IfFailGo(HENUMInternal::CreateSimpleEnum(
+								mdtExportedType,
+								1,
+								pMiniMd->getCountExportedTypes() + 1,
+								&pEnum));
+				}
+
+				// set the output parameter.
+				*ppmdEnum = pEnum;
+		}
+		else
+				pEnum = *ppmdEnum;
+
+		// we can only fill the minimum of what the caller asked for or what we have left.
+		IfFailGo(HENUMInternal::EnumWithCount(pEnum, cMax, rExportedTypes, pcTokens));
+ErrExit:
+		HENUMInternal::DestroyEnumIfEmpty(ppmdEnum);
+
+		return hr;
 } // [OUT] Put # put here.
 
-HRESULT CordbSymbol::EnumManifestResources ( // S_OK or error
+HRESULT RegMeta::EnumManifestResources ( // S_OK or error
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdManifestResource rManifestResources[], // [OUT] Put ManifestResources here.
 	ULONG cMax, // [IN] Max Resources to put.
@@ -225,7 +621,7 @@ HRESULT CordbSymbol::EnumManifestResources ( // S_OK or error
 	return S_OK;
 } // [OUT] Put # put here.
 
-HRESULT CordbSymbol::FindExportedTypeByName ( // S_OK or error
+HRESULT RegMeta::FindExportedTypeByName ( // S_OK or error
 	LPCWSTR szName, // [IN] Name of the ExportedType.
 	mdToken mdtExportedType, // [IN] ExportedType for the enclosing class.
 	mdExportedType *ptkExportedType) {
@@ -233,14 +629,14 @@ HRESULT CordbSymbol::FindExportedTypeByName ( // S_OK or error
 	return S_OK;
 } // [OUT] Put the ExportedType token here.
 
-HRESULT CordbSymbol::FindManifestResourceByName ( // S_OK or error
+HRESULT RegMeta::FindManifestResourceByName ( // S_OK or error
 	LPCWSTR szName, // [IN] Name of the ManifestResource.
 	mdManifestResource *ptkManifestResource) {
 	DEBUG_PRINTF (1, "CordbSymbol - FindManifestResourceByName - NOT IMPLEMENTED\n");
 	return S_OK;
 } // [OUT] Put the ManifestResource token here.
 
-HRESULT CordbSymbol::FindAssembliesByName ( // S_OK or error
+HRESULT RegMeta::FindAssembliesByName ( // S_OK or error
 	LPCWSTR szAppBase, // [IN] optional - can be NULL
 	LPCWSTR szPrivateBin, // [IN] optional - can be NULL
 	LPCWSTR szAssemblyName, // [IN] required - this is the assembly you are requesting
@@ -252,220 +648,256 @@ HRESULT CordbSymbol::FindAssembliesByName ( // S_OK or error
 } // [OUT] The number of assemblies returned.
 
 // IUnknown methods
-HRESULT CordbSymbol::QueryInterface (REFIID riid, LPVOID *ppvObj) {
-	if (ppvObj == NULL)
-		return E_POINTER;
-	if (riid == IID_IMetaDataAssemblyImport)
-		*ppvObj = static_cast<IMetaDataAssemblyImport*> (this);
-	else if (riid == IID_IMetaDataImport2)
-		*ppvObj = static_cast<IMetaDataImport2*> (this);
-	else if (riid == IID_IMetaDataImport)
-		*ppvObj = static_cast<IMetaDataImport*> (this);
-	else if (riid == IID_IUnknown)
-		*ppvObj = static_cast<IMetaDataImport*> (this);
-	else {
-		DEBUG_PRINTF (1, "CordbSymbol - QueryInterface - E_NOTIMPL\n");
-		return E_NOTIMPL;
-	}
+HRESULT RegMeta::QueryInterface (REFIID riid, LPVOID * ppUnk) {
+		HRESULT hr = S_OK;
+		int fIsInterfaceRW = false;
+		*ppUnk = 0;
+		if (riid == IID_IUnknown)
+		{
+				*ppUnk = (IUnknown*)(IMetaDataImport2*)this;
+		}
+		else if (riid == IID_IMDCommon)
+		{
+				*ppUnk = (IMDCommon*)this;
+		}
+		else if (riid == IID_IMetaDataImport)
+		{
+				*ppUnk = (IMetaDataImport2*)this;
+		}
+		else if (riid == IID_IMetaDataImport2)
+		{
+				*ppUnk = (IMetaDataImport2*)this;
+		}
+		else if (riid == IID_IMetaDataAssemblyImport)
+		{
+				*ppUnk = (IMetaDataAssemblyImport*)this;
+		}
+		else
+		{
+				IfFailGo(E_NOINTERFACE);
+		}
+ErrExit:
+	return hr;
+}
 
+ULONG RegMeta::AddRef () {
 	return S_OK;
 }
 
-ULONG CordbSymbol::AddRef () {
-	return S_OK;
-}
-
-ULONG CordbSymbol::Release () {
+ULONG RegMeta::Release () {
 	return S_OK;
 }
 
 // IMetaDataImport functions
-void CordbSymbol::CloseEnum (HCORENUM hEnum) {
-	DEBUG_PRINTF (1, "CordbSymbol - CloseEnum - IMPLEMENTED\n");
+void RegMeta::CloseEnum (HCORENUM hEnum) {
+	BEGIN_CLEANUP_ENTRYPOINT;
+	// No need to lock this function.
+    HENUMInternal   *pmdEnum = reinterpret_cast<HENUMInternal *> (hEnum);
 
-	return;
+    if (pmdEnum == NULL)
+        return;
+
+    HENUMInternal::DestroyEnum(pmdEnum);
+    END_CLEANUP_ENTRYPOINT;
 }
 
-HRESULT CordbSymbol::CountEnum (HCORENUM hEnum, ULONG *pulCount) {
-	DEBUG_PRINTF (1, "CordbSymbol - CountEnum - NOT IMPLEMENTED\n");
-	*pulCount = 0;
-	return S_OK;
+HRESULT RegMeta::CountEnum (HCORENUM hEnum, ULONG *pulCount) {
+		HENUMInternal* pmdEnum = reinterpret_cast<HENUMInternal*> (hEnum);
+		HRESULT         hr = S_OK;
+
+		// No need to lock this function.
+
+		_ASSERTE(pulCount);
+
+		if (pmdEnum == NULL)
+		{
+				*pulCount = 0;
+				goto ErrExit;
+		}
+
+		if (pmdEnum->m_tkKind == (TBL_MethodImpl << 24))
+		{
+				// Number of tokens must always be a multiple of 2.
+				_ASSERTE(!(pmdEnum->m_ulCount % 2));
+				// There are two entries in the Enumerator for each MethodImpl.
+				*pulCount = pmdEnum->m_ulCount / 2;
+		}
+		else
+				*pulCount = pmdEnum->m_ulCount;
+ErrExit:
+		return hr;
 }
 
-HRESULT CordbSymbol::ResetEnum (HCORENUM hEnum, ULONG ulPos) {
+HRESULT RegMeta::ResetEnum (HCORENUM hEnum, ULONG ulPos) {
 	DEBUG_PRINTF (1, "CordbSymbol - ResetEnum - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
-HRESULT CordbSymbol::EnumTypeDefs (HCORENUM *phEnum, mdTypeDef rTypeDefs[],
+HRESULT RegMeta::EnumTypeDefs (HCORENUM *phEnum, mdTypeDef rTypeDefs[],
                                    ULONG cMax, ULONG *pcTypeDefs) {
-	DEBUG_PRINTF (1, "CordbSymbol - EnumTypeDefs - %d\n", this->pCordbAssembly->id);
+	HRESULT         hr = S_OK;
+	HENUMInternal** ppmdEnum = reinterpret_cast<HENUMInternal**> (phEnum);
+	HENUMInternal* pEnum;
 	if (*phEnum == NULL) {
-		Buffer localbuf;
-		buffer_init (&localbuf, 128);
-		buffer_add_id (&localbuf, this->pCordbAssembly->id);
-		int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-			CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_TYPEDEFS, &localbuf);
-		buffer_free (&localbuf);
-		ReceivedReplyPacket *received_reply_packet = pCordbAssembly->pProcess->connection->
-		                                                             get_answer_with_error (cmdId);
-		CHECK_ERROR_RETURN_FALSE (received_reply_packet);
-		Buffer *localbuf2 = received_reply_packet->buf;
-		int count = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-
-		DEBUG_PRINTF (1, "CordbSymbol - EnumTypeDefs - 1\n");
-
-		GPtrArray *typedefs = g_ptr_array_new();
-		for (int i = 1; i < count; i++) {
-			DEBUG_PRINTF (1, "CordbSymbol - EnumTypeDefs - 2\n");
-			int *typedef_id = new int;
-			*typedef_id = (i + 1) | MONO_TOKEN_TYPE_DEF;
-			g_ptr_array_add (typedefs, typedef_id);
+		CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
+		HENUMInternal::CreateDynamicArrayEnum(mdtTypeDef, &pEnum);
+		for (ULONG index = 2; index <= pMiniMd->getCountTypeDefs(); index++)
+		{
+			TypeDefRec* pRec;
+			pMiniMd->GetTypeDefRecord(index, &pRec);
+			LPCSTR szTypeDefName;
+			pMiniMd->getNameOfTypeDef(pRec, &szTypeDefName);
+			if (IsDeletedName(szTypeDefName))
+				continue;
+			HENUMInternal::AddElementToEnum(pEnum, TokenFromRid(index, mdtTypeDef));
 		}
-		HENUMInternal *enumInternal = new HENUMInternal();
-		enumInternal->items = typedefs;
-		enumInternal->currentIdx = 0;
-		*phEnum = enumInternal;
+		*ppmdEnum = pEnum;
 	}
-	HENUMInternal *enumInternal = static_cast<HENUMInternal*> (*phEnum);
-	for (int i = 0; i < cMax; i++) {
-		DEBUG_PRINTF (1, "CordbSymbol - EnumTypeDefs - to fazendo o loop - %d - %d\n", enumInternal->currentIdx,
-		              enumInternal->items->len);
-		if (enumInternal->currentIdx >= enumInternal->items->len) {
-			*pcTypeDefs = i;
-			return S_OK;
-		}
-		rTypeDefs[i] = *(int*)(g_ptr_array_index (enumInternal->items, enumInternal->currentIdx));
-		DEBUG_PRINTF (1, "CordbSymbol - EnumTypeDefs - to fazendo o loop - %d\n", rTypeDefs[i]);
-		enumInternal->currentIdx++;
+	else
+	{
+		pEnum = *ppmdEnum;
 	}
-	*pcTypeDefs = cMax;
-	return S_OK;
+	hr = HENUMInternal::EnumWithCount(pEnum, cMax, rTypeDefs, pcTypeDefs);
+	return hr;
 }
 
-HRESULT CordbSymbol::EnumInterfaceImpls (HCORENUM *phEnum, mdTypeDef td,
+HRESULT RegMeta::EnumInterfaceImpls (HCORENUM *phEnum, mdTypeDef td,
                                          mdInterfaceImpl rImpls[], ULONG cMax,
                                          ULONG *pcImpls) {
-	DEBUG_PRINTF (1, "CordbSymbol - EnumInterfaceImpls - NOT IMPLEMENTED\n");
-	*pcImpls = 0;
-	return S_OK;
+	HRESULT             hr = S_OK;
+
+
+    HENUMInternal       **ppmdEnum = reinterpret_cast<HENUMInternal **> (phEnum);
+    ULONG               ridStart;
+    ULONG               ridEnd;
+    HENUMInternal       *pEnum;
+    InterfaceImplRec    *pRec;
+    ULONG               index;
+
+    _ASSERTE(TypeFromToken(td) == mdtTypeDef);
+
+
+    if ( *ppmdEnum == 0 )
+    {
+        // instantiating a new ENUM
+        CMiniMdRW       *pMiniMd = &(m_pStgdb->m_MiniMd);
+        if ( pMiniMd->IsSorted( TBL_InterfaceImpl ) )
+        {
+            IfFailGo(pMiniMd->getInterfaceImplsForTypeDef(RidFromToken(td), &ridEnd, &ridStart));
+            IfFailGo( HENUMInternal::CreateSimpleEnum( mdtInterfaceImpl, ridStart, ridEnd, &pEnum) );
+        }
+        else
+        {
+            // table is not sorted so we have to create dynmaic array
+            // create the dynamic enumerator
+            //
+            ridStart = 1;
+            ridEnd = pMiniMd->getCountInterfaceImpls() + 1;
+
+            IfFailGo( HENUMInternal::CreateDynamicArrayEnum( mdtInterfaceImpl, &pEnum) );
+
+            for (index = ridStart; index < ridEnd; index ++ )
+            {
+                IfFailGo(pMiniMd->GetInterfaceImplRecord(index, &pRec));
+                if ( td == pMiniMd->getClassOfInterfaceImpl(pRec) )
+                {
+                    IfFailGo( HENUMInternal::AddElementToEnum(pEnum, TokenFromRid(index, mdtInterfaceImpl) ) );
+                }
+            }
+        }
+
+        // set the output parameter
+        *ppmdEnum = pEnum;
+    }
+    else
+    {
+        pEnum = *ppmdEnum;
+    }
+
+    // fill the output token buffer
+    hr = HENUMInternal::EnumWithCount(pEnum, cMax, rImpls, pcImpls);
+
+ErrExit:
+    HENUMInternal::DestroyEnumIfEmpty(ppmdEnum);
+
+
+    return hr;
 }
 
-HRESULT CordbSymbol::EnumTypeRefs (HCORENUM *phEnum, mdTypeRef rTypeRefs[],
+HRESULT RegMeta::EnumTypeRefs (HCORENUM *phEnum, mdTypeRef rTypeRefs[],
                                    ULONG cMax, ULONG *pcTypeRefs) {
 	DEBUG_PRINTF (1, "CordbSymbol - EnumTypeRefs - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
-HRESULT CordbSymbol::FindTypeDefByName ( // S_OK or error.
-	LPCWSTR szTypeDef, // [IN] Name of the Type.
+HRESULT RegMeta::FindTypeDefByName ( // S_OK or error.
+	LPCWSTR wzTypeDef, // [IN] Name of the Type.
 	mdToken tkEnclosingClass, // [IN] TypeDef/TypeRef for Enclosing class.
 	mdTypeDef *ptd) // [OUT] Put the TypeDef token here.
 {
-	int klass_id;
-	if (FindTypeDefByNameInternal (szTypeDef, klass_id) != S_OK)
-		return S_FALSE;
+		HRESULT     hr = S_OK;
+		if (wzTypeDef == NULL)
+				IfFailGo(E_INVALIDARG);
+		PREFIX_ASSUME(wzTypeDef != NULL);
+		LPSTR       szTypeDef;
+		UTF8STR(wzTypeDef, szTypeDef);
+		LPCSTR      szNamespace;
+		LPCSTR      szName;
 
+		_ASSERTE(ptd);
+		_ASSERTE(TypeFromToken(tkEnclosingClass) == mdtTypeDef ||
+				TypeFromToken(tkEnclosingClass) == mdtTypeRef ||
+				IsNilToken(tkEnclosingClass));
 
-	Buffer localbuf;
-	buffer_init (&localbuf, 128);
+		// initialize output parameter
+		*ptd = mdTypeDefNil;
 
-	buffer_add_id (&localbuf, klass_id);
-	int cmdId = this->pCordbAssembly->pProcess->connection->send_event (CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
-	buffer_free (&localbuf);
-
-	Buffer *localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
-
-	char *namespace_str = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	char *class_name_str = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	char *class_fullname_str = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int assembly_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	module_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int type_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int type_id2 = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int token = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	*ptd = token;
-	DEBUG_PRINTF (1, "CordbSymbol - FindTypeDefByName - IMPLEMENTED - %ws - %d\n", szTypeDef, token);
-	return S_OK;
+		ns::SplitInline(szTypeDef, szNamespace, szName);
+		hr = ImportHelper::FindTypeDefByName(&(m_pStgdb->m_MiniMd),
+				szNamespace,
+				szName,
+				tkEnclosingClass,
+				ptd);
+ErrExit:
+		return hr;
 }
 
-HRESULT STDMETHODCALLTYPE CordbSymbol::FindTypeDefByNameInternal (LPCWSTR szTypeDef, int& klass_id) {
-	Buffer sendbuf;
-	buffer_init (&sendbuf, 128);
-
-	char output[256];
-	sprintf (output, "%ws", szTypeDef);
-	buffer_add_string (&sendbuf, output);
-	buffer_add_byte (&sendbuf, true);
-	int cmdId = this->pCordbAssembly->pProcess->connection->send_event (CMD_SET_VM, CMD_VM_GET_TYPES, &sendbuf);
-	buffer_free (&sendbuf);
-
-	ReceivedReplyPacket *received_reply_packet = pCordbAssembly->pProcess->connection->
-	                                                             get_answer_with_error (cmdId);
-	CHECK_ERROR_RETURN_FALSE (received_reply_packet);
-	Buffer *localbuf2 = received_reply_packet->buf;
-
-	int count_class = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	if (count_class == 0)
-		return S_FALSE;
-	klass_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	return S_OK;
-}
-
-HRESULT CordbSymbol::GetScopeProps ( // S_OK or error.
+HRESULT RegMeta::GetScopeProps ( // S_OK or error.
 	__out_ecount_part_opt (cchName, *pchName)
 	LPWSTR szName, // [OUT] Put the name here.
 	ULONG cchName, // [IN] Size of name buffer in wide chars.
 	ULONG *pchName, // [OUT] Put size of name (wide chars) here.
 	GUID *pmvid) // [OUT, OPTIONAL] Put MVID here.
 {
-	if (module_id < 0) {
-		Buffer localbuf;
-		buffer_init (&localbuf, 128);
-		buffer_add_id (&localbuf, this->pCordbAssembly->id);
-		int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-			CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_MANIFEST_MODULE, &localbuf);
-		buffer_free (&localbuf);
+		HRESULT     hr = S_OK;
 
-		Buffer *localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
+		BEGIN_ENTRYPOINT_NOTHROW;
 
-		module_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	}
+		CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
+		ModuleRec* pModuleRec;
 
-	Buffer localbuf;
-	buffer_init (&localbuf, 128);
-	buffer_add_id (&localbuf, module_id);
-	int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-		CMD_SET_MODULE, CMD_MODULE_GET_INFO, &localbuf);
-	buffer_free (&localbuf);
+		// there is only one module record
+		IfFailGo(pMiniMd->GetModuleRecord(1, &pModuleRec));
 
-	Buffer *localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
-	char *basename = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	char *module_name = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	char *name = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	char *guid = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int assembly_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	char *sourcelink = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	guint32 mvid_len;
-	guint8 *mvid = decode_byte_array (localbuf2->buf, &localbuf2->buf, localbuf2->end, &mvid_len);
-	memcpy (pmvid, mvid, mvid_len);
-	if (cchName > strlen (name)) {
-		mbstowcs (szName, name, strlen (name) + 1);
-		*pchName = strlen (name) + 1;
-	}
-
-	DEBUG_PRINTF (1, "CordbSymbol - GetScopeProps - IMPLEMENTED\n");
-	return S_OK;
+		if (pmvid != NULL)
+		{
+				IfFailGo(pMiniMd->getMvidOfModule(pModuleRec, pmvid));
+		}
+		// This call has to be last to set 'hr', so CLDB_S_TRUNCATION is not rewritten with S_OK
+		if (szName || pchName)
+				IfFailGo(pMiniMd->getNameOfModule(pModuleRec, szName, cchName, pchName));
+ErrExit:
+		return hr;
 }
 
-HRESULT CordbSymbol::GetModuleFromScope ( // S_OK.
+HRESULT RegMeta::GetModuleFromScope ( // S_OK.
 	mdModule *pmd) // [OUT] Put mdModule token here.
 {
 	DEBUG_PRINTF (1, "CordbSymbol - GetModuleFromScope - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
-HRESULT CordbSymbol::GetTypeDefProps ( // S_OK or error.
+HRESULT RegMeta::GetTypeDefProps ( // S_OK or error.
 	mdTypeDef td, // [IN] TypeDef token for inquiry.
 	__out_ecount_part_opt (cchTypeDef, *pchTypeDef)
 	LPWSTR szTypeDef, // [OUT] Put name here.
@@ -474,133 +906,205 @@ HRESULT CordbSymbol::GetTypeDefProps ( // S_OK or error.
 	DWORD *pdwTypeDefFlags, // [OUT] Put flags here.
 	mdToken *ptkExtends) // [OUT] Put base class TypeDef/TypeRef here.
 {
-	DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED - %d\n", td);
-	if (td == 0)
-		return E_NOTIMPL;
-	Buffer localbuf;
-	buffer_init (&localbuf, 128);
-	buffer_add_id (&localbuf, this->pCordbAssembly->id);
-	buffer_add_int (&localbuf, td);
-	int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-		CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN, &localbuf);
-	buffer_free (&localbuf);
+	HRESULT hr = S_OK;
+	CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
+	TypeDefRec* pTypeDefRec;
+	BOOL        fTruncation = FALSE;
 
-	DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED 1.1\n");
-
-	ReceivedReplyPacket *received_reply_packet = pCordbAssembly->pProcess->connection->
-	                                                             get_answer_with_error (cmdId);
-	CHECK_ERROR_RETURN_FALSE (received_reply_packet);
-	Buffer *localbuf2 = received_reply_packet->buf;
-
-	int klass_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-
-	DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED 1.2 - klass_id - %d\n", klass_id);
-
-	buffer_init (&localbuf, 128);
-
-	buffer_add_id (&localbuf, klass_id);
-	cmdId = this->pCordbAssembly->pProcess->connection->send_event (CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
-	buffer_free (&localbuf);
-
-	DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED 1.3\n");
-
-	localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
-
-	char *namespace_str = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	char *class_name_str = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	char *class_fullname_str = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int assembly_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	module_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int type_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int type_id2 = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int token = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int rank = decode_byte (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int flags = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-
-	DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED 1.4\n");
-
-
-	if (cchTypeDef > strlen (class_fullname_str)) {
-		mbstowcs (szTypeDef, class_fullname_str, strlen (class_fullname_str) + 1);
+	if (TypeFromToken (td) != mdtTypeDef) {
+		hr = S_FALSE;
+		goto ErrExit;
 	}
-	if (pchTypeDef)
-		*pchTypeDef = strlen (class_fullname_str) + 1;
+	if (td == mdTypeDefNil)
+	{   // Backward compatibility with CLR 2.0 implementation
+			if (pdwTypeDefFlags != NULL)
+					*pdwTypeDefFlags = 0;
+			if (ptkExtends != NULL)
+					*ptkExtends = mdTypeRefNil;
+			if (pchTypeDef != NULL)
+					*pchTypeDef = 1;
+			if ((szTypeDef != NULL) && (cchTypeDef > 0))
+					szTypeDef[0] = 0;
 
-	DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED 1.5\n");
-	DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED - %s - %d - %d  %d - %d\n", class_fullname_str,
-	              type_id, type_id2, flags, token);
-
-	if (pdwTypeDefFlags)
-		*pdwTypeDefFlags = flags;
-
-	if (type_id != 0) {
-		buffer_init (&localbuf, 128);
-
-		buffer_add_id (&localbuf, type_id);
-		cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-			CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
-		buffer_free (&localbuf);
-
-		localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
-		char *namespace_str = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED 1.6\n");
-		char *class_name_str = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED 1.7\n");
-		char *class_fullname_str2 = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED 1.8\n");
-		int assembly_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED 1.9\n");
-		module_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED 1.10\n");
-		int type_id2 = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED 1.11\n");
-		int type_id3 = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED 1.12\n");
-		int token = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED 1.13\n");
-		int rank = decode_byte (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED 1.14\n");
-		int flags2 = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED 1.15\n");
-
-		if (ptkExtends)
-			*ptkExtends = token;
-		DEBUG_PRINTF (1, "CordbSymbol - GetTypeDefProps - IMPLEMENTED 1.16 - flags - %d - token - %d\n", flags,
-		              token);
+			hr = S_OK;
+			goto ErrExit;
 	}
-	else
-		*ptkExtends = MONO_TOKEN_TYPE_REF;
 
-	return S_OK;
+	pMiniMd->GetTypeDefRecord(RidFromToken(td), &pTypeDefRec);
+
+	if ((szTypeDef != NULL) || (pchTypeDef != NULL))
+	{
+			LPCSTR szNamespace;
+			LPCSTR szName;
+
+			pMiniMd->getNamespaceOfTypeDef(pTypeDefRec, &szNamespace);
+			MAKE_WIDEPTR_FROMUTF8_NOTHROW(wzNamespace, szNamespace);
+			IfNullGo(wzNamespace);
+
+			pMiniMd->getNameOfTypeDef(pTypeDefRec, &szName);
+			MAKE_WIDEPTR_FROMUTF8_NOTHROW(wzName, szName);
+
+			if (szTypeDef != NULL)
+			{
+					fTruncation = !(ns::MakePath(szTypeDef, cchTypeDef, wzNamespace, wzName));
+			}
+			if (pchTypeDef != NULL)
+			{
+					if (fTruncation || (szTypeDef == NULL))
+					{
+							*pchTypeDef = ns::GetFullLength(wzNamespace, wzName);
+					}
+					else
+					{
+							*pchTypeDef = (ULONG)(wcslen(szTypeDef) + 1);
+					}
+			}
+	}
+	if (pdwTypeDefFlags != NULL)
+	{   // caller wants type flags
+		*pdwTypeDefFlags = pMiniMd->getFlagsOfTypeDef(pTypeDefRec);
+	}
+	if (ptkExtends != NULL)
+	{
+		*ptkExtends = pMiniMd->getExtendsOfTypeDef(pTypeDefRec);
+
+		// take care of the 0 case
+		if (RidFromToken(*ptkExtends) == 0)
+		{
+				*ptkExtends = mdTypeRefNil;
+		}
+	}
+
+	if (fTruncation && (hr == S_OK))
+	{
+		if ((szTypeDef != NULL) && (cchTypeDef > 0))
+		{   // null-terminate the truncated output string
+				szTypeDef[cchTypeDef - 1] = W('\0');
+		}
+		hr = CLDB_S_TRUNCATION;
+	}
+
+ErrExit:
+	return hr;
 }
 
-HRESULT CordbSymbol::GetInterfaceImplProps ( // S_OK or error.
+HRESULT RegMeta::GetInterfaceImplProps ( // S_OK or error.
 	mdInterfaceImpl iiImpl, // [IN] InterfaceImpl token.
 	mdTypeDef *pClass, // [OUT] Put implementing class token here.
 	mdToken *ptkIface) // [OUT] Put implemented interface token here.
 {
-	DEBUG_PRINTF (1, "CordbSymbol - GetInterfaceImplProps - NOT IMPLEMENTED\n");
-	return S_OK;
+	HRESULT hr = S_OK;
+
+
+    CMiniMdRW       *pMiniMd = NULL;
+    InterfaceImplRec *pIIRec = NULL;
+
+    _ASSERTE(TypeFromToken(iiImpl) == mdtInterfaceImpl);
+
+    pMiniMd = &(m_pStgdb->m_MiniMd);
+    IfFailGo(pMiniMd->GetInterfaceImplRecord(RidFromToken(iiImpl), &pIIRec));
+
+    if (pClass)
+    {
+        *pClass = pMiniMd->getClassOfInterfaceImpl(pIIRec);
+    }
+    if (ptkIface)
+    {
+        *ptkIface = pMiniMd->getInterfaceOfInterfaceImpl(pIIRec);
+    }
+
+ErrExit:
+    return hr;
 }
 
-HRESULT CordbSymbol::GetTypeRefProps ( // S_OK or error.
+HRESULT RegMeta::GetTypeRefProps ( // S_OK or error.
 	mdTypeRef tr, // [IN] TypeRef token.
 	mdToken *ptkResolutionScope, // [OUT] Resolution scope, ModuleRef or AssemblyRef.
 	__out_ecount_part_opt (cchName, *pchName)
-	LPWSTR szName, // [OUT] Name of the TypeRef.
-	ULONG cchName, // [IN] Size of buffer.
-	ULONG *pchName) // [OUT] Size of Name.
+	LPWSTR szTypeRef, // [OUT] Name of the TypeRef.
+	ULONG cchTypeRef, // [IN] Size of buffer.
+	ULONG * pchTypeRef) // [OUT] Size of Name.
 {
-	DEBUG_PRINTF (1, "CordbSymbol - GetTypeRefProps - NOT IMPLEMENTED\n");
-	return S_OK;
+		HRESULT hr = S_OK;
+		CMiniMdRW* pMiniMd;
+		TypeRefRec* pTypeRefRec;
+		BOOL        fTruncation = FALSE;    // Was there name truncation?
+
+
+		if (TypeFromToken(tr) != mdtTypeRef)
+		{
+				hr = S_FALSE;
+				goto ErrExit;
+		}
+		if (tr == mdTypeRefNil)
+		{   // Backward compatibility with CLR 2.0 implementation
+				if (ptkResolutionScope != NULL)
+						*ptkResolutionScope = mdTokenNil;
+				if (pchTypeRef != NULL)
+						*pchTypeRef = 1;
+				if ((szTypeRef != NULL) && (cchTypeRef > 0))
+						szTypeRef[0] = 0;
+
+				hr = S_OK;
+				goto ErrExit;
+		}
+
+		pMiniMd = &(m_pStgdb->m_MiniMd);
+		IfFailGo(pMiniMd->GetTypeRefRecord(RidFromToken(tr), &pTypeRefRec));
+
+		if (ptkResolutionScope != NULL)
+		{
+				*ptkResolutionScope = pMiniMd->getResolutionScopeOfTypeRef(pTypeRefRec);
+		}
+
+		if ((szTypeRef != NULL) || (pchTypeRef != NULL))
+		{
+				LPCSTR szNamespace;
+				LPCSTR szName;
+
+				IfFailGo(pMiniMd->getNamespaceOfTypeRef(pTypeRefRec, &szNamespace));
+				MAKE_WIDEPTR_FROMUTF8_NOTHROW(wzNamespace, szNamespace);
+				IfNullGo(wzNamespace);
+
+				IfFailGo(pMiniMd->getNameOfTypeRef(pTypeRefRec, &szName));
+				MAKE_WIDEPTR_FROMUTF8_NOTHROW(wzName, szName);
+				IfNullGo(wzName);
+
+				if (szTypeRef != NULL)
+				{
+						fTruncation = !(ns::MakePath(szTypeRef, cchTypeRef, wzNamespace, wzName));
+				}
+				if (pchTypeRef != NULL)
+				{
+						if (fTruncation || (szTypeRef == NULL))
+						{
+								*pchTypeRef = ns::GetFullLength(wzNamespace, wzName);
+						}
+						else
+						{
+								*pchTypeRef = (ULONG)(wcslen(szTypeRef) + 1);
+						}
+				}
+		}
+		if (fTruncation && (hr == S_OK))
+		{
+				if ((szTypeRef != NULL) && (cchTypeRef > 0))
+				{   // null-terminate the truncated output string
+						szTypeRef[cchTypeRef - 1] = W('\0');
+				}
+				hr = CLDB_S_TRUNCATION;
+		}
+
+ErrExit:
+		return hr;
 }
 
-HRESULT CordbSymbol::ResolveTypeRef (mdTypeRef tr, REFIID riid, IUnknown **ppIScope, mdTypeDef *ptd) {
+HRESULT RegMeta::ResolveTypeRef (mdTypeRef tr, REFIID riid, IUnknown **ppIScope, mdTypeDef *ptd) {
 	DEBUG_PRINTF (1, "CordbSymbol - ResolveTypeRef - NOT IMPLEMENTED\n");
 	return S_OK;
 }
 
-HRESULT CordbSymbol::EnumMembers ( // S_OK, S_FALSE, or error.
+HRESULT RegMeta::EnumMembers ( // S_OK, S_FALSE, or error.
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdTypeDef cl, // [IN] TypeDef to scope the enumeration.
 	mdToken rMembers[], // [OUT] Put MemberDefs here.
@@ -611,7 +1115,7 @@ HRESULT CordbSymbol::EnumMembers ( // S_OK, S_FALSE, or error.
 	return S_OK;
 }
 
-HRESULT CordbSymbol::EnumMembersWithName ( // S_OK, S_FALSE, or error.
+HRESULT RegMeta::EnumMembersWithName ( // S_OK, S_FALSE, or error.
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdTypeDef cl, // [IN] TypeDef to scope the enumeration.
 	LPCWSTR szName, // [IN] Limit results to those with this name.
@@ -623,73 +1127,85 @@ HRESULT CordbSymbol::EnumMembersWithName ( // S_OK, S_FALSE, or error.
 	return S_OK;
 }
 
-HRESULT CordbSymbol::EnumMethods ( // S_OK, S_FALSE, or error.
+HRESULT RegMeta::EnumMethods ( // S_OK, S_FALSE, or error.
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
-	mdTypeDef cl, // [IN] TypeDef to scope the enumeration.
+	mdTypeDef td, // [IN] TypeDef to scope the enumeration.
 	mdMethodDef rMethods[], // [OUT] Put MethodDefs here.
 	ULONG cMax, // [IN] Max MethodDefs to put.
 	ULONG *pcTokens) // [OUT] Put # put here.
 {
-	DEBUG_PRINTF (1, "CordbSymbol - EnumMethod - %d - %d\n", cl, this->pCordbAssembly->id);
-	if (*phEnum == NULL) {
-		Buffer localbuf;
-		buffer_init (&localbuf, 128);
-		buffer_add_id (&localbuf, this->pCordbAssembly->id);
-		buffer_add_int (&localbuf, cl);
-		int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-			CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN, &localbuf);
-		buffer_free (&localbuf);
+		HRESULT             hr = NOERROR;
+		HENUMInternal** ppmdEnum = reinterpret_cast<HENUMInternal**> (phEnum);
+		ULONG               ridStart;
+		ULONG               ridEnd;
+		TypeDefRec* pRec;
+		HENUMInternal* pEnum = *ppmdEnum;
 
-		ReceivedReplyPacket *received_reply_packet = pCordbAssembly->pProcess->connection->
-		                                                             get_answer_with_error (cmdId);
-		CHECK_ERROR_RETURN_FALSE (received_reply_packet);
-		Buffer *localbuf2 = received_reply_packet->buf;
+		if (pEnum == 0)
+		{
+				// instantiating a new ENUM
+				CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
 
-		int klass_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
+				// Check for mdTypeDefNil (representing <Module>).
+				// If so, this will map it to its token.
+				//
+				if (IsGlobalMethodParentTk(td))
+				{
+						td = COR_GLOBAL_PARENT_TOKEN;
+				}
 
-		DEBUG_PRINTF (1, "CordbSymbol - EnumMethod - 1\n");
+				IfFailGo(m_pStgdb->m_MiniMd.GetTypeDefRecord(RidFromToken(td), &pRec));
+				ridStart = m_pStgdb->m_MiniMd.getMethodListOfTypeDef(pRec);
+				IfFailGo(m_pStgdb->m_MiniMd.getEndMethodListOfTypeDef(RidFromToken(td), &ridEnd));
 
-		buffer_init (&localbuf, 128);
-		buffer_add_int (&localbuf, klass_id);
+				if (pMiniMd->HasIndirectTable(TBL_Method) || pMiniMd->HasDelete())
+				{
+						IfFailGo(HENUMInternal::CreateDynamicArrayEnum(mdtMethodDef, &pEnum));
 
-		DEBUG_PRINTF (1, "CordbSymbol - EnumMethod - 1.1 - %d\n", klass_id);
+						// add all methods to the dynamic array
+						for (ULONG index = ridStart; index < ridEnd; index++)
+						{
+								if (pMiniMd->HasDelete())
+								{
+										MethodRec* pMethRec;
+										RID rid;
+										IfFailGo(pMiniMd->GetMethodRid(index, &rid));
+										IfFailGo(pMiniMd->GetMethodRecord(rid, &pMethRec));
+										LPCSTR szMethodName;
+										IfFailGo(pMiniMd->getNameOfMethod(pMethRec, &szMethodName));
+										if (IsMdRTSpecialName(pMethRec->GetFlags()) && IsDeletedName(szMethodName))
+										{
+												continue;
+										}
+								}
+								RID rid;
+								IfFailGo(pMiniMd->GetMethodRid(index, &rid));
+								IfFailGo(HENUMInternal::AddElementToEnum(
+										pEnum,
+										TokenFromRid(rid, mdtMethodDef)));
+						}
+				}
+				else
+				{
+						IfFailGo(HENUMInternal::CreateSimpleEnum(mdtMethodDef, ridStart, ridEnd, &pEnum));
+				}
 
-		cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-			CMD_SET_TYPE, CMD_TYPE_GET_METHODS, &localbuf);
-		buffer_free (&localbuf);
-		localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
-		int num_methods = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		GPtrArray *methods = g_ptr_array_new();
-		DEBUG_PRINTF (1, "CordbSymbol - EnumMethod - 2 - NUMMETHODS - %d - cl - %d\n", num_methods, cl);
-		for (int i = 0; i < num_methods; i++) {
-			int *method_id = new int;
-			*method_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-			*method_id = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-			DEBUG_PRINTF (1, "CordbSymbol - EnumMethod - 3 -  %d\n", *method_id);
-			g_ptr_array_add (methods, method_id);
+				// set the output parameter
+				*ppmdEnum = pEnum;
 		}
-		HENUMInternal *enumInternal = new HENUMInternal();
-		enumInternal->items = methods;
-		enumInternal->currentIdx = 0;
-		*phEnum = enumInternal;
-	}
-	HENUMInternal *enumInternal = static_cast<HENUMInternal*> (*phEnum);
-	for (int i = 0; i < cMax; i++) {
-		DEBUG_PRINTF (1, "CordbSymbol - EnumMethod - to fazendo o loop - %d - %d\n", enumInternal->currentIdx,
-		              enumInternal->items->len);
-		if (enumInternal->currentIdx >= enumInternal->items->len) {
-			*pcTokens = 0;
-			return S_FALSE;
-		}
-		rMethods[i] = *(int*)(g_ptr_array_index (enumInternal->items, enumInternal->currentIdx));
-		DEBUG_PRINTF (1, "CordbSymbol - EnumMethod - to fazendo o loop - %d\n", rMethods[i]);
-		enumInternal->currentIdx++;
-	}
-	*pcTokens = cMax;
-	return S_OK;
+
+		// fill the output token buffer
+		hr = HENUMInternal::EnumWithCount(pEnum, cMax, rMethods, pcTokens);
+
+ErrExit:
+		HENUMInternal::DestroyEnumIfEmpty(ppmdEnum);
+
+		END_ENTRYPOINT_NOTHROW;
+
+		return hr;
 }
 
-HRESULT CordbSymbol::EnumMethodsWithName ( // S_OK, S_FALSE, or error.
+HRESULT RegMeta::EnumMethodsWithName ( // S_OK, S_FALSE, or error.
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdTypeDef cl, // [IN] TypeDef to scope the enumeration.
 	LPCWSTR szName, // [IN] Limit results to those with this name.
@@ -701,74 +1217,88 @@ HRESULT CordbSymbol::EnumMethodsWithName ( // S_OK, S_FALSE, or error.
 	return S_OK;
 }
 
-HRESULT CordbSymbol::EnumFields ( // S_OK, S_FALSE, or error.
+HRESULT RegMeta::EnumFields ( // S_OK, S_FALSE, or error.
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
-	mdTypeDef cl, // [IN] TypeDef to scope the enumeration.
+	mdTypeDef td, // [IN] TypeDef to scope the enumeration.
 	mdFieldDef rFields[], // [OUT] Put FieldDefs here.
 	ULONG cMax, // [IN] Max FieldDefs to put.
 	ULONG *pcTokens) // [OUT] Put # put here.
 {
-	DEBUG_PRINTF (1, "CordbSymbol - EnumFields - %d - %d\n", cl, this->pCordbAssembly->id);
-	if (*phEnum == NULL) {
-		Buffer localbuf;
-		buffer_init (&localbuf, 128);
-		buffer_add_id (&localbuf, this->pCordbAssembly->id);
-		buffer_add_int (&localbuf, cl);
-		int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-			CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN, &localbuf);
-		buffer_free (&localbuf);
-		ReceivedReplyPacket *received_reply_packet = pCordbAssembly->pProcess->connection->
-		                                                             get_answer_with_error (cmdId);
-		CHECK_ERROR_RETURN_FALSE (received_reply_packet);
-		Buffer *localbuf2 = received_reply_packet->buf;
-		int klass_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		HRESULT hr = NOERROR;
+		
 
-		DEBUG_PRINTF (1, "CordbSymbol - EnumFields - 1\n");
+		HENUMInternal** ppmdEnum = reinterpret_cast<HENUMInternal**>(phEnum);
+		ULONG           ridStart;
+		ULONG           ridEnd;
+		TypeDefRec* pRec;
+		HENUMInternal* pEnum = *ppmdEnum;
+		
 
-		buffer_init (&localbuf, 128);
-		buffer_add_int (&localbuf, klass_id);
+		if (pEnum == NULL)
+		{
+				// instantiating a new ENUM
+				CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
 
-		DEBUG_PRINTF (1, "CordbSymbol - EnumFields - 1.1 - %d\n", klass_id);
+				// Check for mdTypeDefNil (representing <Module>).
+				// If so, this will map it to its token.
+				//
+				if (IsGlobalMethodParentTk(td))
+				{
+						td = COR_GLOBAL_PARENT_TOKEN;
+				}
 
-		cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-			CMD_SET_TYPE, CMD_TYPE_GET_FIELDS, &localbuf);
-		buffer_free (&localbuf);
-		localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
-		int num_fields = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		GPtrArray *fields = g_ptr_array_new();
-		for (int i = 0; i < num_fields; i++) {
-			DEBUG_PRINTF (1, "CordbSymbol - EnumFields - 2\n");
-			int *field_id = new int;
-			*field_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-			*field_id = mono_metadata_make_token (MONO_TABLE_FIELD, *field_id);
-			char *field_name = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-			decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-			decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-			DEBUG_PRINTF (1, "CordbSymbol - EnumFields - 3 -  %d - %s\n", *field_id, field_name);
-			g_ptr_array_add (fields, field_id);
+				IfFailGo(m_pStgdb->m_MiniMd.GetTypeDefRecord(RidFromToken(td), &pRec));
+				ridStart = m_pStgdb->m_MiniMd.getFieldListOfTypeDef(pRec);
+				IfFailGo(m_pStgdb->m_MiniMd.getEndFieldListOfTypeDef(RidFromToken(td), &ridEnd));
+
+				if (pMiniMd->HasIndirectTable(TBL_Field) || pMiniMd->HasDelete())
+				{
+						IfFailGo(HENUMInternal::CreateDynamicArrayEnum(mdtFieldDef, &pEnum));
+
+						// add all methods to the dynamic array
+						for (ULONG index = ridStart; index < ridEnd; index++)
+						{
+								if (pMiniMd->HasDelete())
+								{
+										FieldRec* pFieldRec;
+										RID       rid;
+										IfFailGo(pMiniMd->GetFieldRid(index, &rid));
+										IfFailGo(pMiniMd->GetFieldRecord(rid, &pFieldRec));
+										LPCUTF8 szFieldName;
+										IfFailGo(pMiniMd->getNameOfField(pFieldRec, &szFieldName));
+										if (IsFdRTSpecialName(pFieldRec->GetFlags()) && IsDeletedName(szFieldName))
+										{
+												continue;
+										}
+								}
+								RID rid;
+								IfFailGo(pMiniMd->GetFieldRid(index, &rid));
+								IfFailGo(HENUMInternal::AddElementToEnum(
+										pEnum,
+										TokenFromRid(rid, mdtFieldDef)));
+						}
+				}
+				else
+				{
+						IfFailGo(HENUMInternal::CreateSimpleEnum(mdtFieldDef, ridStart, ridEnd, &pEnum));
+				}
+
+				// set the output parameter
+				*ppmdEnum = pEnum;
 		}
-		HENUMInternal *enumInternal = new HENUMInternal();
-		enumInternal->items = fields;
-		enumInternal->currentIdx = 0;
-		*phEnum = enumInternal;
-	}
-	HENUMInternal *enumInternal = static_cast<HENUMInternal*> (*phEnum);
-	for (int i = 0; i < cMax; i++) {
-		DEBUG_PRINTF (1, "CordbSymbol - EnumFields - to fazendo o loop - %d - %d\n", enumInternal->currentIdx,
-		              enumInternal->items->len);
-		if (enumInternal->currentIdx >= enumInternal->items->len) {
-			*pcTokens = i;
-			return S_OK;
-		}
-		rFields[i] = *(int*)(g_ptr_array_index (enumInternal->items, enumInternal->currentIdx));
-		DEBUG_PRINTF (1, "CordbSymbol - EnumFields - to fazendo o loop - %d\n", rFields[i]);
-		enumInternal->currentIdx++;
-	}
-	*pcTokens = cMax;
-	return S_OK;
+
+		// fill the output token buffer
+		hr = HENUMInternal::EnumWithCount(pEnum, cMax, rFields, pcTokens);
+
+ErrExit:
+		HENUMInternal::DestroyEnumIfEmpty(ppmdEnum);
+
+		END_ENTRYPOINT_NOTHROW;
+
+		return hr;
 }
 
-HRESULT CordbSymbol::EnumFieldsWithName ( // S_OK, S_FALSE, or error.
+HRESULT RegMeta::EnumFieldsWithName ( // S_OK, S_FALSE, or error.
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdTypeDef cl, // [IN] TypeDef to scope the enumeration.
 	LPCWSTR szName, // [IN] Limit results to those with this name.
@@ -776,74 +1306,142 @@ HRESULT CordbSymbol::EnumFieldsWithName ( // S_OK, S_FALSE, or error.
 	ULONG cMax, // [IN] Max MemberDefs to put.
 	ULONG *pcTokens) // [OUT] Put # put here.
 {
-	DEBUG_PRINTF (1, "CordbSymbol - EnumFieldsWithName - NOT IMPLEMENTED\n");
-	return S_OK;
+		HRESULT             hr = NOERROR;
+
+
+		HENUMInternal** ppmdEnum = reinterpret_cast<HENUMInternal**> (phEnum);
+		ULONG               ridStart;
+		ULONG               ridEnd;
+		ULONG               index;
+		TypeDefRec* pRec;
+		FieldRec* pField;
+		HENUMInternal* pEnum = *ppmdEnum;
+		LPUTF8              szNameUtf8;
+		UTF8STR(szName, szNameUtf8);
+		LPCUTF8             szNameUtf8Tmp;
+
+
+
+		if (pEnum == 0)
+		{
+				// instantiating a new ENUM
+				CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
+
+				// Check for mdTypeDefNil (representing <Module>).
+				// If so, this will map it to its token.
+				//
+				if (IsGlobalMethodParentTk(cl))
+				{
+						cl = COR_GLOBAL_PARENT_TOKEN;
+				}
+
+				// create the enumerator
+				IfFailGo(HENUMInternal::CreateDynamicArrayEnum(mdtMethodDef, &pEnum));
+
+				// get the range of field rids given a typedef
+				IfFailGo(pMiniMd->GetTypeDefRecord(RidFromToken(cl), &pRec));
+				ridStart = m_pStgdb->m_MiniMd.getFieldListOfTypeDef(pRec);
+				IfFailGo(m_pStgdb->m_MiniMd.getEndFieldListOfTypeDef(RidFromToken(cl), &ridEnd));
+
+				for (index = ridStart; index < ridEnd; index++)
+				{
+						if (szNameUtf8 == NULL)
+						{
+								RID rid;
+								IfFailGo(pMiniMd->GetFieldRid(index, &rid));
+								IfFailGo(HENUMInternal::AddElementToEnum(
+										pEnum,
+										TokenFromRid(rid, mdtFieldDef)));
+						}
+						else
+						{
+								RID rid;
+								IfFailGo(pMiniMd->GetFieldRid(index, &rid));
+								IfFailGo(pMiniMd->GetFieldRecord(rid, &pField));
+								IfFailGo(pMiniMd->getNameOfField(pField, &szNameUtf8Tmp));
+								if (strcmp(szNameUtf8Tmp, szNameUtf8) == 0)
+								{
+										IfFailGo(pMiniMd->GetFieldRid(index, &rid));
+										IfFailGo(HENUMInternal::AddElementToEnum(
+												pEnum,
+												TokenFromRid(rid, mdtFieldDef)));
+								}
+						}
+				}
+
+				// set the output parameter
+				*ppmdEnum = pEnum;
+		}
+
+		// fill the output token buffer
+		hr = HENUMInternal::EnumWithCount(pEnum, cMax, rFields, pcTokens);
+
+ErrExit:
+		HENUMInternal::DestroyEnumIfEmpty(ppmdEnum);
+
+		return hr;
 }
 
 
-HRESULT CordbSymbol::EnumParams ( // S_OK, S_FALSE, or error.
+HRESULT RegMeta::EnumParams ( // S_OK, S_FALSE, or error.
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdMethodDef mb, // [IN] MethodDef to scope the enumeration.
 	mdParamDef rParams[], // [OUT] Put ParamDefs here.
 	ULONG cMax, // [IN] Max ParamDefs to put.
 	ULONG *pcTokens) // [OUT] Put # put here.
 {
-	DEBUG_PRINTF (1, "CordbSymbol - EnumParams - %d - %d\n", mb, this->pCordbAssembly->id);
-	if (*phEnum == NULL) {
-		int method_id;
-		if (findMethodByToken (mb, method_id) != S_OK)
-			return S_FALSE;
+		HRESULT             hr = NOERROR;
 
-		Buffer localbuf;
-		buffer_init (&localbuf, 128);
-		buffer_add_id (&localbuf, this->pCordbAssembly->id);
-		buffer_add_int (&localbuf, method_id);
-		int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-			CMD_SET_METHOD, CMD_METHOD_GET_PARAM_INFO, &localbuf);
-		buffer_free (&localbuf);
-		ReceivedReplyPacket *received_reply_packet = pCordbAssembly->pProcess->connection->
-		                                                             get_answer_with_error (cmdId);
-		CHECK_ERROR_RETURN_FALSE (received_reply_packet);
-		Buffer *localbuf2 = received_reply_packet->buf;
-		int call_convention = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		int param_count = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		int generic_param_count = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		int ret_type = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		GPtrArray *params = g_ptr_array_new();
-		for (int i = 0; i < param_count; i++) {
-			int *param_id = new int;
-			*param_id = mono_atomic_inc_i32 (&token_id) | ID_PARAMETER;
-			int type_id = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-			decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-			char *param_name = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-			DEBUG_PRINTF (1, "CordbSymbol - EnumParams - 3 -  %d - %s\n", *param_id, param_name);
-			g_ptr_array_add (params, param_id);
-			CordbParameter *parm = new CordbParameter (type_id, param_name, mb);
-			g_hash_table_insert (parameters, GINT_TO_POINTER(*param_id), parm);
+		HENUMInternal** ppmdEnum = reinterpret_cast<HENUMInternal**> (phEnum);
+		ULONG               ridStart;
+		ULONG               ridEnd;
+		MethodRec* pRec;
+		HENUMInternal* pEnum = *ppmdEnum;
+
+
+
+		if (pEnum == 0)
+		{
+				// instantiating a new ENUM
+				CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
+				IfFailGo(m_pStgdb->m_MiniMd.GetMethodRecord(RidFromToken(mb), &pRec));
+				ridStart = m_pStgdb->m_MiniMd.getParamListOfMethod(pRec);
+				IfFailGo(m_pStgdb->m_MiniMd.getEndParamListOfMethod(RidFromToken(mb), &ridEnd));
+
+				if (pMiniMd->HasIndirectTable(TBL_Param))
+				{
+						IfFailGo(HENUMInternal::CreateDynamicArrayEnum(mdtParamDef, &pEnum));
+
+						// add all methods to the dynamic array
+						for (ULONG index = ridStart; index < ridEnd; index++)
+						{
+								RID rid;
+								IfFailGo(pMiniMd->GetParamRid(index, &rid));
+								IfFailGo(HENUMInternal::AddElementToEnum(
+										pEnum,
+										TokenFromRid(rid, mdtParamDef)));
+						}
+				}
+				else
+				{
+						IfFailGo(HENUMInternal::CreateSimpleEnum(mdtParamDef, ridStart, ridEnd, &pEnum));
+				}
+
+				// set the output parameter
+				*ppmdEnum = pEnum;
 		}
 
-		HENUMInternal *enumInternal = new HENUMInternal();
-		enumInternal->items = params;
-		enumInternal->currentIdx = 0;
-		*phEnum = enumInternal;
-	}
-	HENUMInternal *enumInternal = static_cast<HENUMInternal*> (*phEnum);
-	for (int i = 0; i < cMax; i++) {
-		DEBUG_PRINTF (1, "CordbSymbol - EnumParams - to fazendo o loop - %d - %d\n", enumInternal->currentIdx,
-		              enumInternal->items->len);
-		if (enumInternal->currentIdx >= enumInternal->items->len) {
-			*pcTokens = i;
-			return S_OK;
-		}
-		rParams[i] = *(int*)(g_ptr_array_index (enumInternal->items, enumInternal->currentIdx));
-		DEBUG_PRINTF (1, "CordbSymbol - EnumParams - to fazendo o loop - %d\n", rParams[i]);
-		enumInternal->currentIdx++;
-	}
-	*pcTokens = cMax;
-	return S_OK;
+		// fill the output token buffer
+		hr = HENUMInternal::EnumWithCount(pEnum, cMax, rParams, pcTokens);
+
+ErrExit:
+		HENUMInternal::DestroyEnumIfEmpty(ppmdEnum);
+
+
+		return hr;
 }
 
-HRESULT CordbSymbol::EnumMemberRefs ( // S_OK, S_FALSE, or error.
+HRESULT RegMeta::EnumMemberRefs ( // S_OK, S_FALSE, or error.
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdToken tkParent, // [IN] Parent token to scope the enumeration.
 	mdMemberRef rMemberRefs[], // [OUT] Put MemberRefs here.
@@ -854,7 +1452,7 @@ HRESULT CordbSymbol::EnumMemberRefs ( // S_OK, S_FALSE, or error.
 	return S_OK;
 }
 
-HRESULT CordbSymbol::EnumMethodImpls ( // S_OK, S_FALSE, or error
+HRESULT RegMeta::EnumMethodImpls ( // S_OK, S_FALSE, or error
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdTypeDef td, // [IN] TypeDef to scope the enumeration.
 	mdToken rMethodBody[], // [OUT] Put Method Body tokens here.
@@ -866,7 +1464,7 @@ HRESULT CordbSymbol::EnumMethodImpls ( // S_OK, S_FALSE, or error
 	return S_OK;
 }
 
-HRESULT CordbSymbol::EnumPermissionSets ( // S_OK, S_FALSE, or error.
+HRESULT RegMeta::EnumPermissionSets ( // S_OK, S_FALSE, or error.
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdToken tk, // [IN] if !NIL, token to scope the enumeration.
 	DWORD dwActions, // [IN] if !0, return only these actions.
@@ -878,7 +1476,7 @@ HRESULT CordbSymbol::EnumPermissionSets ( // S_OK, S_FALSE, or error.
 	return S_OK;
 }
 
-HRESULT CordbSymbol::FindMember (
+HRESULT RegMeta::FindMember (
 	mdTypeDef td, // [IN] given typedef
 	LPCWSTR szName, // [IN] member name
 	PCCOR_SIGNATURE pvSigBlob, // [IN] point to a blob value of CLR signature
@@ -889,7 +1487,7 @@ HRESULT CordbSymbol::FindMember (
 	return S_OK;
 }
 
-HRESULT CordbSymbol::FindMethod (
+HRESULT RegMeta::FindMethod (
 	mdTypeDef td, // [IN] given typedef
 	LPCWSTR szName, // [IN] member name
 	PCCOR_SIGNATURE pvSigBlob, // [IN] point to a blob value of CLR signature
@@ -900,7 +1498,7 @@ HRESULT CordbSymbol::FindMethod (
 	return S_OK;
 }
 
-HRESULT CordbSymbol::FindField (
+HRESULT RegMeta::FindField (
 	mdTypeDef td, // [IN] given typedef
 	LPCWSTR szName, // [IN] member name
 	PCCOR_SIGNATURE pvSigBlob, // [IN] point to a blob value of CLR signature
@@ -911,7 +1509,7 @@ HRESULT CordbSymbol::FindField (
 	return S_OK;
 }
 
-HRESULT CordbSymbol::FindMemberRef (
+HRESULT RegMeta::FindMemberRef (
 	mdTypeRef td, // [IN] given typeRef
 	LPCWSTR szName, // [IN] member name
 	PCCOR_SIGNATURE pvSigBlob, // [IN] point to a blob value of CLR signature
@@ -922,7 +1520,7 @@ HRESULT CordbSymbol::FindMemberRef (
 	return S_OK;
 }
 
-HRESULT CordbSymbol::GetMethodProps (
+HRESULT RegMeta::GetMethodProps (
 	mdMethodDef mb, // The method for which to get props.
 	mdTypeDef *pClass, // Put method's class here.
 	__out_ecount_part_opt (cchMethod, *pchMethod)
@@ -935,157 +1533,63 @@ HRESULT CordbSymbol::GetMethodProps (
 	ULONG *pulCodeRVA, // [OUT] codeRVA
 	DWORD *pdwImplFlags) // [OUT] Impl. Flags
 {
-	DEBUG_PRINTF (1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 1 - %d\n", mb);
-	int method_id;
-	if (findMethodByToken (mb, method_id) != S_OK)
-		return S_FALSE;
+		HRESULT             hr = NOERROR;
+		BEGIN_ENTRYPOINT_NOTHROW;
 
+		MethodRec* pMethodRec;
+		CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
 
-	Buffer localbuf;
-	buffer_init (&localbuf, 128);
+		_ASSERTE(TypeFromToken(mb) == mdtMethodDef);
 
-	buffer_add_id (&localbuf, method_id);
-	int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-		CMD_SET_METHOD, CMD_METHOD_GET_NAME, &localbuf);
-	buffer_free (&localbuf);
+		IfFailGo(pMiniMd->GetMethodRecord(RidFromToken(mb), &pMethodRec));
 
-	Buffer *localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
+		if (pClass)
+		{
+				// caller wants parent typedef
+				IfFailGo(pMiniMd->FindParentOfMethodHelper(mb, pClass));
 
-	char *method_name = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	if (!stricmp (method_name, "localMethod")) {
-		DEBUG_PRINTF (1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 2 - %s\n", method_name);
-	}
-	DEBUG_PRINTF (1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 2 - %s\n", method_name);
-	if (cchMethod > strlen (method_name)) {
-		mbstowcs (szMethod, method_name, strlen (method_name) + 1);
-	}
-	if (pchMethod)
-		*pchMethod = strlen (method_name) + 1;
+				if (IsGlobalMethodParentToken(*pClass))
+				{
+						// If the parent of Method is the <Module>, return mdTypeDefNil instead.
+						*pClass = mdTypeDefNil;
+				}
 
-	DEBUG_PRINTF (1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 2\n");
+		}
+		if (ppvSigBlob || pcbSigBlob)
+		{
+				// caller wants signature information
+				PCCOR_SIGNATURE pvSigTmp;
+				ULONG           cbSig;
+				IfFailGo(pMiniMd->getSignatureOfMethod(pMethodRec, &pvSigTmp, &cbSig));
+				if (ppvSigBlob)
+						*ppvSigBlob = pvSigTmp;
+				if (pcbSigBlob)
+						*pcbSigBlob = cbSig;
+		}
+		if (pdwAttr)
+		{
+				*pdwAttr = pMiniMd->getFlagsOfMethod(pMethodRec);
+		}
+		if (pulCodeRVA)
+		{
+				*pulCodeRVA = pMiniMd->getRVAOfMethod(pMethodRec);
+		}
+		if (pdwImplFlags)
+		{
+				*pdwImplFlags = (DWORD)pMiniMd->getImplFlagsOfMethod(pMethodRec);
+		}
+		// This call has to be last to set 'hr', so CLDB_S_TRUNCATION is not rewritten with S_OK
+		if (szMethod || pchMethod)
+		{
+				IfFailGo(pMiniMd->getNameOfMethod(pMethodRec, szMethod, cchMethod, pchMethod));
+		}
 
-	buffer_init (&localbuf, 128);
+ErrExit:
 
-	buffer_add_id (&localbuf, method_id);
-	cmdId = this->pCordbAssembly->pProcess->connection->send_event (CMD_SET_METHOD, CMD_METHOD_GET_DECLARING_TYPE,
-	                                                                &localbuf);
-	buffer_free (&localbuf);
-
-	localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
-
-	int klass_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-
-	buffer_init (&localbuf, 128);
-
-	buffer_add_id (&localbuf, klass_id);
-	cmdId = this->pCordbAssembly->pProcess->connection->send_event (CMD_SET_TYPE, CMD_TYPE_GET_INFO, &localbuf);
-	buffer_free (&localbuf);
-
-	localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
-
-	char *namespace_str = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	char *class_name_str = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	char *class_fullname_str = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int assembly_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	module_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int type_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int type_id2 = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int token = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	*pClass = token;
-
-	DEBUG_PRINTF (1, "CordbSymbol - GetMethodProps - IMPLEMENTED - 3\n");
-	buffer_init (&localbuf, 128);
-	buffer_add_id (&localbuf, method_id);
-	cmdId = this->pCordbAssembly->pProcess->connection->
-	              send_event (CMD_SET_METHOD, CMD_METHOD_SIGNATURE, &localbuf);
-	buffer_free (&localbuf);
-
-	localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
-	int signature_len = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	DEBUG_PRINTF (1, "CordbSymbol - GetMethodProps - IMPLEMENTED - SIGNATURE_LEN - %d\n", signature_len);
-	COR_SIGNATURE *tempSignature = new COR_SIGNATURE[signature_len];
-	for (int i = 0; i < signature_len; i++) {
-		tempSignature[i] = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	}
-
-	if (ppvSigBlob) {
-		DEBUG_PRINTF (1, "CordbSymbol - GetMethodProps - IMPLEMENTED - TINHA - ppvSigBlob\n");
-		*ppvSigBlob = new COR_SIGNATURE[signature_len];
-		memcpy ((void*)*ppvSigBlob, tempSignature, signature_len * sizeof (COR_SIGNATURE));
-	}
-
-	if (pcbSigBlob) {
-		DEBUG_PRINTF (1, "CordbSymbol - GetMethodProps - IMPLEMENTED - TINHA - pcbSigBlob\n");
-		*pcbSigBlob = signature_len;
-	}
-
-	buffer_init (&localbuf, 128);
-	buffer_add_id (&localbuf, method_id);
-	cmdId = this->pCordbAssembly->pProcess->connection->
-	              send_event (CMD_SET_METHOD, CMD_METHOD_RVA_FLAGS, &localbuf);
-	buffer_free (&localbuf);
-
-	localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
-
-	int rva = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int flags = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-
-	if (pdwAttr)
-		*pdwAttr = flags;
-	if (pulCodeRVA) {
-		*pulCodeRVA = rva;
-	}
-	DEBUG_PRINTF (1, "CordbSymbol - GetMethodProps - IMPLEMENTED - rva - %d\n", rva);
-	return S_OK;
+		return hr;
 }
 
-HRESULT CordbSymbol::findMethodByToken (mdMethodDef mb, int& func_id) {
-	CordbFunction *func = this->pCordbAssembly->pProcess->cordb->findFunctionByToken (mb);
-	if (!func) {
-		DEBUG_PRINTF (1, "CordbSymbol - GetMethodProps - IMPLEMENTED - NAO TINHA FUNC\n");
-		Buffer localbuf;
-		buffer_init (&localbuf, 128);
-		buffer_add_id (&localbuf, this->pCordbAssembly->id);
-		buffer_add_int (&localbuf, mb);
-		int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-			CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_METHOD_FROM_TOKEN, &localbuf);
-		buffer_free (&localbuf);
-
-		ReceivedReplyPacket *received_reply_packet = pCordbAssembly->pProcess->connection->
-		                                                             get_answer_with_error (cmdId);
-		CHECK_ERROR_RETURN_FALSE (received_reply_packet);
-		Buffer *localbuf2 = received_reply_packet->buf;
-		func_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-
-	}
-	else {
-		DEBUG_PRINTF (1, "CordbSymbol - GetMethodProps - IMPLEMENTED - TINHA FUNC\n");
-		func_id = func->id;
-	}
-	return S_OK;
-}
-
-
-HRESULT CordbSymbol::findTypeByToken (mdToken mb, int& type_id) {
-	DEBUG_PRINTF (1, "CordbSymbol - GetMethodProps - IMPLEMENTED - NAO TINHA FUNC\n");
-	Buffer localbuf;
-	buffer_init (&localbuf, 128);
-	buffer_add_id (&localbuf, this->pCordbAssembly->id);
-	buffer_add_int (&localbuf, mb);
-	int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-		CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN, &localbuf);
-	buffer_free (&localbuf);
-
-	ReceivedReplyPacket *received_reply_packet = pCordbAssembly->pProcess->connection->
-	                                                             get_answer_with_error (cmdId);
-	CHECK_ERROR_RETURN_FALSE (received_reply_packet);
-	Buffer *localbuf2 = received_reply_packet->buf;
-	type_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	return S_OK;
-}
-
-
-HRESULT CordbSymbol::GetMemberRefProps ( // S_OK or error.
+HRESULT RegMeta::GetMemberRefProps ( // S_OK or error.
 	mdMemberRef mr, // [IN] given memberref
 	mdToken *ptk, // [OUT] Put classref or classdef here.
 	__out_ecount_part_opt (cchMember, *pchMember)
@@ -1095,161 +1599,229 @@ HRESULT CordbSymbol::GetMemberRefProps ( // S_OK or error.
 	PCCOR_SIGNATURE *ppvSigBlob, // [OUT] point to meta data blob value
 	ULONG *pbSig) // [OUT] actual size of signature blob
 {
-	DEBUG_PRINTF (1, "CordbSymbol - GetMemberRefProps - IMPLEMENTED - %d\n", mr);
+		HRESULT         hr = NOERROR;
 
-	CordbFunction *func = this->pCordbAssembly->pProcess->cordb->findFunctionByToken (mr);
-	int func_id = 0;
-	if (!func) {
-		Buffer localbuf;
-		buffer_init (&localbuf, 128);
-		buffer_add_id (&localbuf, this->pCordbAssembly->id);
-		buffer_add_int (&localbuf, mr);
-		int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-			CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_METHOD_FROM_TOKEN, &localbuf);
-		buffer_free (&localbuf);
-
-		Buffer *localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
-
-		func_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-
-	}
-	else
-		func_id = func->id;
-
-	Buffer localbuf;
-	buffer_init (&localbuf, 128);
-
-	buffer_add_id (&localbuf, func_id);
-	int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-		CMD_SET_METHOD, CMD_METHOD_GET_NAME, &localbuf);
-	buffer_free (&localbuf);
-
-	Buffer *localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
-
-	char *method_name = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	DEBUG_PRINTF (1, "CordbSymbol - GetMemberRefProps - IMPLEMENTED - 2 - %s\n", method_name);
-
-	if (cchMember > strlen (method_name)) {
-		mbstowcs (szMember, method_name, strlen (method_name) + 1);
-	}
-	if (pchMember)
-		*pchMember = strlen (method_name) + 1;
-
-	buffer_init (&localbuf, 128);
-	buffer_add_id (&localbuf, this->pCordbAssembly->id);
-	buffer_add_int (&localbuf, mr);
-	cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-		CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_INFO_FROM_MEMBERREF_TOKEN, &localbuf);
-	buffer_free (&localbuf);
-	localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
-
-	int blob_len = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	COR_SIGNATURE *ppvSigLocal = new COR_SIGNATURE[blob_len];
-	DEBUG_PRINTF (1, "CordbSymbol - GetMemberRefProps - IMPLEMENTED - blob_len - %d\n", blob_len);
-	for (int i = 0; i < blob_len; i++) {
-		ppvSigLocal[i] = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		DEBUG_PRINTF (1, "CordbSymbol - GetMemberRefProps - IMPLEMENTED - %d - %d\n", i, ppvSigLocal[i]);
-	}
-	if (ptk) {
-		*ptk = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	}
-
-	if (pbSig) {
-		*ppvSigBlob = new COR_SIGNATURE[blob_len];
-		memcpy ((void*)*ppvSigBlob, ppvSigLocal, blob_len * sizeof (COR_SIGNATURE));
-		*pbSig = blob_len;
-	}
+		CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
+		MemberRefRec* pMemberRefRec;
 
 
-	return S_OK;
+		_ASSERTE(TypeFromToken(mr) == mdtMemberRef);
+
+		IfFailGo(pMiniMd->GetMemberRefRecord(RidFromToken(mr), &pMemberRefRec));
+
+		if (ptk)
+		{
+				*ptk = pMiniMd->getClassOfMemberRef(pMemberRefRec);
+				if (IsGlobalMethodParentToken(*ptk))
+				{
+						// If the parent of MemberRef is the <Module>, return mdTypeDefNil instead.
+						*ptk = mdTypeDefNil;
+				}
+
+		}
+		if (ppvSigBlob || pbSig)
+		{
+				// caller wants signature information
+				PCCOR_SIGNATURE pvSigTmp;
+				ULONG           cbSig;
+				IfFailGo(pMiniMd->getSignatureOfMemberRef(pMemberRefRec, &pvSigTmp, &cbSig));
+				if (ppvSigBlob)
+						*ppvSigBlob = pvSigTmp;
+				if (pbSig)
+						*pbSig = cbSig;
+		}
+		// This call has to be last to set 'hr', so CLDB_S_TRUNCATION is not rewritten with S_OK
+		if (szMember || pchMember)
+		{
+				IfFailGo(pMiniMd->getNameOfMemberRef(pMemberRefRec, szMember, cchMember, pchMember));
+		}
+
+ErrExit:
+
+		return hr;
 }
 
-HRESULT CordbSymbol::EnumProperties ( // S_OK, S_FALSE, or error.
+HRESULT RegMeta::EnumProperties ( // S_OK, S_FALSE, or error.
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdTypeDef td, // [IN] TypeDef to scope the enumeration.
 	mdProperty rProperties[], // [OUT] Put Properties here.
 	ULONG cMax, // [IN] Max properties to put.
 	ULONG *pcProperties) // [OUT] Put # put here.
 {
-	DEBUG_PRINTF (1, "CordbSymbol - EnumProperties - %d - %d\n", td, this->pCordbAssembly->id);
-	if (*phEnum == NULL) {
-		Buffer localbuf;
-		buffer_init (&localbuf, 128);
-		buffer_add_id (&localbuf, this->pCordbAssembly->id);
-		buffer_add_int (&localbuf, td);
-		int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-			CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN, &localbuf);
-		buffer_free (&localbuf);
+		HRESULT             hr = NOERROR;
 
-		ReceivedReplyPacket *received_reply_packet = pCordbAssembly->pProcess->connection->
-		                                                             get_answer_with_error (cmdId);
-		CHECK_ERROR_RETURN_FALSE (received_reply_packet);
-		Buffer *localbuf2 = received_reply_packet->buf;
+		HENUMInternal** ppmdEnum = reinterpret_cast<HENUMInternal**> (phEnum);
+		ULONG               ridStart = 0;
+		ULONG               ridEnd = 0;
+		ULONG               ridMax = 0;
+		HENUMInternal* pEnum = *ppmdEnum;
 
-		int klass_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
 
-		DEBUG_PRINTF (1, "CordbSymbol - EnumProperties - 1\n");
 
-		buffer_init (&localbuf, 128);
-		buffer_add_int (&localbuf, klass_id);
-
-		DEBUG_PRINTF (1, "CordbSymbol - EnumProperties - 1.1 - %d\n", klass_id);
-
-		cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-			CMD_SET_TYPE, CMD_TYPE_GET_PROPERTIES, &localbuf);
-		buffer_free (&localbuf);
-		localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
-		int num_properties = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		GPtrArray *properties = g_ptr_array_new();
-		DEBUG_PRINTF (1, "CordbSymbol - EnumProperties - 2 - NUMPROPERTIES - %d - cl - %d\n", num_properties,
-		              td);
-		for (int i = 0; i < num_properties; i++) {
-			int *property_id = new int;
-			*property_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-
-			char *prop_name = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-			int method_get = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-			int method_set = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-			int prop_attr = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-
-			*property_id = mono_metadata_make_token (MONO_TABLE_PROPERTY, *property_id);
-			DEBUG_PRINTF (1, "CordbSymbol - EnumProperties - 3 -  %d - %s\n", *property_id, prop_name);
-			g_ptr_array_add (properties, property_id);
+		if (IsNilToken(td))
+		{
+				if (pcProperties)
+						*pcProperties = 0;
+				hr = S_FALSE;
+				goto ErrExit;
 		}
-		HENUMInternal *enumInternal = new HENUMInternal();
-		enumInternal->items = properties;
-		enumInternal->currentIdx = 0;
-		*phEnum = enumInternal;
-	}
-	HENUMInternal *enumInternal = static_cast<HENUMInternal*> (*phEnum);
-	for (int i = 0; i < cMax; i++) {
-		DEBUG_PRINTF (1, "CordbSymbol - EnumProperties - to fazendo o loop - %d - %d\n",
-		              enumInternal->currentIdx, enumInternal->items->len);
-		if (enumInternal->currentIdx >= enumInternal->items->len) {
-			*pcProperties = 0;
-			return S_FALSE;
+
+		_ASSERTE(TypeFromToken(td) == mdtTypeDef);
+
+
+		if (pEnum == 0)
+		{
+				// instantiating a new ENUM
+				CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
+				RID         ridPropertyMap;
+				PropertyMapRec* pPropertyMapRec;
+
+				// get the starting/ending rid of properties of this typedef
+				IfFailGo(pMiniMd->FindPropertyMapFor(RidFromToken(td), &ridPropertyMap));
+				if (!InvalidRid(ridPropertyMap))
+				{
+						IfFailGo(m_pStgdb->m_MiniMd.GetPropertyMapRecord(ridPropertyMap, &pPropertyMapRec));
+						ridStart = pMiniMd->getPropertyListOfPropertyMap(pPropertyMapRec);
+						IfFailGo(pMiniMd->getEndPropertyListOfPropertyMap(ridPropertyMap, &ridEnd));
+						ridMax = pMiniMd->getCountPropertys() + 1;
+						if (ridStart == 0) ridStart = 1;
+						if (ridEnd > ridMax) ridEnd = ridMax;
+						if (ridStart > ridEnd) ridStart = ridEnd;
+				}
+
+				if (pMiniMd->HasIndirectTable(TBL_Property) || pMiniMd->HasDelete())
+				{
+						IfFailGo(HENUMInternal::CreateDynamicArrayEnum(mdtProperty, &pEnum));
+
+						// add all methods to the dynamic array
+						for (ULONG index = ridStart; index < ridEnd; index++)
+						{
+								if (pMiniMd->HasDelete())
+								{
+										PropertyRec* pRec;
+										RID rid;
+										IfFailGo(pMiniMd->GetPropertyRid(index, &rid));
+										IfFailGo(pMiniMd->GetPropertyRecord(rid, &pRec));
+										LPCUTF8 szPropertyName;
+										IfFailGo(pMiniMd->getNameOfProperty(pRec, &szPropertyName));
+										if (IsPrRTSpecialName(pRec->GetPropFlags()) && IsDeletedName(szPropertyName))
+										{
+												continue;
+										}
+								}
+								RID rid;
+								IfFailGo(pMiniMd->GetPropertyRid(index, &rid));
+								IfFailGo(HENUMInternal::AddElementToEnum(
+										pEnum,
+										TokenFromRid(rid, mdtProperty)));
+						}
+				}
+				else
+				{
+						IfFailGo(HENUMInternal::CreateSimpleEnum(mdtProperty, ridStart, ridEnd, &pEnum));
+				}
+
+				// set the output parameter
+				*ppmdEnum = pEnum;
 		}
-		rProperties[i] = *(int*)(g_ptr_array_index (enumInternal->items, enumInternal->currentIdx));
-		DEBUG_PRINTF (1, "CordbSymbol - EnumProperties - to fazendo o loop - %d\n", rProperties[i]);
-		enumInternal->currentIdx++;
-	}
-	*pcProperties = cMax;
-	return S_OK;
+
+		// fill the output token buffer
+		hr = HENUMInternal::EnumWithCount(pEnum, cMax, rProperties, pcProperties);
+
+ErrExit:
+		HENUMInternal::DestroyEnumIfEmpty(ppmdEnum);
+
+
+		return hr;
 }
 
-HRESULT CordbSymbol::EnumEvents ( // S_OK, S_FALSE, or error.
+HRESULT RegMeta::EnumEvents ( // S_OK, S_FALSE, or error.
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdTypeDef td, // [IN] TypeDef to scope the enumeration.
 	mdEvent rEvents[], // [OUT] Put events here.
 	ULONG cMax, // [IN] Max events to put.
 	ULONG *pcEvents) // [OUT] Put # put here.
 {
-	*pcEvents = 0;
-	DEBUG_PRINTF (1, "CordbSymbol - EnumEvents - NOT IMPLEMENTED\n");
-	return S_OK;
+	HRESULT         hr = NOERROR;
+
+
+    HENUMInternal   **ppmdEnum = reinterpret_cast<HENUMInternal **> (phEnum);
+    ULONG           ridStart = 0;
+    ULONG           ridEnd = 0;
+    ULONG           ridMax = 0;
+    HENUMInternal   *pEnum = *ppmdEnum;
+
+
+    _ASSERTE(TypeFromToken(td) == mdtTypeDef);
+
+
+    if ( pEnum == 0 )
+    {
+        // instantiating a new ENUM
+        CMiniMdRW       *pMiniMd = &(m_pStgdb->m_MiniMd);
+        RID         ridEventMap;
+        EventMapRec *pEventMapRec;
+
+        // get the starting/ending rid of properties of this typedef
+        IfFailGo(pMiniMd->FindEventMapFor(RidFromToken(td), &ridEventMap));
+        if (!InvalidRid(ridEventMap))
+        {
+            IfFailGo(pMiniMd->GetEventMapRecord(ridEventMap, &pEventMapRec));
+            ridStart = pMiniMd->getEventListOfEventMap(pEventMapRec);
+            IfFailGo(pMiniMd->getEndEventListOfEventMap(ridEventMap, &ridEnd));
+            ridMax = pMiniMd->getCountEvents() + 1;
+            if(ridStart == 0) ridStart = 1;
+            if(ridEnd > ridMax) ridEnd = ridMax;
+            if(ridStart > ridEnd) ridStart=ridEnd;
+        }
+
+        if (pMiniMd->HasIndirectTable(TBL_Event) || pMiniMd->HasDelete())
+        {
+            IfFailGo( HENUMInternal::CreateDynamicArrayEnum( mdtEvent, &pEnum) );
+
+            // add all methods to the dynamic array
+            for (ULONG index = ridStart; index < ridEnd; index++ )
+            {
+                if (pMiniMd->HasDelete())
+                {
+                    EventRec *pRec;
+                    RID rid;
+                    IfFailGo(pMiniMd->GetEventRid(index, &rid));
+                    IfFailGo(pMiniMd->GetEventRecord(rid, &pRec));
+                    LPCSTR szEventName;
+                    IfFailGo(pMiniMd->getNameOfEvent(pRec, &szEventName));
+                    if (IsEvRTSpecialName(pRec->GetEventFlags()) && IsDeletedName(szEventName))
+                    {
+                        continue;
+                    }
+                }
+                RID rid;
+                IfFailGo(pMiniMd->GetEventRid(index, &rid));
+                IfFailGo(HENUMInternal::AddElementToEnum(
+                    pEnum,
+                    TokenFromRid(rid, mdtEvent)));
+            }
+        }
+        else
+        {
+            IfFailGo( HENUMInternal::CreateSimpleEnum( mdtEvent, ridStart, ridEnd, &pEnum) );
+        }
+
+        // set the output parameter
+        *ppmdEnum = pEnum;
+    }
+
+    // fill the output token buffer
+    hr = HENUMInternal::EnumWithCount(pEnum, cMax, rEvents, pcEvents);
+
+ErrExit:
+    HENUMInternal::DestroyEnumIfEmpty(ppmdEnum);
+
+
+    return hr;
 }
 
-HRESULT CordbSymbol::GetEventProps ( // S_OK, S_FALSE, or error.
+HRESULT RegMeta::GetEventProps ( // S_OK, S_FALSE, or error.
 	mdEvent ev, // [IN] event token
 	mdTypeDef *pClass, // [OUT] typedef containing the event declarion.
 	LPCWSTR szEvent, // [OUT] Event name
@@ -1264,11 +1836,91 @@ HRESULT CordbSymbol::GetEventProps ( // S_OK, S_FALSE, or error.
 	ULONG cMax, // [IN] size of rmdOtherMethod
 	ULONG *pcOtherMethod) // [OUT] total number of other method of this event
 {
-	DEBUG_PRINTF (1, "CordbSymbol - GetEventProps - NOT IMPLEMENTED\n");
-	return S_OK;
+	HRESULT         hr = NOERROR;
+
+
+    CMiniMdRW       *pMiniMd = &(m_pStgdb->m_MiniMd);
+    EventRec        *pRec;
+    HENUMInternal   hEnum;
+
+
+    _ASSERTE(TypeFromToken(ev) == mdtEvent);
+
+    HENUMInternal::ZeroEnum(&hEnum);
+    IfFailGo(pMiniMd->GetEventRecord(RidFromToken(ev), &pRec));
+
+    if ( pClass )
+    {
+        // find the event map entry corresponding to this event
+        IfFailGo( pMiniMd->FindParentOfEventHelper( ev, pClass ) );
+    }
+    if ( pdwEventFlags )
+    {
+        *pdwEventFlags = pMiniMd->getEventFlagsOfEvent(pRec);
+    }
+    if ( ptkEventType )
+    {
+        *ptkEventType = pMiniMd->getEventTypeOfEvent(pRec);
+    }
+    {
+        MethodSemanticsRec *pSemantics;
+        RID         ridCur;
+        ULONG       cCurOtherMethod = 0;
+        ULONG       ulSemantics;
+        mdMethodDef tkMethod;
+
+        // initialize output parameters
+        if (pmdAddOn)
+            *pmdAddOn = mdMethodDefNil;
+        if (pmdRemoveOn)
+            *pmdRemoveOn = mdMethodDefNil;
+        if (pmdFire)
+            *pmdFire = mdMethodDefNil;
+
+        IfFailGo( pMiniMd->FindMethodSemanticsHelper(ev, &hEnum) );
+        while (HENUMInternal::EnumNext(&hEnum, (mdToken *)&ridCur))
+        {
+            IfFailGo(pMiniMd->GetMethodSemanticsRecord(ridCur, &pSemantics));
+            ulSemantics = pMiniMd->getSemanticOfMethodSemantics(pSemantics);
+            tkMethod = TokenFromRid( pMiniMd->getMethodOfMethodSemantics(pSemantics), mdtMethodDef );
+            switch (ulSemantics)
+            {
+            case msAddOn:
+                if (pmdAddOn) *pmdAddOn = tkMethod;
+                break;
+            case msRemoveOn:
+                if (pmdRemoveOn) *pmdRemoveOn = tkMethod;
+                break;
+            case msFire:
+                if (pmdFire) *pmdFire = tkMethod;
+                break;
+            case msOther:
+                if (cCurOtherMethod < cMax)
+                    rmdOtherMethod[cCurOtherMethod] = tkMethod;
+                cCurOtherMethod++;
+                break;
+            default:
+                _ASSERTE(!"BadKind!");
+            }
+        }
+
+        // set the output parameter
+        if (pcOtherMethod)
+            *pcOtherMethod = cCurOtherMethod;
+    }
+    // This call has to be last to set 'hr', so CLDB_S_TRUNCATION is not rewritten with S_OK
+    if (szEvent || pchEvent)
+    {
+        IfFailGo( pMiniMd->getNameOfEvent(pRec, (LPWSTR) szEvent, cchEvent, pchEvent) );
+    }
+
+ErrExit:
+    HENUMInternal::ClearEnum(&hEnum);
+
+    return hr;
 }
 
-HRESULT CordbSymbol::EnumMethodSemantics ( // S_OK, S_FALSE, or error.
+HRESULT RegMeta::EnumMethodSemantics ( // S_OK, S_FALSE, or error.
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdMethodDef mb, // [IN] MethodDef to scope the enumeration.
 	mdToken rEventProp[], // [OUT] Put Event/Property here.
@@ -1279,7 +1931,7 @@ HRESULT CordbSymbol::EnumMethodSemantics ( // S_OK, S_FALSE, or error.
 	return S_OK;
 }
 
-HRESULT CordbSymbol::GetMethodSemantics ( // S_OK, S_FALSE, or error.
+HRESULT RegMeta::GetMethodSemantics ( // S_OK, S_FALSE, or error.
 	mdMethodDef mb, // [IN] method token
 	mdToken tkEventProp, // [IN] event/property token.
 	DWORD *pdwSemanticsFlags) // [OUT] the role flags for the method/propevent pair
@@ -1288,7 +1940,7 @@ HRESULT CordbSymbol::GetMethodSemantics ( // S_OK, S_FALSE, or error.
 	return S_OK;
 }
 
-HRESULT CordbSymbol::GetClassLayout (
+HRESULT RegMeta::GetClassLayout (
 	mdTypeDef td, // [IN] give typedef
 	DWORD *pdwPackSize, // [OUT] 1, 2, 4, 8, or 16
 	COR_FIELD_OFFSET rFieldOffset[], // [OUT] field offset array
@@ -1296,12 +1948,101 @@ HRESULT CordbSymbol::GetClassLayout (
 	ULONG *pcFieldOffset, // [OUT] needed array size
 	ULONG *pulClassSize) // [OUT] the size of the class
 {
-	DEBUG_PRINTF (1, "CordbSymbol - GetClassLayout - NOT IMPLEMENTED\n");
+	HRESULT         hr = NOERROR;
 
-	return 0x80131130;
+    CMiniMdRW       *pMiniMd = &(m_pStgdb->m_MiniMd);
+    ClassLayoutRec  *pRec;
+    RID             ridClassLayout;
+    int             bLayout=0;          // Was any layout information found?
+
+    _ASSERTE(TypeFromToken(td) == mdtTypeDef);
+
+
+    IfFailGo(pMiniMd->FindClassLayoutHelper(td, &ridClassLayout));
+
+    if (InvalidRid(ridClassLayout))
+    {   // Nothing specified - return default values of 0.
+        if ( pdwPackSize )
+            *pdwPackSize = 0;
+        if ( pulClassSize )
+            *pulClassSize = 0;
+    }
+    else
+    {
+        IfFailGo(pMiniMd->GetClassLayoutRecord(RidFromToken(ridClassLayout), &pRec));
+        if ( pdwPackSize )
+            *pdwPackSize = pMiniMd->getPackingSizeOfClassLayout(pRec);
+        if ( pulClassSize )
+            *pulClassSize = pMiniMd->getClassSizeOfClassLayout(pRec);
+        bLayout = 1;
+    }
+
+    // fill the layout array
+    if (rFieldOffset || pcFieldOffset)
+    {
+        ULONG       iFieldOffset = 0;
+        ULONG       ridFieldStart;
+        ULONG       ridFieldEnd;
+        ULONG       ridFieldLayout;
+        ULONG       ulOffset;
+        TypeDefRec  *pTypeDefRec;
+        FieldLayoutRec *pLayout2Rec;
+        mdFieldDef  fd;
+
+        // record for this typedef in TypeDef Table
+        IfFailGo(pMiniMd->GetTypeDefRecord(RidFromToken(td), &pTypeDefRec));
+
+        // find the starting and end field for this typedef
+        ridFieldStart = pMiniMd->getFieldListOfTypeDef(pTypeDefRec);
+        IfFailGo(pMiniMd->getEndFieldListOfTypeDef(RidFromToken(td), &ridFieldEnd));
+
+        // loop through the field table
+
+        for(; ridFieldStart < ridFieldEnd; ridFieldStart++)
+        {
+            // Calculate the field token.
+            RID rid;
+            IfFailGo(pMiniMd->GetFieldRid(ridFieldStart, &rid));
+            fd = TokenFromRid(rid, mdtFieldDef);
+
+            // Calculate the FieldLayout rid for the current field.
+            IfFailGo(pMiniMd->FindFieldLayoutHelper(fd, &ridFieldLayout));
+
+            // Calculate the offset.
+            if (InvalidRid(ridFieldLayout))
+                ulOffset = (ULONG) -1;
+            else
+            {
+                // get the FieldLayout record.
+                IfFailGo(pMiniMd->GetFieldLayoutRecord(ridFieldLayout, &pLayout2Rec));
+                ulOffset = pMiniMd->getOffSetOfFieldLayout(pLayout2Rec);
+                bLayout = 1;
+            }
+
+            // fill in the field layout if output buffer still has space.
+            if (cMax > iFieldOffset && rFieldOffset)
+            {
+                rFieldOffset[iFieldOffset].ridOfField = fd;
+                rFieldOffset[iFieldOffset].ulOffset = ulOffset;
+            }
+
+            // advance the index to the buffer.
+            iFieldOffset++;
+        }
+
+        if (bLayout && pcFieldOffset)
+            *pcFieldOffset = iFieldOffset;
+    }
+
+    if (!bLayout)
+        hr = CLDB_E_RECORD_NOTFOUND;
+
+ErrExit:
+
+    return hr;
 }
 
-HRESULT CordbSymbol::GetFieldMarshal (
+HRESULT RegMeta::GetFieldMarshal (
 	mdToken tk, // [IN] given a field's memberdef
 	PCCOR_SIGNATURE *ppvNativeType, // [OUT] native type of this field
 	ULONG *pcbNativeType) // [OUT] the count of bytes of *ppvNativeType
@@ -1310,7 +2051,7 @@ HRESULT CordbSymbol::GetFieldMarshal (
 	return S_OK;
 }
 
-HRESULT CordbSymbol::GetRVA ( // S_OK or error.
+HRESULT RegMeta::GetRVA ( // S_OK or error.
 	mdToken tk, // Member for which to set offset
 	ULONG *pulCodeRVA, // The offset
 	DWORD *pdwImplFlags) // the implementation flags
@@ -1319,7 +2060,7 @@ HRESULT CordbSymbol::GetRVA ( // S_OK or error.
 	return S_OK;
 }
 
-HRESULT CordbSymbol::GetPermissionSetProps (
+HRESULT RegMeta::GetPermissionSetProps (
 	mdPermission pm, // [IN] the permission token.
 	DWORD *pdwAction, // [OUT] CorDeclSecurity.
 	void const **ppvPermission, // [OUT] permission blob.
@@ -1329,44 +2070,29 @@ HRESULT CordbSymbol::GetPermissionSetProps (
 	return S_OK;
 }
 
-HRESULT CordbSymbol::GetSigFromToken ( // S_OK or error.
+HRESULT RegMeta::GetSigFromToken ( // S_OK or error.
 	mdSignature mdSig, // [IN] Signature token.
 	PCCOR_SIGNATURE *ppvSig, // [OUT] return pointer to token.
 	ULONG *pcbSig) // [OUT] return size of signature.
 {
-	DEBUG_PRINTF (1, "CordbSymbol - GetSigFromToken - IMPLEMENTED - %d\n", mdSig);
+		HRESULT         hr = NOERROR;
 
-	Buffer localbuf;
-	buffer_init (&localbuf, 128);
-	buffer_add_id (&localbuf, this->pCordbAssembly->id);
-	buffer_add_int (&localbuf, mdSig);
-	int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-		CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN, &localbuf);
-	buffer_free (&localbuf);
-	Buffer *localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
+		CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
+		StandAloneSigRec* pRec;
 
-	//COR_SIGNATURE tempSignature[9] = { 7, 6, 10, 8, 3, 2, 14, ELEMENT_TYPE_CLASS, 8 }; // segundo parametro quantas locais, terceiro em diante os tipos
-	if (ppvSig) {
-		int blob_len = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		COR_SIGNATURE *ppvSigLocal = new COR_SIGNATURE[blob_len];
-		int sig_type = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		int num_locals = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		ppvSigLocal[0] = sig_type;
-		ppvSigLocal[1] = num_locals;
-		DEBUG_PRINTF (1, "CordbSymbol - GetSigFromToken - IMPLEMENTED - blob_len - %d\n", blob_len);
-		DEBUG_PRINTF (1, "CordbSymbol - GetSigFromToken - IMPLEMENTED - num_locals - %d\n", num_locals);
-		for (int i = 2; i < blob_len; i++) {
-			ppvSigLocal[i] = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-			DEBUG_PRINTF (1, "CordbSymbol - GetSigFromToken - IMPLEMENTED - %d - %d\n", i, ppvSigLocal[i]);
-		}
-		*ppvSig = new COR_SIGNATURE[blob_len];
-		memcpy ((void*)*ppvSig, ppvSigLocal, blob_len * sizeof (COR_SIGNATURE));
-		*pcbSig = blob_len;
-	}
-	return S_OK;
+		_ASSERTE(TypeFromToken(mdSig) == mdtSignature);
+		_ASSERTE(ppvSig && pcbSig);
+
+		IfFailGo(pMiniMd->GetStandAloneSigRecord(RidFromToken(mdSig), &pRec));
+		IfFailGo(pMiniMd->getSignatureOfStandAloneSig(pRec, ppvSig, pcbSig));
+
+
+ErrExit:
+
+		return hr;
 }
 
-HRESULT CordbSymbol::GetModuleRefProps ( // S_OK or error.
+HRESULT RegMeta::GetModuleRefProps ( // S_OK or error.
 	mdModuleRef mur, // [IN] moduleref token.
 	__out_ecount_part_opt (cchName, *pchName)
 	LPWSTR szName, // [OUT] buffer to fill with the moduleref name.
@@ -1377,7 +2103,7 @@ HRESULT CordbSymbol::GetModuleRefProps ( // S_OK or error.
 	return S_OK;
 }
 
-HRESULT CordbSymbol::EnumModuleRefs ( // S_OK or error.
+HRESULT RegMeta::EnumModuleRefs ( // S_OK or error.
 	HCORENUM *phEnum, // [IN|OUT] pointer to the enum.
 	mdModuleRef rModuleRefs[], // [OUT] put modulerefs here.
 	ULONG cmax, // [IN] max memberrefs to put.
@@ -1387,16 +2113,29 @@ HRESULT CordbSymbol::EnumModuleRefs ( // S_OK or error.
 	return S_OK;
 }
 
-HRESULT CordbSymbol::GetTypeSpecFromToken ( // S_OK or error.
+HRESULT RegMeta::GetTypeSpecFromToken ( // S_OK or error.
 	mdTypeSpec typespec, // [IN] TypeSpec token.
 	PCCOR_SIGNATURE *ppvSig, // [OUT] return pointer to TypeSpec signature
 	ULONG *pcbSig) // [OUT] return size of signature.
 {
-	DEBUG_PRINTF (1, "CordbSymbol - GetTypeSpecFromToken - NOT IMPLEMENTED\n");
-	return S_OK;
+	HRESULT             hr = NOERROR;
+
+    CMiniMdRW           *pMiniMd = &(m_pStgdb->m_MiniMd);
+    TypeSpecRec *pRec = NULL;
+
+    _ASSERTE(TypeFromToken(typespec) == mdtTypeSpec);
+    _ASSERTE(ppvSig && pcbSig);
+
+    IfFailGo(pMiniMd->GetTypeSpecRecord(RidFromToken(typespec), &pRec));
+    IfFailGo(pMiniMd->getSignatureOfTypeSpec(pRec, ppvSig, pcbSig));
+
+ErrExit:
+
+
+    return hr;
 }
 
-HRESULT CordbSymbol::GetNameFromToken ( // Not Recommended! May be removed!
+HRESULT RegMeta::GetNameFromToken ( // Not Recommended! May be removed!
 	mdToken tk, // [IN] Token to get name from.  Must have a name.
 	MDUTF8CSTR *pszUtf8NamePtr) // [OUT] Return pointer to UTF8 name in heap.
 {
@@ -1404,7 +2143,7 @@ HRESULT CordbSymbol::GetNameFromToken ( // Not Recommended! May be removed!
 	return S_OK;
 }
 
-HRESULT CordbSymbol::EnumUnresolvedMethods ( // S_OK, S_FALSE, or error.
+HRESULT RegMeta::EnumUnresolvedMethods ( // S_OK, S_FALSE, or error.
 	HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 	mdToken rMethods[], // [OUT] Put MemberDefs here.
 	ULONG cMax, // [IN] Max MemberDefs to put.
@@ -1414,18 +2153,64 @@ HRESULT CordbSymbol::EnumUnresolvedMethods ( // S_OK, S_FALSE, or error.
 	return S_OK;
 }
 
-HRESULT CordbSymbol::GetUserString ( // S_OK or error.
-	mdString stk, // [IN] String token.
-	__out_ecount_part_opt (cchString, *pchString)
-	LPWSTR szString, // [OUT] Copy of string.
-	ULONG cchString, // [IN] Max chars of room in szString.
-	ULONG *pchString) // [OUT] How many chars in actual string.
+HRESULT RegMeta::GetUserString(          // S_OK or error.
+                                    mdString stk,               // [IN] String token.
+    __out_ecount_opt(cchStringSize) LPWSTR   wszString,         // [OUT] Copy of string.
+                                    ULONG    cchStringSize,     // [IN] Max chars of room in szString.
+                                    ULONG   *pcchStringSize)    // [OUT] How many chars in actual string.
 {
-	DEBUG_PRINTF (1, "CordbSymbol - GetUserString - NOT IMPLEMENTED\n");
-	return S_OK;
+	HRESULT hr = S_OK;
+    ULONG   cchStringSize_Dummy;
+    MetaData::DataBlob userString;
+
+    // Get the string data.
+    IfFailGo(m_pStgdb->m_MiniMd.GetUserString(RidFromToken(stk), &userString));
+    // Want to get whole characters, followed by byte to indicate whether there
+    // are extended characters (>= 0x80).
+    if ((userString.GetSize() % sizeof(WCHAR)) == 0)
+    {
+        Debug_ReportError("User strings should have 1 byte terminator (either 0x00 or 0x80).");
+        IfFailGo(CLDB_E_FILE_CORRUPT);
+    }
+
+    // Strip off the last byte.
+    if (!userString.TruncateBySize(1))
+    {
+        Debug_ReportInternalError("There's a bug, because previous % 2 check didn't return 0.");
+        IfFailGo(METADATA_E_INTERNAL_ERROR);
+    }
+
+    // Convert bytes to characters.
+    if (pcchStringSize == NULL)
+    {
+        pcchStringSize = &cchStringSize_Dummy;
+    }
+    *pcchStringSize = userString.GetSize() / sizeof(WCHAR);
+
+    // Copy the string back to the caller.
+    if ((wszString != NULL) && (cchStringSize > 0))
+    {
+        ULONG cbStringSize = cchStringSize * sizeof(WCHAR);
+        memcpy(
+            wszString,
+            userString.GetDataPointer(),
+            min(userString.GetSize(), cbStringSize));
+        if (cbStringSize < userString.GetSize())
+        {
+            if ((wszString != NULL) && (cchStringSize > 0))
+            {   // null-terminate the truncated output string
+                wszString[cchStringSize - 1] = W('\0');
+            }
+
+            hr = CLDB_S_TRUNCATION;
+        }
+    }
+
+ ErrExit:
+    return hr;
 }
 
-HRESULT CordbSymbol::GetPinvokeMap ( // S_OK or error.
+HRESULT RegMeta::GetPinvokeMap ( // S_OK or error.
 	mdToken tk, // [IN] FieldDef or MethodDef.
 	DWORD *pdwMappingFlags, // [OUT] Flags used for mapping.
 	__out_ecount_part_opt (cchImportName, *pchImportName)
@@ -1438,7 +2223,7 @@ HRESULT CordbSymbol::GetPinvokeMap ( // S_OK or error.
 	return S_OK;
 }
 
-HRESULT CordbSymbol::EnumSignatures ( // S_OK or error.
+HRESULT RegMeta::EnumSignatures ( // S_OK or error.
 	HCORENUM *phEnum, // [IN|OUT] pointer to the enum.
 	mdSignature rSignatures[], // [OUT] put signatures here.
 	ULONG cmax, // [IN] max signatures to put.
@@ -1448,7 +2233,7 @@ HRESULT CordbSymbol::EnumSignatures ( // S_OK or error.
 	return S_OK;
 }
 
-HRESULT CordbSymbol::EnumTypeSpecs ( // S_OK or error.
+HRESULT RegMeta::EnumTypeSpecs ( // S_OK or error.
 	HCORENUM *phEnum, // [IN|OUT] pointer to the enum.
 	mdTypeSpec rTypeSpecs[], // [OUT] put TypeSpecs here.
 	ULONG cmax, // [IN] max TypeSpecs to put.
@@ -1459,7 +2244,7 @@ HRESULT CordbSymbol::EnumTypeSpecs ( // S_OK or error.
 }
 
 
-HRESULT CordbSymbol::EnumUserStrings ( // S_OK or error.
+HRESULT RegMeta::EnumUserStrings ( // S_OK or error.
 	HCORENUM *phEnum, // [IN/OUT] pointer to the enum.
 	mdString rStrings[], // [OUT] put Strings here.
 	ULONG cmax, // [IN] max Strings to put.
@@ -1469,7 +2254,7 @@ HRESULT CordbSymbol::EnumUserStrings ( // S_OK or error.
 	return S_OK;
 }
 
-HRESULT CordbSymbol::GetParamForMethodIndex ( // S_OK or error.
+HRESULT RegMeta::GetParamForMethodIndex ( // S_OK or error.
 	mdMethodDef md, // [IN] Method token.
 	ULONG ulParamSeq, // [IN] Parameter sequence.
 	mdParamDef *ppd) // [IN] Put Param token here.
@@ -1478,7 +2263,7 @@ HRESULT CordbSymbol::GetParamForMethodIndex ( // S_OK or error.
 	return S_OK;
 }
 
-HRESULT CordbSymbol::EnumCustomAttributes ( // S_OK or error.
+HRESULT RegMeta::EnumCustomAttributes ( // S_OK or error.
 	HCORENUM *phEnum, // [IN, OUT] COR enumerator.
 	mdToken tk, // [IN] Token to scope the enumeration, 0 for all.
 	mdToken tkType, // [IN] Type of interest, 0 for all.
@@ -1486,23 +2271,168 @@ HRESULT CordbSymbol::EnumCustomAttributes ( // S_OK or error.
 	ULONG cMax, // [IN] Size of rCustomAttributes.
 	ULONG *pcCustomAttributes) // [OUT, OPTIONAL] Put count of token values here.
 {
-	*pcCustomAttributes = 0;
-	DEBUG_PRINTF (1, "CordbSymbol - EnumCustomAttributes - NOT IMPLEMENTED\n");
-	return S_OK;
+		HRESULT         hr = S_OK;
+
+		HENUMInternal** ppmdEnum = reinterpret_cast<HENUMInternal**> (phEnum);
+		ULONG           ridStart;
+		ULONG           ridEnd;
+		HENUMInternal* pEnum = *ppmdEnum;
+		CustomAttributeRec* pRec;
+		ULONG           index;
+
+
+		if (pEnum == 0)
+		{
+				// instantiating a new ENUM
+				CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
+				CLookUpHash* pHashTable = pMiniMd->m_pLookUpHashs[TBL_CustomAttribute];
+
+				// Does caller want all custom Values?
+				if (IsNilToken(tk))
+				{
+						IfFailGo(HENUMInternal::CreateSimpleEnum(mdtCustomAttribute, 1, pMiniMd->getCountCustomAttributes() + 1, &pEnum));
+				}
+				else
+				{   // Scope by some object.
+						if (pMiniMd->IsSorted(TBL_CustomAttribute))
+						{
+								// Get CustomAttributes for the object.
+								IfFailGo(pMiniMd->getCustomAttributeForToken(tk, &ridEnd, &ridStart));
+
+								if (IsNilToken(tkType))
+								{
+										// Simple enumerator for object's entire list.
+										IfFailGo(HENUMInternal::CreateSimpleEnum(mdtCustomAttribute, ridStart, ridEnd, &pEnum));
+								}
+								else
+								{
+										// Dynamic enumerator for subsetted list.
+
+										IfFailGo(HENUMInternal::CreateDynamicArrayEnum(mdtCustomAttribute, &pEnum));
+
+										for (index = ridStart; index < ridEnd; index++)
+										{
+												IfFailGo(pMiniMd->GetCustomAttributeRecord(index, &pRec));
+												if (tkType == pMiniMd->getTypeOfCustomAttribute(pRec))
+												{
+														IfFailGo(HENUMInternal::AddElementToEnum(pEnum, TokenFromRid(index, mdtCustomAttribute)));
+												}
+										}
+								}
+						}
+						else
+						{
+
+								if (pHashTable)
+								{
+										// table is not sorted but hash is built
+										// We want to create dynmaic array to hold the dynamic enumerator.
+										TOKENHASHENTRY* p;
+										ULONG       iHash;
+										int         pos;
+										mdToken     tkParentTmp;
+										mdToken     tkTypeTmp;
+
+										// Hash the data.
+										iHash = pMiniMd->HashCustomAttribute(tk);
+
+										IfFailGo(HENUMInternal::CreateDynamicArrayEnum(mdtCustomAttribute, &pEnum));
+
+										// Go through every entry in the hash chain looking for ours.
+										for (p = pHashTable->FindFirst(iHash, pos);
+												p;
+												p = pHashTable->FindNext(pos))
+										{
+
+												CustomAttributeRec* pCustomAttribute;
+												IfFailGo(pMiniMd->GetCustomAttributeRecord(RidFromToken(p->tok), &pCustomAttribute));
+												tkParentTmp = pMiniMd->getParentOfCustomAttribute(pCustomAttribute);
+												tkTypeTmp = pMiniMd->getTypeOfCustomAttribute(pCustomAttribute);
+												if (tkParentTmp == tk)
+												{
+														if (IsNilToken(tkType) || tkType == tkTypeTmp)
+														{
+																// compare the blob value
+																IfFailGo(HENUMInternal::AddElementToEnum(pEnum, TokenFromRid(p->tok, mdtCustomAttribute)));
+														}
+												}
+										}
+								}
+								else
+								{
+
+										// table is not sorted and hash is not built so we have to create dynmaic array
+										// create the dynamic enumerator and loop through CA table linearly
+										//
+										ridStart = 1;
+										ridEnd = pMiniMd->getCountCustomAttributes() + 1;
+
+										IfFailGo(HENUMInternal::CreateDynamicArrayEnum(mdtCustomAttribute, &pEnum));
+
+										for (index = ridStart; index < ridEnd; index++)
+										{
+												IfFailGo(pMiniMd->GetCustomAttributeRecord(index, &pRec));
+												if (tk == pMiniMd->getParentOfCustomAttribute(pRec) &&
+														(tkType == pMiniMd->getTypeOfCustomAttribute(pRec) || IsNilToken(tkType)))
+												{
+														IfFailGo(HENUMInternal::AddElementToEnum(pEnum, TokenFromRid(index, mdtCustomAttribute)));
+												}
+										}
+								}
+						}
+				}
+
+				// set the output parameter
+				*ppmdEnum = pEnum;
+		}
+
+		// fill the output token buffer
+		hr = HENUMInternal::EnumWithCount(pEnum, cMax, rCustomAttributes, pcCustomAttributes);
+
+ErrExit:
+		HENUMInternal::DestroyEnumIfEmpty(ppmdEnum);
+		
+
+		return hr;
 }
 
-HRESULT CordbSymbol::GetCustomAttributeProps ( // S_OK or error.
+HRESULT RegMeta::GetCustomAttributeProps ( // S_OK or error.
 	mdCustomAttribute cv, // [IN] CustomAttribute token.
 	mdToken *ptkObj, // [OUT, OPTIONAL] Put object token here.
 	mdToken *ptkType, // [OUT, OPTIONAL] Put AttrType token here.
 	void const **ppBlob, // [OUT, OPTIONAL] Put pointer to data here.
 	ULONG *pcbSize) // [OUT, OPTIONAL] Put size of date here.
 {
-	DEBUG_PRINTF (1, "CordbSymbol - GetCustomAttributeProps - NOT IMPLEMENTED\n");
-	return S_OK;
+		HRESULT     hr = S_OK;              // A result.
+
+
+		CMiniMdRW* pMiniMd;
+
+		_ASSERTE(TypeFromToken(cv) == mdtCustomAttribute);
+
+		pMiniMd = &(m_pStgdb->m_MiniMd);
+		CustomAttributeRec* pCustomAttributeRec;   // The custom value record.
+
+		IfFailGo(pMiniMd->GetCustomAttributeRecord(RidFromToken(cv), &pCustomAttributeRec));
+
+		if (ptkObj)
+				*ptkObj = pMiniMd->getParentOfCustomAttribute(pCustomAttributeRec);
+
+		if (ptkType)
+				*ptkType = pMiniMd->getTypeOfCustomAttribute(pCustomAttributeRec);
+
+		if (ppBlob != NULL)
+		{
+				IfFailGo(pMiniMd->getValueOfCustomAttribute(pCustomAttributeRec, (const BYTE**)ppBlob, pcbSize));
+		}
+
+ErrExit:
+
+
+		return hr;
 }
 
-HRESULT CordbSymbol::FindTypeRef (
+HRESULT RegMeta::FindTypeRef (
 	mdToken tkResolutionScope, // [IN] ModuleRef, AssemblyRef or TypeRef.
 	LPCWSTR szName, // [IN] TypeRef Name.
 	mdTypeRef *ptr) // [OUT] matching TypeRef.
@@ -1511,7 +2441,7 @@ HRESULT CordbSymbol::FindTypeRef (
 	return S_OK;
 }
 
-HRESULT CordbSymbol::GetMemberProps (
+HRESULT RegMeta::GetMemberProps (
 	mdToken mb, // The member for which to get props.
 	mdTypeDef *pClass, // Put member's class here.
 	__out_ecount_part_opt (cchMember, *pchMember)
@@ -1531,8 +2461,8 @@ HRESULT CordbSymbol::GetMemberProps (
 	return S_OK;
 }
 
-HRESULT CordbSymbol::GetFieldProps (
-	mdFieldDef mb, // The field for which to get props.
+HRESULT RegMeta::GetFieldProps (
+	mdFieldDef fd, // The field for which to get props.
 	mdTypeDef *pClass, // Put field's class here.
 	__out_ecount_part_opt (cchField, *pchField)
 	LPWSTR szField, // Put field's name here.
@@ -1543,63 +2473,96 @@ HRESULT CordbSymbol::GetFieldProps (
 	ULONG *pcbSigBlob, // [OUT] actual size of signature blob
 	DWORD *pdwCPlusTypeFlag, // [OUT] flag for value type. selected ELEMENT_TYPE_*
 	UVCP_CONSTANT *ppValue, // [OUT] constant value
-	ULONG *pcchValue) // [OUT] size of constant string in chars, 0 for non-strings.
+	ULONG *pchValue) // [OUT] size of constant string in chars, 0 for non-strings.
 {
-	Buffer localbuf;
-	buffer_init (&localbuf, 128);
-	buffer_add_id (&localbuf, mono_metadata_token_index (mb));
-	int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-		CMD_SET_FIELD, CMD_FIELD_GET_INFO, &localbuf);
-	buffer_free (&localbuf);
+		HRESULT         hr = NOERROR;
 
-	Buffer *localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
+		BEGIN_ENTRYPOINT_NOTHROW;
 
-	char *field_name = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int type_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int klass_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int attrs = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int type = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int parent_token = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	int klass_token = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		FieldRec* pFieldRec;
+		CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
 
+		_ASSERTE(TypeFromToken(fd) == mdtFieldDef);
 
-	if (ppvSigBlob || pcbSigBlob) {
-		if (type == ELEMENT_TYPE_CLASS) {
-			COR_SIGNATURE tempSignature[3];
-			*pcbSigBlob = 3;
-			tempSignature[0] = attrs;
-			tempSignature[1] = type;
-			tempSignature[2] = 8; //???
-			*ppvSigBlob = new COR_SIGNATURE[3];
-			memcpy ((void*)*ppvSigBlob, tempSignature, 3 * sizeof (COR_SIGNATURE));
+		IfFailGo(pMiniMd->GetFieldRecord(RidFromToken(fd), &pFieldRec));
+
+		if (pClass)
+		{
+				// caller wants parent typedef
+				IfFailGo(pMiniMd->FindParentOfFieldHelper(fd, pClass));
+
+				if (IsGlobalMethodParentToken(*pClass))
+				{
+						// If the parent of Field is the <Module>, return mdTypeDefNil instead.
+						*pClass = mdTypeDefNil;
+				}
 		}
-		else {
-			COR_SIGNATURE tempSignature[2];
-			*pcbSigBlob = 2;
-			tempSignature[0] = attrs;
-			tempSignature[1] = type;
-			*ppvSigBlob = new COR_SIGNATURE[2];
-			memcpy ((void*)*ppvSigBlob, tempSignature, 2 * sizeof (COR_SIGNATURE));
+		if (ppvSigBlob || pcbSigBlob)
+		{
+				// caller wants signature information
+				PCCOR_SIGNATURE pvSigTmp;
+				ULONG           cbSig;
+				IfFailGo(pMiniMd->getSignatureOfField(pFieldRec, &pvSigTmp, &cbSig));
+				if (ppvSigBlob)
+						*ppvSigBlob = pvSigTmp;
+				if (pcbSigBlob)
+						*pcbSigBlob = cbSig;
 		}
-		*pdwCPlusTypeFlag = 1;
-		*pdwAttr = 1;
-	}
+		if (pdwAttr)
+		{
+				*pdwAttr = pMiniMd->getFlagsOfField(pFieldRec);
+		}
+		if (pdwCPlusTypeFlag || ppValue || pchValue)
+		{
+				// get the constant value
+				ULONG   cbValue;
+				RID rid;
+				IfFailGo(pMiniMd->FindConstantHelper(fd, &rid));
 
-	DEBUG_PRINTF (1, "CordbSymbol - GetFieldProps - IMPLEMENTED, %s, %d, %d, %d\n", field_name, attrs, type,
-	              klass_id);
+				if (pchValue)
+						*pchValue = 0;
 
-	*pClass = parent_token;
-	if (cchField > strlen (field_name)) {
-		DEBUG_PRINTF (1, "CordbSymbol - GetFieldProps - FIZ COPIA DO NOME - IMPLEMENTED, %s, %d, %d\n",
-		              field_name, attrs, type);
-		mbstowcs (szField, field_name, strlen (field_name) + 1);
-		*pchField = strlen (field_name);
-	}
+				if (InvalidRid(rid))
+				{
+						// There is no constant value associate with it
+						if (pdwCPlusTypeFlag)
+								*pdwCPlusTypeFlag = ELEMENT_TYPE_VOID;
 
-	return S_OK;
+						if (ppValue)
+								*ppValue = NULL;
+				}
+				else
+				{
+						ConstantRec* pConstantRec;
+						IfFailGo(m_pStgdb->m_MiniMd.GetConstantRecord(rid, &pConstantRec));
+						DWORD dwType;
+
+						// get the type of constant value
+						dwType = pMiniMd->getTypeOfConstant(pConstantRec);
+						if (pdwCPlusTypeFlag)
+								*pdwCPlusTypeFlag = dwType;
+
+						// get the value blob
+						if (ppValue != NULL)
+						{
+								IfFailGo(pMiniMd->getValueOfConstant(pConstantRec, (const BYTE**)ppValue, &cbValue));
+								if (pchValue && dwType == ELEMENT_TYPE_STRING)
+										*pchValue = cbValue / sizeof(WCHAR);
+						}
+				}
+		}
+		// This call has to be last to set 'hr', so CLDB_S_TRUNCATION is not rewritten with S_OK
+		if (szField || pchField)
+		{
+				IfFailGo(pMiniMd->getNameOfField(pFieldRec, szField, cchField, pchField));
+		}
+
+ErrExit:
+
+		return hr;
 }
 
-HRESULT CordbSymbol::GetPropertyProps ( // S_OK, S_FALSE, or error.
+HRESULT RegMeta::GetPropertyProps ( // S_OK, S_FALSE, or error.
 	mdProperty prop, // [IN] property token
 	mdTypeDef *pClass, // [OUT] typedef containing the property declarion.
 	LPCWSTR szProperty, // [OUT] Property name
@@ -1610,66 +2573,145 @@ HRESULT CordbSymbol::GetPropertyProps ( // S_OK, S_FALSE, or error.
 	ULONG *pbSig, // [OUT] count of bytes in *ppvSig
 	DWORD *pdwCPlusTypeFlag, // [OUT] flag for value type. selected ELEMENT_TYPE_*
 	UVCP_CONSTANT *ppDefaultValue, // [OUT] constant value
-	ULONG *pcchDefaultValue, // [OUT] size of constant string in chars, 0 for non-strings.
+	ULONG * pchDefaultValue, // [OUT] size of constant string in chars, 0 for non-strings.
 	mdMethodDef *pmdSetter, // [OUT] setter method of the property
 	mdMethodDef *pmdGetter, // [OUT] getter method of the property
 	mdMethodDef rmdOtherMethod[], // [OUT] other method of the property
 	ULONG cMax, // [IN] size of rmdOtherMethod
 	ULONG *pcOtherMethod) // [OUT] total number of other method of this property
 {
-	DEBUG_PRINTF (1, "CordbSymbol - GetPropertyProps - IMPLEMENTED, %d - %d\n", prop, this->pCordbAssembly->id);
-	Buffer localbuf;
-	buffer_init (&localbuf, 128);
-	buffer_add_id (&localbuf, mono_metadata_token_index (prop));
-	int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-		CMD_SET_PROPERTY, CMD_PROPERTY_GET_INFO, &localbuf);
-	buffer_free (&localbuf);
+		HRESULT         hr = NOERROR;
 
-	Buffer *localbuf2 = pCordbAssembly->pProcess->connection->get_answer (cmdId);
+		CMiniMdRW* pMiniMd;
+		PropertyRec* pRec;
+		HENUMInternal   hEnum;
 
-	char *property_name = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	DEBUG_PRINTF (1, "CordbSymbol - GetPropertyProps - IMPLEMENTED, %s\n", property_name);
-	*pmdSetter = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
 
-	DEBUG_PRINTF (1, "CordbSymbol - GetPropertyProps - IMPLEMENTED, %d\n", *pmdSetter);
+		_ASSERTE(TypeFromToken(prop) == mdtProperty);
 
-	*pmdGetter = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
+		pMiniMd = &(m_pStgdb->m_MiniMd);
 
-	DEBUG_PRINTF (1, "CordbSymbol - GetPropertyProps - IMPLEMENTED, %d\n", *pmdGetter);
+		HENUMInternal::ZeroEnum(&hEnum);
+		IfFailGo(pMiniMd->GetPropertyRecord(RidFromToken(prop), &pRec));
 
-	if (pchProperty)
-		*pchProperty = strlen (property_name);
-
-	DEBUG_PRINTF (1, "CordbSymbol - GetPropertyProps - IMPLEMENTED, %s\n", property_name);
-
-	if (cchProperty > strlen (property_name)) {
-		DEBUG_PRINTF (1, "CordbSymbol - GetPropertyProps - FIZ COPIA DO NOME - IMPLEMENTED, %s\n",
-		              property_name);
-		mbstowcs ((LPWSTR)szProperty, property_name, strlen (property_name) + 1);
-	}
-
-	*pClass = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-
-	if (ppvSig || pbSig) {
-		int blob_len = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		COR_SIGNATURE *ppvSigLocal = new COR_SIGNATURE[blob_len];
-		DEBUG_PRINTF (1, "CordbSymbol - GetPropertyProps - IMPLEMENTED - blob_len - %d\n", blob_len);
-		for (int i = 0; i < blob_len; i++) {
-			ppvSigLocal[i] = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-			DEBUG_PRINTF (1, "CordbSymbol - GetPropertyProps - IMPLEMENTED - %d - %d\n", i, ppvSigLocal[i]);
+		if (pClass)
+		{
+				// find the property map entry corresponding to this property
+				IfFailGo(pMiniMd->FindParentOfPropertyHelper(prop, pClass));
 		}
-		if (pbSig) {
-			*ppvSig = new COR_SIGNATURE[blob_len];
-			memcpy ((void*)*ppvSig, ppvSigLocal, blob_len * sizeof (COR_SIGNATURE));
-			*pbSig = blob_len;
+		if (pdwPropFlags)
+		{
+				*pdwPropFlags = pMiniMd->getPropFlagsOfProperty(pRec);
 		}
-	}
+		if (ppvSig || pbSig)
+		{
+				// caller wants the signature
+				//
+				ULONG               cbSig;
+				PCCOR_SIGNATURE     pvSig;
+				IfFailGo(pMiniMd->getTypeOfProperty(pRec, &pvSig, &cbSig));
+				if (ppvSig)
+				{
+						*ppvSig = pvSig;
+				}
+				if (pbSig)
+				{
+						*pbSig = cbSig;
+				}
+		}
+		if (pdwCPlusTypeFlag || ppDefaultValue || pchDefaultValue)
+		{
+				// get the constant value
+				ULONG   cbValue;
+				RID rid;
+				IfFailGo(pMiniMd->FindConstantHelper(prop, &rid));
 
-	return S_OK;
+				if (pchDefaultValue)
+						*pchDefaultValue = 0;
+
+				if (InvalidRid(rid))
+				{
+						// There is no constant value associate with it
+						if (pdwCPlusTypeFlag)
+								*pdwCPlusTypeFlag = ELEMENT_TYPE_VOID;
+
+						if (ppDefaultValue)
+								*ppDefaultValue = NULL;
+				}
+				else
+				{
+						ConstantRec* pConstantRec;
+						IfFailGo(m_pStgdb->m_MiniMd.GetConstantRecord(rid, &pConstantRec));
+						DWORD dwType;
+
+						// get the type of constant value
+						dwType = pMiniMd->getTypeOfConstant(pConstantRec);
+						if (pdwCPlusTypeFlag)
+								*pdwCPlusTypeFlag = dwType;
+
+						// get the value blob
+						if (ppDefaultValue != NULL)
+						{
+								IfFailGo(pMiniMd->getValueOfConstant(pConstantRec, (const BYTE**)ppDefaultValue, &cbValue));
+								if (pchDefaultValue && dwType == ELEMENT_TYPE_STRING)
+										*pchDefaultValue = cbValue / sizeof(WCHAR);
+						}
+				}
+		}
+		{
+				MethodSemanticsRec* pSemantics;
+				RID         ridCur;
+				ULONG       cCurOtherMethod = 0;
+				ULONG       ulSemantics;
+				mdMethodDef tkMethod;
+
+				// initialize output parameters
+				if (pmdSetter)
+						*pmdSetter = mdMethodDefNil;
+				if (pmdGetter)
+						*pmdGetter = mdMethodDefNil;
+
+				IfFailGo(pMiniMd->FindMethodSemanticsHelper(prop, &hEnum));
+				while (HENUMInternal::EnumNext(&hEnum, (mdToken*)&ridCur))
+				{
+						IfFailGo(pMiniMd->GetMethodSemanticsRecord(ridCur, &pSemantics));
+						ulSemantics = pMiniMd->getSemanticOfMethodSemantics(pSemantics);
+						tkMethod = TokenFromRid(pMiniMd->getMethodOfMethodSemantics(pSemantics), mdtMethodDef);
+						switch (ulSemantics)
+						{
+						case msSetter:
+								if (pmdSetter) *pmdSetter = tkMethod;
+								break;
+						case msGetter:
+								if (pmdGetter) *pmdGetter = tkMethod;
+								break;
+						case msOther:
+								if (cCurOtherMethod < cMax)
+										rmdOtherMethod[cCurOtherMethod] = tkMethod;
+								cCurOtherMethod++;
+								break;
+						default:
+								_ASSERTE(!"BadKind!");
+						}
+				}
+
+				// set the output parameter
+				if (pcOtherMethod)
+						*pcOtherMethod = cCurOtherMethod;
+		}
+		// This call has to be last to set 'hr', so CLDB_S_TRUNCATION is not rewritten with S_OK
+		if (szProperty || pchProperty)
+		{
+				IfFailGo(pMiniMd->getNameOfProperty(pRec, (LPWSTR)szProperty, cchProperty, pchProperty));
+		}
+
+ErrExit:
+		HENUMInternal::ClearEnum(&hEnum);
+		return hr;
 }
 
-HRESULT CordbSymbol::GetParamProps ( // S_OK or error.
-	mdParamDef tk, // [IN]The Parameter.
+HRESULT RegMeta::GetParamProps ( // S_OK or error.
+	mdParamDef pd, // [IN]The Parameter.
 	mdMethodDef *pmd, // [OUT] Parent Method token.
 	ULONG *pulSequence, // [OUT] Parameter sequence.
 	__out_ecount_part_opt (cchName, *pchName)
@@ -1679,123 +2721,176 @@ HRESULT CordbSymbol::GetParamProps ( // S_OK or error.
 	DWORD *pdwAttr, // [OUT] Put flags here.
 	DWORD *pdwCPlusTypeFlag, // [OUT] Flag for value type. selected ELEMENT_TYPE_*.
 	UVCP_CONSTANT *ppValue, // [OUT] Constant value.
-	ULONG *pcchValue) // [OUT] size of constant string in chars, 0 for non-strings.
+	ULONG * pchValue) // [OUT] size of constant string in chars, 0 for non-strings.
 {
-	CordbParameter *ret = (CordbParameter*)g_hash_table_lookup (parameters, GINT_TO_POINTER (tk));
-	DEBUG_PRINTF (1, "CordbSymbol - GetParamProps - IMPLEMENTED - %s\n", ret->name);
-	*pmd = ret->method_token;
-	if (cchName >= strlen (ret->name)) {
-		mbstowcs (szName, ret->name, strlen (ret->name) + 1);
-	}
-	*pchName = strlen (ret->name) + 1;
-	*pdwCPlusTypeFlag = ret->type;
-	return S_OK;
+		HRESULT         hr = NOERROR;
+
+
+		ParamRec* pParamRec;
+		CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
+
+
+		_ASSERTE(TypeFromToken(pd) == mdtParamDef);
+
+		IfFailGo(pMiniMd->GetParamRecord(RidFromToken(pd), &pParamRec));
+
+		if (pmd)
+		{
+				IfFailGo(pMiniMd->FindParentOfParamHelper(pd, pmd));
+				_ASSERTE(TypeFromToken(*pmd) == mdtMethodDef);
+		}
+		if (pulSequence)
+				*pulSequence = pMiniMd->getSequenceOfParam(pParamRec);
+		if (pdwAttr)
+		{
+				*pdwAttr = pMiniMd->getFlagsOfParam(pParamRec);
+		}
+		if (pdwCPlusTypeFlag || ppValue || pchValue)
+		{
+				// get the constant value
+				ULONG   cbValue;
+				RID rid;
+				IfFailGo(pMiniMd->FindConstantHelper(pd, &rid));
+
+				if (pchValue)
+						*pchValue = 0;
+
+				if (InvalidRid(rid))
+				{
+						// There is no constant value associate with it
+						if (pdwCPlusTypeFlag)
+								*pdwCPlusTypeFlag = ELEMENT_TYPE_VOID;
+
+						if (ppValue)
+								*ppValue = NULL;
+				}
+				else
+				{
+						ConstantRec* pConstantRec;
+						IfFailGo(m_pStgdb->m_MiniMd.GetConstantRecord(rid, &pConstantRec));
+						DWORD dwType;
+
+						// get the type of constant value
+						dwType = pMiniMd->getTypeOfConstant(pConstantRec);
+						if (pdwCPlusTypeFlag)
+								*pdwCPlusTypeFlag = dwType;
+
+						// get the value blob
+						if (ppValue != NULL)
+						{
+								IfFailGo(pMiniMd->getValueOfConstant(pConstantRec, (const BYTE**)ppValue, &cbValue));
+								if (pchValue && dwType == ELEMENT_TYPE_STRING)
+										*pchValue = cbValue / sizeof(WCHAR);
+						}
+				}
+		}
+		// This call has to be last to set 'hr', so CLDB_S_TRUNCATION is not rewritten with S_OK
+		if (szName || pchName)
+				IfFailGo(pMiniMd->getNameOfParam(pParamRec, szName, cchName, pchName));
+
+ErrExit:
+
+		return hr;
 }
 
-HRESULT CordbSymbol::GetAssemblyFromScope (mdAssembly *ptkAssembly) {
-	*ptkAssembly = mono_metadata_make_token (MONO_TABLE_ASSEMBLY, pCordbAssembly->id);
-	DEBUG_PRINTF (1, "CordbSymbol - GetAssemblyFromScope - IMPLEMENTED - id\n");
-	return S_OK;
+HRESULT RegMeta::GetAssemblyFromScope (mdAssembly *ptkAssembly) {
+		HRESULT     hr = NOERROR;
+		CMiniMdRW* pMiniMd = NULL;
+
+		_ASSERTE(ptkAssembly);
+
+		pMiniMd = &(m_pStgdb->m_MiniMd);
+		if (pMiniMd->getCountAssemblys())
+		{
+				*ptkAssembly = TokenFromRid(1, mdtAssembly);
+		}
+		else
+		{
+				IfFailGo(CLDB_E_RECORD_NOTFOUND);
+		}
+ErrExit:
+		END_ENTRYPOINT_NOTHROW;
+		return hr;
 }
 
-HRESULT CordbSymbol::GetCustomAttributeByName ( // S_OK or error.
+HRESULT RegMeta::GetCustomAttributeByName ( // S_OK or error.
 	mdToken tkObj, // [IN] Object with Custom Attribute.
-	LPCWSTR szName, // [IN] Name of desired Custom Attribute.
+	LPCWSTR wzName, // [IN] Name of desired Custom Attribute.
 	const void **ppData, // [OUT] Put pointer to data here.
 	ULONG *pcbData) // [OUT] Put size of data here.
 {
-	int custom_attribute_id;
-	int method_type_id;
-	int type = mono_metadata_token_table (tkObj);
-	Buffer *localbuf2 = NULL;
-	DEBUG_PRINTF (1, "CordbSymbol - GetCustomAttributeByName - IMPLEMENTED\n");
+	HRESULT     hr;                     // A result.
 
-	if (FindTypeDefByNameInternal (szName, custom_attribute_id) != S_OK)
-		return S_FALSE;
-	if (type == MONO_TABLE_ASSEMBLY) {
-		Buffer localbuf;
-		buffer_init (&localbuf, 128);
-		buffer_add_int (&localbuf, mono_metadata_token_index (tkObj));
-		buffer_add_int (&localbuf, custom_attribute_id);
-		int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-			CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_CATTRS, &localbuf);
-		buffer_free (&localbuf);
-		ReceivedReplyPacket *received_reply_packet = pCordbAssembly->pProcess->connection->
-		                                                             get_answer_with_error (cmdId);
-		CHECK_ERROR_RETURN_FALSE (received_reply_packet);
-		localbuf2 = received_reply_packet->buf;
-	}
-	else if (type == MONO_TABLE_METHOD && findMethodByToken (tkObj, method_type_id) == S_OK) {
-		Buffer localbuf;
-		buffer_init (&localbuf, 128);
-		buffer_add_int (&localbuf, method_type_id);
-		buffer_add_int (&localbuf, custom_attribute_id);
-		int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-			CMD_SET_METHOD, CMD_METHOD_GET_CATTRS, &localbuf);
-		buffer_free (&localbuf);
-		ReceivedReplyPacket *received_reply_packet = pCordbAssembly->pProcess->connection->
-		                                                             get_answer_with_error (cmdId);
-		CHECK_ERROR_RETURN_FALSE (received_reply_packet);
-		localbuf2 = received_reply_packet->buf;
-	}
-	else if (type == MONO_TABLE_TYPEDEF && findTypeByToken (tkObj, method_type_id) == S_OK) {
-		Buffer localbuf;
-		buffer_init (&localbuf, 128);
-		buffer_add_int (&localbuf, method_type_id);
-		buffer_add_int (&localbuf, custom_attribute_id);
-		int cmdId = this->pCordbAssembly->pProcess->connection->send_event (
-			CMD_SET_TYPE, CMD_TYPE_GET_CATTRS, &localbuf);
-		buffer_free (&localbuf);
-		ReceivedReplyPacket *received_reply_packet = pCordbAssembly->pProcess->connection->
-		                                                             get_answer_with_error (cmdId);
-		CHECK_ERROR_RETURN_FALSE (received_reply_packet);
-		localbuf2 = received_reply_packet->buf;
-	}
+	LPUTF8      szName;                 // Name in UFT8.
+	int         iLen;                   // A length.
+	CMiniMdRW* pMiniMd = NULL;
 
-	int cinfo = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-	if (cinfo == 0)
-		return S_FALSE;
+	pMiniMd = &(m_pStgdb->m_MiniMd);
 
-	DEBUG_PRINTF (1, "CordbSymbol - GetCustomAttributeByName - IMPLEMENTED\n");
+	iLen = WszWideCharToMultiByte(CP_UTF8, 0, wzName, -1, NULL, 0, 0, 0);
+	szName = (LPUTF8)_alloca(iLen);
+	VERIFY(WszWideCharToMultiByte(CP_UTF8, 0, wzName, -1, szName, iLen, 0, 0));
 
-	if (!wcscmp (szName, L"System.Diagnostics.DebuggerNonUserCodeAttribute") || !wcscmp (
-		szName, L"System.Diagnostics.DebuggerStepThroughAttribute"))
-		return S_FALSE;
-	if (!wcscmp (szName, L"System.Diagnostics.DebuggerHiddenAttribute"))
-		return S_FALSE;
-	if (!wcscmp (szName, L"System.Runtime.CompilerServices.AsyncStateMachineAttribute"))
-		return S_FALSE;
-	if (!wcscmp (szName, L"System.Diagnostics.DebuggerStepperBoundaryAttribute"))
-		return S_FALSE;
+	hr = ImportHelper::GetCustomAttributeByName(pMiniMd, tkObj, szName, ppData, pcbData);
 
-	byte *ret = new byte[6];
-	ret[0] = 1;
-	ret[1] = 0;
-	ret[2] = 7;
-	ret[3] = 1;
-	ret[4] = 0;
-	ret[5] = 0;
-	*ppData = ret;
-	*pcbData = 6;
-	return S_OK;
+	return hr;
 }
 
-BOOL CordbSymbol::IsValidToken ( // True or False.
+BOOL RegMeta::IsValidToken ( // True or False.
 	mdToken tk) // [IN] Given token.
 {
-	DEBUG_PRINTF (1, "CordbSymbol - IsValidToken - IMPLEMENTED - %d\n", tk);
-	return 1;
+		BOOL fRet = FALSE;
+		HRESULT hr = S_OK;
+
+		// If acquiring the lock failed...
+		IfFailGo(hr);
+
+		fRet = m_pStgdb->m_MiniMd._IsValidToken(tk);
+
+ErrExit:
+		return fRet;
 }
 
-HRESULT CordbSymbol::GetNestedClassProps ( // S_OK or error.
+HRESULT RegMeta::GetNestedClassProps ( // S_OK or error.
 	mdTypeDef tdNestedClass, // [IN] NestedClass token.
 	mdTypeDef *ptdEnclosingClass) // [OUT] EnclosingClass token.
 {
-	DEBUG_PRINTF (1, "CordbSymbol - GetNestedClassProps - NOT IMPLEMENTED\n");
-	return S_OK;
+		HRESULT         hr = NOERROR;
+
+		BEGIN_ENTRYPOINT_NOTHROW;
+
+		NestedClassRec* pRecord;
+		ULONG           iRecord;
+		CMiniMdRW* pMiniMd = &(m_pStgdb->m_MiniMd);
+
+
+
+		// If not a typedef -- return error.
+		if (TypeFromToken(tdNestedClass) != mdtTypeDef)
+		{
+				IfFailGo(META_E_INVALID_TOKEN_TYPE); // PostError(META_E_INVALID_TOKEN_TYPE, tdNestedClass));
+		}
+
+		_ASSERTE(TypeFromToken(tdNestedClass) && !IsNilToken(tdNestedClass) && ptdEnclosingClass);
+
+		IfFailGo(pMiniMd->FindNestedClassHelper(tdNestedClass, &iRecord));
+
+		if (InvalidRid(iRecord))
+		{
+				hr = CLDB_E_RECORD_NOTFOUND;
+				goto ErrExit;
+		}
+
+		IfFailGo(pMiniMd->GetNestedClassRecord(iRecord, &pRecord));
+
+		_ASSERTE(tdNestedClass == pMiniMd->getNestedClassOfNestedClass(pRecord));
+		*ptdEnclosingClass = pMiniMd->getEnclosingClassOfNestedClass(pRecord);
+
+ErrExit:
+		return hr;
 }
 
-HRESULT CordbSymbol::GetNativeCallConvFromSig ( // S_OK or error.
+HRESULT RegMeta::GetNativeCallConvFromSig ( // S_OK or error.
 	void const *pvSig, // [IN] Pointer to signature.
 	ULONG cbSig, // [IN] Count of signature bytes.
 	ULONG *pCallConv) // [OUT] Put calling conv here (see CorPinvokemap).
@@ -1804,7 +2899,7 @@ HRESULT CordbSymbol::GetNativeCallConvFromSig ( // S_OK or error.
 	return S_OK;
 }
 
-HRESULT CordbSymbol::IsGlobal ( // S_OK or error.
+HRESULT RegMeta::IsGlobal ( // S_OK or error.
 	mdToken pd, // [IN] Type, Field, or Method token.
 	int *pbGlobal) // [OUT] Put 1 if global, 0 otherwise.
 

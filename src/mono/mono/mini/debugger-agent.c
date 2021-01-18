@@ -7291,34 +7291,6 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		return err;
 
 	switch (command) {
-	case CMD_ASSEMBLY_GET_INFO_FROM_MEMBERREF_TOKEN: {
-		ERROR_DECL (error);
-		int token = decode_int (p, &p, end);
-		int blob_len;
-		const char *ret = mono_metadata_signature_from_memberref_token (ass->image, token, &blob_len, &error);
-		if (ret) {
-			buffer_add_int (buf, blob_len);
-			for (int i = 0 ; i < blob_len; i++) {
-				buffer_add_int (buf, ret[i]);
-			}
-		}
-		int class_token = mono_metadata_class_from_memberref_token (ass->image, token, &error);
-		buffer_add_int (buf, class_token);
-		break;
-	}
-	case CMD_ASSEMBLY_GET_SIGNATURE_FROM_TOKEN: {
-		ERROR_DECL (error);
-		int token = decode_int (p, &p, end);
-		int blob_len;		
-		const char *ret = mono_metadata_local_signature_from_token (ass->image, token, &blob_len, &error);
-		if (ret) {
-			buffer_add_int (buf, blob_len);
-			for (int i = 0 ; i < blob_len; i++) {
-				buffer_add_int (buf, ret[i]);
-			}
-		}
-		break;
-	}
 	case CMD_ASSEMBLY_GET_LOCATION: {
 		buffer_add_string (buf, mono_image_get_filename (ass->image));
 		break;			
@@ -7406,11 +7378,6 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		g_free (original_s);
 		mono_domain_set_fast (d, TRUE);
 
-		break;
-	}
-	case CMD_ASSEMBLY_GET_SIMPLE_NAME: {
-		PRINT_DEBUG_MSG(1, "THAYSTHAYS - CMD_ASSEMBLY_GET_SIMPLE_NAME - %s\n", ass->aname.name);
-		buffer_add_string (buf, ass->aname.name);
 		break;
 	}
 	case CMD_ASSEMBLY_GET_NAME: {
@@ -7516,11 +7483,6 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 			return err;
 		break;
 	}
-	case CMD_ASSEMBLY_GET_TYPEDEFS: {
-		MonoTableInfo *tdef = &ass->image->tables [MONO_TABLE_TYPEDEF];
-		buffer_add_int(buf, tdef->rows);
-		break;
-	}
 	default:
 		return ERR_NOT_IMPLEMENTED;
 	}
@@ -7581,43 +7543,6 @@ field_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 			buffer_add_int (buf, f->type->type);
 			buffer_add_int (buf, m_class_get_type_token (f->parent));
 			buffer_add_int (buf, m_class_get_type_token (mono_class_from_mono_type_internal (f->type)));
-		}
-		break;
-	}
-	default:
-		return ERR_NOT_IMPLEMENTED;
-	}
-
-	return ERR_NONE;
-}
-
-
-
-static ErrorCode
-property_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
-{
-	ErrorCode err;
-	MonoDomain *domain;
-
-	switch (command) {
-	case CMD_PROPERTY_GET_INFO: {
-		MonoProperty *prop = decode_propertyid (p, &p, end, &domain, &err);
-		buffer_add_string (buf, prop->name);
-		PRINT_DEBUG_MSG(1, "THAYSTHAYS - CMD_PROPERTY_GET_INFO - %s\n", prop->name);
-		if (prop->set)
-			buffer_add_int (buf, prop->set->token);
-		else
-			buffer_add_int (buf, 0);
-		if (prop->get)
-			buffer_add_int (buf, prop->get->token);
-		else
-			buffer_add_int (buf, 0);	
-		buffer_add_int (buf, m_class_get_type_token (prop->parent));
-		PRINT_DEBUG_MSG(1, "THAYSTHAYS - CMD_PROPERTY_GET_INFO - 1.0 - %d\n", prop->type[0]);
-		buffer_add_int (buf, prop->type[0]);
-		for (int i = 1 ; i <= prop->type[0]; i++) {
-			PRINT_DEBUG_MSG(1, "THAYSTHAYS - CMD_PROPERTY_GET_INFO - 1.1 - %d\n", prop->type[i]);
-			buffer_add_int (buf, prop->type[i]);
 		}
 		break;
 	}
@@ -8281,22 +8206,16 @@ method_commands_internal (int command, MonoMethod *method, MonoDomain *domain, g
 		buffer_add_int (buf, sig->generic_param_count);
 		buffer_add_typeid (buf, domain, mono_class_from_mono_type_internal (sig->ret));
 		
-		/* Emit parameter names */
-		names = g_new (char *, sig->param_count);
-		mono_method_get_param_names (method, (const char **) names);
-
 		for (i = 0; i < sig->param_count; ++i) {
 			/* FIXME: vararg */
-			if (CHECK_PROTOCOL_VERSION (3, 0))
-				buffer_add_int (buf, sig->params [i]->type);
 			buffer_add_typeid (buf, domain, mono_class_from_mono_type_internal (sig->params [i]));
-			if (CHECK_PROTOCOL_VERSION (3, 0))
-				buffer_add_string (buf, names [i]);
 		}
-
-		if (!CHECK_PROTOCOL_VERSION (3, 0))
-			for (i = 0; i < sig->param_count; ++i)
-				buffer_add_string (buf, names [i]);
+		/* Emit parameter names */
+		names = g_new(char*, sig->param_count);
+		mono_method_get_param_names(method, (const char**)names);
+		for (i = 0; i < sig->param_count; ++i)
+				buffer_add_string(buf, names[i]);
+		g_free(names);
 
 		g_free (names);
 		break;
@@ -8626,26 +8545,8 @@ method_commands_internal (int command, MonoMethod *method, MonoDomain *domain, g
 		buffer_add_methodid (buf, domain, inflated);
 		break;
 	}
-	case CMD_METHOD_RVA_FLAGS: {
-		MonoMethodHeaderSummary header;
-		mono_method_get_header_summary (method, &header);
-		buffer_add_int(buf, header.rva);
-		buffer_add_int(buf, method->flags);
-		break;
-	}
 	case CMD_METHOD_TOKEN: {
 		buffer_add_int(buf, method->token);
-		break;
-	}
-	case CMD_METHOD_SIGNATURE: {
-		ERROR_DECL (error);
-		int len_blob;
-		const char *ret = mono_metadata_method_signature_from_token(m_class_get_image (method->klass), method->token, &len_blob, &error);
-		buffer_add_int (buf, len_blob);
-		for (int i = 0 ; i <= len_blob; i++) {
-			PRINT_DEBUG_MSG(1, "THAYSTHAYS - CMD_METHOD_SIGNATURE - 1.1 - %d\n", ret[i]);
-			buffer_add_int (buf, ret[i]);
-		}
 		break;
 	}
 	case CMD_METHOD_ASSEMBLY: {
@@ -9322,7 +9223,7 @@ object_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 	ErrorCode err;
 	MonoObject *obj;
 	int len, i;
-	MonoClassField *f;
+	MonoClassField *f = NULL;
 	MonoClass *k;
 	gboolean found;
 	gboolean remote_obj = FALSE;
@@ -9359,14 +9260,26 @@ object_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		/* This handles transparent proxies too */
 		buffer_add_typeid (buf, obj->vtable->domain, mono_class_from_mono_type_internal (((MonoReflectionType*)obj->vtable->type)->type));
 		break;
+	case CMD_OBJECT_REF_GET_VALUES_ICORDBG: {
+		gpointer iter;
+		iter = NULL;
+		len = 1;
+		MonoClass *dummy_class;
+		int field_token =  decode_int (p, &p, end);
+		i = 0;
+		f = mono_field_from_token(m_class_get_image (obj_type), field_token, &dummy_class, NULL, error);
+		if (f) {
+			goto get_field_value;
+		}
+		goto invalid_fieldid;
+	}
 	case CMD_OBJECT_REF_GET_VALUES:
 		len = decode_int (p, &p, end);
 
 		for (i = 0; i < len; ++i) {
-			MonoClassField *f = decode_fieldid (p, &p, end, NULL, &err);
+			f = decode_fieldid (p, &p, end, NULL, &err);
 			if (err != ERR_NONE)
 				goto exit;
-
 			/* Check that the field belongs to the object */
 			found = FALSE;
 			for (k = obj_type; k; k = m_class_get_parent (k)) {
@@ -9377,7 +9290,7 @@ object_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 			}
 			if (!found)
 				goto invalid_fieldid;
-
+get_field_value:
 			if (f->type->attrs & FIELD_ATTRIBUTE_STATIC) {
 				guint8 *val;
 				MonoVTable *vtable;
@@ -9530,8 +9443,6 @@ command_set_to_string (CommandSet command_set)
 		return "EVENT";
 	case CMD_SET_POINTER:
 		return "POINTER";
-	case CMD_SET_PROPERTY:
-		return "PROPERTY";		
 	default:
 		return "";
 	}
@@ -9741,10 +9652,6 @@ cmd_to_string (CommandSet set, int command)
 		cmds = field_cmds_str;
 		cmds_len = G_N_ELEMENTS (field_cmds_str);
 		break;
-	case CMD_SET_PROPERTY:
-		cmds = property_cmds_str;
-		cmds_len = G_N_ELEMENTS (property_cmds_str);
-		break;
 	case CMD_SET_EVENT:
 		cmds = event_cmds_str;
 		cmds_len = G_N_ELEMENTS (event_cmds_str);
@@ -9911,9 +9818,6 @@ debugger_thread (void *arg)
 			break;
 		case CMD_SET_FIELD:
 			err = field_commands (command, p, end, &buf);
-			break;
-		case CMD_SET_PROPERTY:
-			err = property_commands (command, p, end, &buf);
 			break;
 		case CMD_SET_TYPE:
 			err = type_commands (command, p, end, &buf);

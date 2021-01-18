@@ -2,38 +2,47 @@
 #define __MONO_DEBUGGER_CORDB_SYMBOL_H__
 
 #include <cordb.hpp>
+#include <cordb-assembly.hpp>
 
+#define     COR_GLOBAL_PARENT_TOKEN     TokenFromRid(1, mdtTypeDef)
 
-class HENUMInternal
-{
-public:
-	GPtrArray *items;
-	int currentIdx;
-};
+class CLiteWeightStgdbRW;
 
-class CordbParameter
-{
-public:
-	int type;
-	char *name;
-	int method_token;
-	CordbParameter (int type, char *name, int method_token);
-};
-
-class CordbSymbol :
+class RegMeta :
 	public IMetaDataImport2,
 	public IMetaDataAssemblyImport
 {
 	int token_id;
 	GHashTable *parameters;
 	CordbAssembly *pCordbAssembly;
+	CordbModule *cordbModule;
+	CLiteWeightStgdbRW* m_pStgdb;
 	int module_id;
 public:
 
-	CordbSymbol (CordbAssembly *cordbAssembly);
-	HRESULT findMethodByToken (mdMethodDef mb, int& func_id);
-	HRESULT findTypeByToken (mdToken mb, int& type_id);
+	RegMeta (CordbAssembly *cordbAssembly, CordbModule *cordbModule);
 
+	inline int IsGlobalMethodParentTk(mdTypeDef td)
+	{
+		return (td == mdTypeDefNil || td == mdTokenNil);
+	}
+
+	
+	int inline IsGlobalMethodParent(mdTypeDef* ptd)
+	{
+		if (IsGlobalMethodParentTk(*ptd))
+		{
+			*ptd = COR_GLOBAL_PARENT_TOKEN;
+			return (true);
+		}
+		return (false);
+	}
+
+	int inline IsGlobalMethodParentToken(mdTypeDef td)
+	{
+		return (td == COR_GLOBAL_PARENT_TOKEN);
+	}
+	
 	STDMETHOD (EnumGenericParams) (
 		HCORENUM *phEnum, // [IN|OUT] Pointer to the enum.
 		mdToken tk, // [IN] TypeDef or MethodDef whose generic parameters are requested
@@ -205,10 +214,7 @@ public:
 		LPCWSTR szTypeDef, // [IN] Name of the Type.
 		mdToken tkEnclosingClass, // [IN] TypeDef/TypeRef for Enclosing class.
 		mdTypeDef *ptd); // [OUT] Put the TypeDef token here.
-
-	HRESULT STDMETHODCALLTYPE FindTypeDefByNameInternal (LPCWSTR szTypeDef, int& klass_id);
-
-
+	
 	HRESULT STDMETHODCALLTYPE GetScopeProps ( // S_OK or error.
 		__out_ecount_part_opt (cchName, *pchName)
 		LPWSTR szName, // [OUT] Put the name here.

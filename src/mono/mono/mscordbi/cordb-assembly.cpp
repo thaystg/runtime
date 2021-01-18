@@ -2,9 +2,6 @@
 #include <fstream>
 
 #include <cordb.hpp>
-#include <cordb-frame.hpp>
-#include <cordb-thread.hpp>
-#include <cordb-stepper.hpp>
 #include <cordb-function.hpp>
 #include <cordb-process.hpp>
 #include <cordb-assembly.hpp>
@@ -218,7 +215,7 @@ HRESULT CordbModule::GetName (
 	Buffer *localbuf2 = pProcess->connection->get_answer (cmdId);
 	char *assembly_name = decode_string (localbuf2->buf, &localbuf2->buf, localbuf2->end);
 
-	DEBUG_PRINTF (1, "CordbModule - assembly_name - %s\n", assembly_name);
+	DEBUG_PRINTF (1, "CordbModule - assembly_name - %d - %s\n", id, assembly_name);
 
 	if (cchName < strlen (assembly_name) + 1) {
 		*pcchName = strlen (assembly_name) + 1;
@@ -300,7 +297,7 @@ HRESULT CordbModule::GetMetaDataInterface (
 	/* [in] */ REFIID riid,
 	           /* [out] */ IUnknown **ppObj) {
 	if (pCordbSymbol == NULL)
-		pCordbSymbol = new CordbSymbol (pAssembly);
+		pCordbSymbol = new RegMeta (pAssembly, this);
 	pCordbSymbol->QueryInterface (riid, (void**)ppObj);
 	DEBUG_PRINTF (1, "CordbModule - GetMetaDataInterface - IMPLEMENTED\n");
 	return S_OK;

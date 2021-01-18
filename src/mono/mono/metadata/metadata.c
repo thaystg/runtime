@@ -2129,132 +2129,6 @@ mono_metadata_parse_signature (MonoImage *image, guint32 token)
 }
 
 /*
- * mono_metadata_signature_from_memberref_token:
- * @image: metadata context
- * @token: metadata token
- * @error: set on error
- *
- * Decode a method signature stored in the STANDALONESIG table
- *
- * Returns: a MonoMethodHeader describing the header. On failure
- * returns NULL and sets @error.
- */
-const char *
-mono_metadata_signature_from_memberref_token (MonoImage *image, guint32 token, int *len_blob, MonoError *error)
-{
-	error_init (error);
-	MonoTableInfo *tables = image->tables;
-	guint32 idx = mono_metadata_token_index (token);
-	guint32 cols [MONO_MEMBERREF_SIZE];
-
-	if (image_is_dynamic (image)) {
-		return NULL;
-	}
-
-	g_assert (mono_metadata_token_table(token) == MONO_TABLE_MEMBERREF);
-		
-	mono_metadata_decode_row(&tables [MONO_TABLE_MEMBERREF], idx - 1, cols, MONO_MEMBERREF_SIZE);
-	const char *sig = mono_metadata_blob_heap (image, cols [MONO_MEMBERREF_SIGNATURE]);
-	*len_blob = mono_metadata_decode_blob_size (sig, &sig);
-	return sig;
-}
-
-
-/*
- * mono_metadata_signature_from_memberref_token:
- * @image: metadata context
- * @token: metadata token
- * @error: set on error
- *
- * Decode a method signature stored in the STANDALONESIG table
- *
- * Returns: a MonoMethodHeader describing the header. On failure
- * returns NULL and sets @error.
- */
-int
-mono_metadata_class_from_memberref_token (MonoImage *image, guint32 token, MonoError *error)
-{
-	error_init (error);
-	MonoTableInfo *tables = image->tables;
-	guint32 idx = mono_metadata_token_index (token);
-	guint32 cols [MONO_MEMBERREF_SIZE];
-
-	if (image_is_dynamic (image)) {
-		return 0;
-	}
-
-	g_assert (mono_metadata_token_table(token) == MONO_TABLE_MEMBERREF);
-		
-	mono_metadata_decode_row(&tables [MONO_TABLE_MEMBERREF], idx - 1, cols, MONO_MEMBERREF_SIZE);
-	return cols [MONO_MEMBERREF_CLASS];
-}
-
-/*
- * mono_metadata_parse_header_checked:
- * @image: metadata context
- * @token: metadata token
- * @error: set on error
- *
- * Decode a method signature stored in the STANDALONESIG table
- *
- * Returns: a MonoMethodHeader describing the header. On failure
- * returns NULL and sets @error.
- */
-const char*
-mono_metadata_local_signature_from_token (MonoImage *image, guint32 token, int *len_blob, MonoError *error)
-{
-	error_init (error);
-	MonoTableInfo *tables = image->tables;
-	guint32 idx = mono_metadata_token_index (token);
-	guint32 cols [MONO_STAND_ALONE_SIGNATURE_SIZE];
-
-	if (image_is_dynamic (image)) {
-		return NULL;
-	}
-
-	g_assert (mono_metadata_token_table(token) == MONO_TABLE_STANDALONESIG);
-		
-	mono_metadata_decode_row(&tables [MONO_TABLE_STANDALONESIG], idx - 1, cols, 1);
-	const char *locals_ptr = mono_metadata_blob_heap (image, cols [MONO_STAND_ALONE_SIGNATURE]);
-	*len_blob = mono_metadata_decode_blob_size (locals_ptr, &locals_ptr);
-
-	return locals_ptr;
-}
-
-/*
- * mono_metadata_method_signature_from_token:
- * @image: metadata context
- * @token: metadata token
- * @error: set on error
- *
- * Decode a method signature stored in the MONO_TABLE_METHOD table
- *
- * Returns: a buffer describing the signature. On failure
- * returns NULL and sets @error.
- */
-const char*
-mono_metadata_method_signature_from_token (MonoImage *image, guint32 token, int *len_blob, MonoError *error)
-{
-	error_init (error);
-	MonoTableInfo *tables = image->tables;
-	guint32 idx = mono_metadata_token_index (token);
-	guint32 cols [MONO_METHOD_SIZE];
-
-	if (image_is_dynamic (image)) {
-		return NULL;
-	}
-
-	g_assert (mono_metadata_token_table(token) == MONO_TABLE_METHOD);
-		
-	mono_metadata_decode_row(&tables [MONO_TABLE_METHOD], idx - 1, cols, MONO_METHOD_SIZE);
-	const char *locals_ptr = mono_metadata_blob_heap (image, cols [MONO_METHOD_SIGNATURE]);
-	*len_blob = mono_metadata_decode_blob_size (locals_ptr, &locals_ptr);
-
-	return locals_ptr;
-}
-
-
-/*
  * mono_metadata_parse_signature_checked:
  * @image: metadata context
  * @token: metadata token
@@ -4475,6 +4349,7 @@ gboolean
 mono_method_get_header_summary (MonoMethod *method, MonoMethodHeaderSummary *summary)
 {
 	int idx;
+	guint32 rva;
 	MonoImage* img;
 	const char *ptr;
 	unsigned char flags, format;
@@ -4510,15 +4385,15 @@ mono_method_get_header_summary (MonoMethod *method, MonoMethodHeaderSummary *sum
 
 	idx = mono_metadata_token_index (method->token);
 	img = m_class_get_image (method->klass);
-	summary->rva = mono_metadata_decode_row_col (&img->tables [MONO_TABLE_METHOD], idx - 1, MONO_METHOD_RVA);
+	rva = mono_metadata_decode_row_col (&img->tables [MONO_TABLE_METHOD], idx - 1, MONO_METHOD_RVA);
 
 	/*We must run the verifier since we'll be decoding it.*/
-	if (!mono_verifier_verify_method_header (img, summary->rva, error)) {
+	if (!mono_verifier_verify_method_header (img, rva, error)) {
 		mono_error_cleanup (error);
 		return FALSE;
 	}
 
-	ptr = mono_image_rva_map (img, summary->rva);
+	ptr = mono_image_rva_map (img, rva);
 	if (!ptr)
 		return FALSE;
 

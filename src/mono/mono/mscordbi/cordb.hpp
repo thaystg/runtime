@@ -39,7 +39,7 @@ class CordbCode;
 class CordbThread;
 class CordbFunction;
 class CordbStepper;
-class CordbSymbol;
+class RegMeta;
 class CordbRegisteSet;
 class CordbClass;
 

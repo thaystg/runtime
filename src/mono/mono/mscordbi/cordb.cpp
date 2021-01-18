@@ -421,7 +421,7 @@ void Connection::process_packet_from_queue () {
 		dbg_lock();
 		g_ptr_array_remove_index_fast (received_packets_to_process, i);
 		dbg_unlock();
-		g_free (req);
+		delete req;
 		i--;
 	}
 	while (i < pending_eval->len) {

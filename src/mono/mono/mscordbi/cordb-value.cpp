@@ -187,8 +187,8 @@ HRESULT STDMETHODCALLTYPE CordbReferenceValue::GetExactType (ICorDebugType **ppT
 		type_id = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
 		int type_id2 = decode_id (localbuf2->buf, &localbuf2->buf, localbuf2->end);
 		int token = decode_int (localbuf2->buf, &localbuf2->buf, localbuf2->end);
-		DEBUG_PRINTF (1, "CordbReferenceValue - GetExactType - IMPLEMENTED - 1.0 - %d - %d\n", type_id, token);
-		klass = new CordbClass (conn, token, module_id);
+		DEBUG_PRINTF (1, "CordbReferenceValue - GetExactType - IMPLEMENTED - 1.0 - %d - %d - %d - %d\n", type_id, token, assembly_id, module_id);
+		klass = new CordbClass (conn, token, assembly_id);
 		cordbtype = new CordbType (type, klass);
 		*ppType = static_cast<ICorDebugType*> (cordbtype);
 		return S_OK;
@@ -475,10 +475,9 @@ HRESULT STDMETHODCALLTYPE CordbObjectValue::GetFieldValue (ICorDebugClass *pClas
 	Buffer localbuf;
 	buffer_init (&localbuf, 128);
 	buffer_add_id (&localbuf, object_id);
-	buffer_add_int (&localbuf, 1);
-	buffer_add_id (&localbuf, mono_metadata_token_index (fieldDef));
+	buffer_add_int (&localbuf, fieldDef);
 
-	int cmdId = conn->send_event (CMD_SET_OBJECT_REF, CMD_OBJECT_REF_GET_VALUES, &localbuf);
+	int cmdId = conn->send_event (CMD_SET_OBJECT_REF, CMD_OBJECT_REF_GET_VALUES_ICORDBG, &localbuf);
 	buffer_free (&localbuf);
 
 	ReceivedReplyPacket *received_reply_packet = conn->get_answer_with_error (cmdId);

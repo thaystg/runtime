@@ -12,7 +12,7 @@ class CordbModule :
 public:
 	int id; //id on mono side;
 	CordbProcess *pProcess;
-	CordbSymbol *pCordbSymbol;
+	RegMeta *pCordbSymbol;
 	CordbAssembly *pAssembly;
 	guint8 *assembly_metadata_blob;
 	guint32 assembly_metadata_len;
