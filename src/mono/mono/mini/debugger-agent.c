@@ -7449,7 +7449,6 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
         error_init (error);
         MonoMethod* mono_method = mono_get_method_checked (ass->image, token, NULL, NULL, error);
         if (!is_ok (error)) {
-			PRINT_DEBUG_MSG(1, "THAYSTHAYS - ERROR - %s - %s\n", mono_error_get_message (error), ass->aname.name);
             add_error_string (buf, mono_error_get_message (error));
             mono_error_cleanup (error);
             return ERR_INVALID_ARGUMENT;
@@ -7685,7 +7684,6 @@ type_commands_internal (int command, MonoClass *klass, MonoDomain *domain, guint
 			buffer_add_methodid (buf, domain, m);
 			if (CHECK_PROTOCOL_VERSION (3, 0))
 				buffer_add_int(buf, m->token);
-			PRINT_DEBUG_MSG(1, "THAYSTHAYS - m->token - %d\n", m->token);
 			i ++;
 		}
 		g_assert (i == nmethods);
@@ -8205,18 +8203,16 @@ method_commands_internal (int command, MonoMethod *method, MonoDomain *domain, g
 		buffer_add_int (buf, sig->param_count);
 		buffer_add_int (buf, sig->generic_param_count);
 		buffer_add_typeid (buf, domain, mono_class_from_mono_type_internal (sig->ret));
-		
 		for (i = 0; i < sig->param_count; ++i) {
 			/* FIXME: vararg */
 			buffer_add_typeid (buf, domain, mono_class_from_mono_type_internal (sig->params [i]));
 		}
-		/* Emit parameter names */
-		names = g_new(char*, sig->param_count);
-		mono_method_get_param_names(method, (const char**)names);
-		for (i = 0; i < sig->param_count; ++i)
-				buffer_add_string(buf, names[i]);
-		g_free(names);
 
+		/* Emit parameter names */
+		names = g_new (char*, sig->param_count);
+		mono_method_get_param_names (method, (const char**)names);
+		for (i = 0; i < sig->param_count; ++i)
+				buffer_add_string (buf, names[i]);
 		g_free (names);
 		break;
 	}
@@ -9856,7 +9852,7 @@ debugger_thread (void *arg)
 				buffer_reply_packet (id, err, &buf);
 			} else {
 				send_reply_packet (id, err, &buf);
-				PRINT_DEBUG_MSG (1, "[dbg] Sent reply to %d [at=%lx].\n", id, (long)mono_100ns_ticks () / 10000);
+				//PRINT_DEBUG_MSG (1, "[dbg] Sent reply to %d [at=%lx].\n", id, (long)mono_100ns_ticks () / 10000);
 			}
 		}
 
