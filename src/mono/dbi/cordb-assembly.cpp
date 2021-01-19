@@ -7,13 +7,13 @@
 #include <fstream>
 #include <iostream>
 
-#include <cordb-appdomain.hpp>
-#include <cordb-assembly.hpp>
-#include <cordb-class.hpp>
-#include <cordb-function.hpp>
-#include <cordb-process.hpp>
-#include <cordb-symbol.hpp>
-#include <cordb.hpp>
+#include <cordb-appdomain.h>
+#include <cordb-assembly.h>
+#include <cordb-class.h>
+#include <cordb-function.h>
+#include <cordb-process.h>
+#include <cordb-symbol.h>
+#include <cordb.h>
 
 using namespace std;
 

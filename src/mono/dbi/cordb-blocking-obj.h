@@ -1,13 +1,13 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 //
-// File: CORDB-BLOCKING-OBJ.HPP
+// File: CORDB-BLOCKING-OBJ.H
 //
 
 #ifndef __MONO_DEBUGGER_CORDB_BLOCKING_OBJ_H__
 #define __MONO_DEBUGGER_CORDB_BLOCKING_OBJ_H__
 
-#include <cordb.hpp>
+#include <cordb.h>
 
 class CordbBlockingObjectEnum : public CordbBaseMono,
                                 public ICorDebugBlockingObjectEnum {

@@ -1,13 +1,13 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 //
-// File: CORDB-REGISTER.HPP
+// File: CORDB-REGISTER.H
 //
 
 #ifndef __MONO_DEBUGGER_CORDB_REGISTER_H__
 #define __MONO_DEBUGGER_CORDB_REGISTER_H__
 
-#include <cordb.hpp>
+#include <cordb.h>
 
 class CordbRegisteSet : public CordbBaseMono, public ICorDebugRegisterSet {
   guint8 *ctx;

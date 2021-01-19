@@ -1,14 +1,14 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 //
-// File: CORDB-FUNCTION.HPP
+// File: CORDB-FUNCTION.H
 //
 
 #ifndef __MONO_DEBUGGER_CORDB_FUNCTION_H__
 #define __MONO_DEBUGGER_CORDB_FUNCTION_H__
 
-#include <cordb-assembly.hpp>
-#include <cordb.hpp>
+#include <cordb-assembly.h>
+#include <cordb.h>
 
 class CordbFunction : public CordbBaseMono,
                       public ICorDebugFunction,

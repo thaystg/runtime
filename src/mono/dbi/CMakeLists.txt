@@ -129,41 +129,41 @@ set(MDRUNTIMERW_HEADERS_BASE
 
 set(mscorbi_sources_base
     cordb.cpp
-    cordb.hpp
+    cordb.h
     cordb-appdomain.cpp
-    cordb-appdomain.hpp
+    cordb-appdomain.h
     cordb-assembly.cpp
-    cordb-assembly.hpp
+    cordb-assembly.h
     cordb-blocking-obj.cpp
-    cordb-blocking-obj.hpp
+    cordb-blocking-obj.h
     cordb-breakpoint.cpp
-    cordb-breakpoint.hpp
+    cordb-breakpoint.h
     cordb-chain.cpp
-    cordb-chain.hpp
+    cordb-chain.h
     cordb-class.cpp
-    cordb-class.hpp
+    cordb-class.h
     cordb-code.cpp
-    cordb-code.hpp
+    cordb-code.h
     cordb-eval.cpp
-    cordb-eval.hpp
+    cordb-eval.h
     cordb-frame.cpp
-    cordb-frame.hpp
+    cordb-frame.h
     cordb-function.cpp
-    cordb-function.hpp
+    cordb-function.h
     cordb-process.cpp
-    cordb-process.hpp
+    cordb-process.h
     cordb-register.cpp
-    cordb-register.hpp
+    cordb-register.h
     cordb-stepper.cpp
-    cordb-stepper.hpp
+    cordb-stepper.h
     cordb-symbol.cpp
-    cordb-symbol.hpp
+    cordb-symbol.h
     cordb-thread.cpp
-    cordb-thread.hpp
+    cordb-thread.h
     cordb-type.cpp
-    cordb-type.hpp
+    cordb-type.h
     cordb-value.cpp
-    cordb-value.hpp
+    cordb-value.h
 )
 
 if(HOST_WIN32)

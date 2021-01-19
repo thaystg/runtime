@@ -21,14 +21,14 @@
 
 #include <metamodelrw.h>
 
-#include <cordb.hpp>
-#include <cordb-frame.hpp>
-#include <cordb-thread.hpp>
-#include <cordb-stepper.hpp>
-#include <cordb-symbol.hpp>
-#include <cordb-assembly.hpp>
-#include <cordb-process.hpp>
-#include <cordb-function.hpp>
+#include <cordb.h>
+#include <cordb-frame.h>
+#include <cordb-thread.h>
+#include <cordb-stepper.h>
+#include <cordb-symbol.h>
+#include <cordb-assembly.h>
+#include <cordb-process.h>
+#include <cordb-function.h>
 
 
 using namespace std;

@@ -7,18 +7,18 @@
 #include <fstream>
 #include <iostream>
 
-#include <cordb-appdomain.hpp>
-#include <cordb-assembly.hpp>
-#include <cordb-breakpoint.hpp>
-#include <cordb-code.hpp>
-#include <cordb-eval.hpp>
-#include <cordb-frame.hpp>
-#include <cordb-function.hpp>
-#include <cordb-process.hpp>
-#include <cordb-stepper.hpp>
-#include <cordb-symbol.hpp>
-#include <cordb-thread.hpp>
-#include <cordb.hpp>
+#include <cordb-appdomain.h>
+#include <cordb-assembly.h>
+#include <cordb-breakpoint.h>
+#include <cordb-code.h>
+#include <cordb-eval.h>
+#include <cordb-frame.h>
+#include <cordb-function.h>
+#include <cordb-process.h>
+#include <cordb-stepper.h>
+#include <cordb-symbol.h>
+#include <cordb-thread.h>
+#include <cordb.h>
 
 int convert_mono_type_2_icordbg_size(int type) {
   switch (type) {

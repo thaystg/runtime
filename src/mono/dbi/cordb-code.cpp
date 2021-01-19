@@ -7,19 +7,19 @@
 #include <fstream>
 #include <iostream>
 
-#include <cordb-blocking-obj.hpp>
-#include <cordb-breakpoint.hpp>
-#include <cordb-chain.hpp>
-#include <cordb-class.hpp>
-#include <cordb-code.hpp>
-#include <cordb-frame.hpp>
-#include <cordb-function.hpp>
-#include <cordb-process.hpp>
-#include <cordb-stepper.hpp>
-#include <cordb-thread.hpp>
-#include <cordb-type.hpp>
-#include <cordb-value.hpp>
-#include <cordb.hpp>
+#include <cordb-blocking-obj.h>
+#include <cordb-breakpoint.h>
+#include <cordb-chain.h>
+#include <cordb-class.h>
+#include <cordb-code.h>
+#include <cordb-frame.h>
+#include <cordb-function.h>
+#include <cordb-process.h>
+#include <cordb-stepper.h>
+#include <cordb-thread.h>
+#include <cordb-type.h>
+#include <cordb-value.h>
+#include <cordb.h>
 
 using namespace std;
 

@@ -1,14 +1,14 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 //
-// File: CORDB-SYMBOL.HPP
+// File: CORDB-SYMBOL.H
 //
 
 #ifndef __MONO_DEBUGGER_CORDB_SYMBOL_H__
 #define __MONO_DEBUGGER_CORDB_SYMBOL_H__
 
-#include <cordb-assembly.hpp>
-#include <cordb.hpp>
+#include <cordb-assembly.h>
+#include <cordb.h>
 
 #define COR_GLOBAL_PARENT_TOKEN TokenFromRid(1, mdtTypeDef)
 

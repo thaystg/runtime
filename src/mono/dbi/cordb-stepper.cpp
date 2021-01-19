@@ -7,11 +7,11 @@
 #include <fstream>
 #include <iostream>
 
-#include <cordb-frame.hpp>
-#include <cordb-process.hpp>
-#include <cordb-stepper.hpp>
-#include <cordb-thread.hpp>
-#include <cordb.hpp>
+#include <cordb-frame.h>
+#include <cordb-process.h>
+#include <cordb-stepper.h>
+#include <cordb-thread.h>
+#include <cordb.h>
 
 using namespace std;
 

@@ -7,16 +7,16 @@
 #include <fstream>
 #include <iostream>
 
-#include <cordb-appdomain.hpp>
-#include <cordb-blocking-obj.hpp>
-#include <cordb-chain.hpp>
-#include <cordb-eval.hpp>
-#include <cordb-frame.hpp>
-#include <cordb-process.hpp>
-#include <cordb-register.hpp>
-#include <cordb-stepper.hpp>
-#include <cordb-thread.hpp>
-#include <cordb.hpp>
+#include <cordb-appdomain.h>
+#include <cordb-blocking-obj.h>
+#include <cordb-chain.h>
+#include <cordb-eval.h>
+#include <cordb-frame.h>
+#include <cordb-process.h>
+#include <cordb-register.h>
+#include <cordb-stepper.h>
+#include <cordb-thread.h>
+#include <cordb.h>
 
 using namespace std;
 

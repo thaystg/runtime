@@ -1,13 +1,13 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 //
-// File: CORDB-ASSEMBLY.HPP
+// File: CORDB-ASSEMBLY.H
 //
 
 #ifndef __MONO_DEBUGGER_CORDB_ASSEMBLY_H__
 #define __MONO_DEBUGGER_CORDB_ASSEMBLY_H__
 
-#include <cordb.hpp>
+#include <cordb.h>
 
 class CordbModule : public CordbBaseMono,
                     public ICorDebugModule,

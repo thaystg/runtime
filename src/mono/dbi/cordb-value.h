@@ -1,14 +1,14 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 //
-// File: CORDB-VALUE.HPP
+// File: CORDB-VALUE.H
 //
 
 #ifndef __MONO_DEBUGGER_CORDB_VALUE_H__
 #define __MONO_DEBUGGER_CORDB_VALUE_H__
 
-#include <cordb-type.hpp>
-#include <cordb.hpp>
+#include <cordb-type.h>
+#include <cordb.h>
 
 union CordbContent {
   gint16 charValue;

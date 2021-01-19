@@ -1,13 +1,13 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 //
-// File: CORDB-THREAD.HPP
+// File: CORDB-THREAD.H
 //
 
 #ifndef __MONO_DEBUGGER_CORDB_THREAD_H__
 #define __MONO_DEBUGGER_CORDB_THREAD_H__
 
-#include <cordb.hpp>
+#include <cordb.h>
 
 class CordbThread : public CordbBaseMono,
                     public ICorDebugThread,

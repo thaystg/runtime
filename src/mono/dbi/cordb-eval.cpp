@@ -4,12 +4,12 @@
 // File: CORDB-EVAL.CPP
 //
 
-#include <cordb-eval.hpp>
-#include <cordb-function.hpp>
-#include <cordb-process.hpp>
-#include <cordb-thread.hpp>
-#include <cordb-value.hpp>
-#include <cordb.hpp>
+#include <cordb-eval.h>
+#include <cordb-function.h>
+#include <cordb-process.h>
+#include <cordb-thread.h>
+#include <cordb-value.h>
+#include <cordb.h>
 
 CordbEval::CordbEval(Connection *conn, CordbThread *thread)
     : CordbBaseMono(conn) {
