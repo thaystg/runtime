@@ -1,609 +1,467 @@
-#include <iostream>
-#include <fstream>
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+//
+// File: CORDB-PROCESS.CPP
+//
 
-#include <cordb.hpp>
+#include <fstream>
+#include <iostream>
+
+#include <cordb-appdomain.hpp>
 #include <cordb-frame.hpp>
-#include <cordb-thread.hpp>
-#include <cordb-stepper.hpp>
 #include <cordb-function.hpp>
 #include <cordb-process.hpp>
-#include <cordb-appdomain.hpp>
+#include <cordb-stepper.hpp>
+#include <cordb-thread.hpp>
+#include <cordb.hpp>
 
 using namespace std;
 
-CordbProcess::CordbProcess () {
-	suspended = false;
-	appdomains = g_ptr_array_new();
-	managed_event_queue = new ManagedEventQueue();
-	//eval_count = 0;
+CordbProcess::CordbProcess() : CordbBaseMono(NULL) {
+  suspended = false;
+  appdomains = g_ptr_array_new();
 }
 
-HRESULT CordbProcess::EnumerateLoaderHeapMemoryRegions (
-	/* [out] */ ICorDebugMemoryRangeEnum **ppRanges) {
-	DEBUG_PRINTF (1, "CordbProcess - EnumerateLoaderHeapMemoryRegions - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::EnumerateLoaderHeapMemoryRegions(
+    /* [out] */ ICorDebugMemoryRangeEnum **ppRanges) {
+  DEBUG_PRINTF(
+      1, "CordbProcess - EnumerateLoaderHeapMemoryRegions - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::EnableGCNotificationEvents (
-	BOOL fEnable) {
-	DEBUG_PRINTF (1, "CordbProcess - EnableGCNotificationEvents - NOT IMPLEMENTED\n");
+HRESULT CordbProcess::EnableGCNotificationEvents(BOOL fEnable) {
+  DEBUG_PRINTF(1,
+               "CordbProcess - EnableGCNotificationEvents - NOT IMPLEMENTED\n");
 
-	return S_OK;
+  return S_OK;
 }
 
-HRESULT CordbProcess::EnableExceptionCallbacksOutsideOfMyCode (
-	/* [in] */ BOOL enableExceptionsOutsideOfJMC) {
-	DEBUG_PRINTF (1, "CordbProcess - EnableExceptionCallbacksOutsideOfMyCode - NOT IMPLEMENTED\n");
+HRESULT CordbProcess::EnableExceptionCallbacksOutsideOfMyCode(
+    /* [in] */ BOOL enableExceptionsOutsideOfJMC) {
+  DEBUG_PRINTF(1, "CordbProcess - EnableExceptionCallbacksOutsideOfMyCode - "
+                  "NOT IMPLEMENTED\n");
 
-	return S_OK;
+  return S_OK;
 }
 
-HRESULT CordbProcess::SetWriteableMetadataUpdateMode (
-	WriteableMetadataUpdateMode flags) {
-	DEBUG_PRINTF (1, "CordbProcess - SetWriteableMetadataUpdateMode - NOT IMPLEMENTED\n");
+HRESULT CordbProcess::SetWriteableMetadataUpdateMode(
+    WriteableMetadataUpdateMode flags) {
+  DEBUG_PRINTF(
+      1, "CordbProcess - SetWriteableMetadataUpdateMode - NOT IMPLEMENTED\n");
 
-	return S_OK;
+  return S_OK;
 }
 
-HRESULT CordbProcess::GetGCHeapInformation (
-	/* [out] */ COR_HEAPINFO *pHeapInfo) {
-	DEBUG_PRINTF (1, "CordbProcess - GetGCHeapInformation - NOT IMPLEMENTED\n");
+HRESULT CordbProcess::GetGCHeapInformation(
+    /* [out] */ COR_HEAPINFO *pHeapInfo) {
+  DEBUG_PRINTF(1, "CordbProcess - GetGCHeapInformation - NOT IMPLEMENTED\n");
 
-	return S_OK;
+  return S_OK;
 }
 
-HRESULT CordbProcess::EnumerateHeap (
-	/* [out] */ ICorDebugHeapEnum **ppObjects) {
-	DEBUG_PRINTF (1, "CordbProcess - EnumerateHeap - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::EnumerateHeap(
+    /* [out] */ ICorDebugHeapEnum **ppObjects) {
+  DEBUG_PRINTF(1, "CordbProcess - EnumerateHeap - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::EnumerateHeapRegions (
-	/* [out] */ ICorDebugHeapSegmentEnum **ppRegions) {
-	DEBUG_PRINTF (1, "CordbProcess - EnumerateHeapRegions - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::EnumerateHeapRegions(
+    /* [out] */ ICorDebugHeapSegmentEnum **ppRegions) {
+  DEBUG_PRINTF(1, "CordbProcess - EnumerateHeapRegions - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::GetObject (
-	/* [in] */ CORDB_ADDRESS addr,
-	           /* [out] */ ICorDebugObjectValue **pObject) {
-	DEBUG_PRINTF (1, "CordbProcess - GetObject - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::GetObject(
+    /* [in] */ CORDB_ADDRESS addr,
+    /* [out] */ ICorDebugObjectValue **pObject) {
+  DEBUG_PRINTF(1, "CordbProcess - GetObject - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::EnumerateGCReferences (
-	/* [in] */ BOOL enumerateWeakReferences,
-	           /* [out] */ ICorDebugGCReferenceEnum **ppEnum) {
-	DEBUG_PRINTF (1, "CordbProcess - EnumerateGCReferences - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::EnumerateGCReferences(
+    /* [in] */ BOOL enumerateWeakReferences,
+    /* [out] */ ICorDebugGCReferenceEnum **ppEnum) {
+  DEBUG_PRINTF(1, "CordbProcess - EnumerateGCReferences - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::EnumerateHandles (
-	/* [in] */ CorGCReferenceType types,
-	           /* [out] */ ICorDebugGCReferenceEnum **ppEnum) {
-	DEBUG_PRINTF (1, "CordbProcess - EnumerateHandles - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::EnumerateHandles(
+    /* [in] */ CorGCReferenceType types,
+    /* [out] */ ICorDebugGCReferenceEnum **ppEnum) {
+  DEBUG_PRINTF(1, "CordbProcess - EnumerateHandles - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::GetTypeID (
-	/* [in] */ CORDB_ADDRESS obj,
-	           /* [out] */ COR_TYPEID *pId) {
-	DEBUG_PRINTF (1, "CordbProcess - GetTypeID - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::GetTypeID(
+    /* [in] */ CORDB_ADDRESS obj,
+    /* [out] */ COR_TYPEID *pId) {
+  DEBUG_PRINTF(1, "CordbProcess - GetTypeID - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::GetTypeForTypeID (
-	/* [in] */ COR_TYPEID id,
-	           /* [out] */ ICorDebugType **ppType) {
-	DEBUG_PRINTF (1, "CordbProcess - GetTypeForTypeID - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::GetTypeForTypeID(
+    /* [in] */ COR_TYPEID id,
+    /* [out] */ ICorDebugType **ppType) {
+  DEBUG_PRINTF(1, "CordbProcess - GetTypeForTypeID - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::GetArrayLayout (
-	/* [in] */ COR_TYPEID id,
-	           /* [out] */ COR_ARRAY_LAYOUT *pLayout) {
-	DEBUG_PRINTF (1, "CordbProcess - GetArrayLayout - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::GetArrayLayout(
+    /* [in] */ COR_TYPEID id,
+    /* [out] */ COR_ARRAY_LAYOUT *pLayout) {
+  DEBUG_PRINTF(1, "CordbProcess - GetArrayLayout - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::GetTypeLayout (
-	/* [in] */ COR_TYPEID id,
-	           /* [out] */ COR_TYPE_LAYOUT *pLayout) {
-	DEBUG_PRINTF (1, "CordbProcess - GetTypeLayout - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::GetTypeLayout(
+    /* [in] */ COR_TYPEID id,
+    /* [out] */ COR_TYPE_LAYOUT *pLayout) {
+  DEBUG_PRINTF(1, "CordbProcess - GetTypeLayout - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::GetTypeFields (
-	/* [in] */ COR_TYPEID id,
-	           ULONG32 celt,
-	           COR_FIELD fields[],
-	           ULONG32 *pceltNeeded) {
-	DEBUG_PRINTF (1, "CordbProcess - GetTypeFields - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::GetTypeFields(
+    /* [in] */ COR_TYPEID id, ULONG32 celt, COR_FIELD fields[],
+    ULONG32 *pceltNeeded) {
+  DEBUG_PRINTF(1, "CordbProcess - GetTypeFields - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::EnableNGENPolicy (
-	/* [in] */ CorDebugNGENPolicy ePolicy) {
-	DEBUG_PRINTF (1, "CordbProcess - EnableNGENPolicy - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::EnableNGENPolicy(
+    /* [in] */ CorDebugNGENPolicy ePolicy) {
+  DEBUG_PRINTF(1, "CordbProcess - EnableNGENPolicy - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::Filter (
-	/* [size_is][length_is][in] */ const BYTE pRecord[],
-	                               /* [in] */ DWORD countBytes,
-	                               /* [in] */ CorDebugRecordFormat format,
-	                               /* [in] */ DWORD dwFlags,
-	                               /* [in] */ DWORD dwThreadId,
-	                               /* [in] */ ICorDebugManagedCallback *pCallback,
-	                               /* [out][in] */ CORDB_CONTINUE_STATUS *pContinueStatus) {
-	DEBUG_PRINTF (1, "CordbProcess - Filter - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::Filter(
+    /* [size_is][length_is][in] */ const BYTE pRecord[],
+    /* [in] */ DWORD countBytes,
+    /* [in] */ CorDebugRecordFormat format,
+    /* [in] */ DWORD dwFlags,
+    /* [in] */ DWORD dwThreadId,
+    /* [in] */ ICorDebugManagedCallback *pCallback,
+    /* [out][in] */ CORDB_CONTINUE_STATUS *pContinueStatus) {
+  DEBUG_PRINTF(1, "CordbProcess - Filter - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::ProcessStateChanged (
-	/* [in] */ CorDebugStateChange eChange) {
-	DEBUG_PRINTF (1, "CordbProcess - ProcessStateChanged - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::ProcessStateChanged(
+    /* [in] */ CorDebugStateChange eChange) {
+  DEBUG_PRINTF(1, "CordbProcess - ProcessStateChanged - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::SetEnableCustomNotification (
-	ICorDebugClass *pClass,
-	BOOL fEnable) {
-	DEBUG_PRINTF (1, "CordbProcess - SetEnableCustomNotification - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::SetEnableCustomNotification(ICorDebugClass *pClass,
+                                                  BOOL fEnable) {
+  DEBUG_PRINTF(
+      1, "CordbProcess - SetEnableCustomNotification - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::GetID (
-	/* [out] */ DWORD *pdwProcessId) {
-	DEBUG_PRINTF (1, "CordbProcess - GetID - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::GetID(
+    /* [out] */ DWORD *pdwProcessId) {
+  DEBUG_PRINTF(1, "CordbProcess - GetID - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::GetHandle (
-	/* [out] */ HPROCESS *phProcessHandle) {
-	DEBUG_PRINTF (1, "CordbProcess - GetHandle - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::GetHandle(
+    /* [out] */ HPROCESS *phProcessHandle) {
+  DEBUG_PRINTF(1, "CordbProcess - GetHandle - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::GetThread (
-	/* [in] */ DWORD dwThreadId,
-	           /* [out] */ ICorDebugThread **ppThread) {
-	DEBUG_PRINTF (1, "CordbProcess - GetThread - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::GetThread(
+    /* [in] */ DWORD dwThreadId,
+    /* [out] */ ICorDebugThread **ppThread) {
+  DEBUG_PRINTF(1, "CordbProcess - GetThread - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::EnumerateObjects (
-	/* [out] */ ICorDebugObjectEnum **ppObjects) {
-	DEBUG_PRINTF (1, "CordbProcess - EnumerateObjects - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::EnumerateObjects(
+    /* [out] */ ICorDebugObjectEnum **ppObjects) {
+  DEBUG_PRINTF(1, "CordbProcess - EnumerateObjects - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::IsTransitionStub (
-	/* [in] */ CORDB_ADDRESS address,
-	           /* [out] */ BOOL *pbTransitionStub) {
-	DEBUG_PRINTF (1, "CordbProcess - IsTransitionStub - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::IsTransitionStub(
+    /* [in] */ CORDB_ADDRESS address,
+    /* [out] */ BOOL *pbTransitionStub) {
+  DEBUG_PRINTF(1, "CordbProcess - IsTransitionStub - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::IsOSSuspended (
-	/* [in] */ DWORD threadID,
-	           /* [out] */ BOOL *pbSuspended) {
-	DEBUG_PRINTF (1, "CordbProcess - IsOSSuspended - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::IsOSSuspended(
+    /* [in] */ DWORD threadID,
+    /* [out] */ BOOL *pbSuspended) {
+  DEBUG_PRINTF(1, "CordbProcess - IsOSSuspended - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::GetThreadContext (
-	/* [in] */ DWORD threadID,
-	           /* [in] */ ULONG32 contextSize,
-	           /* [size_is][length_is][out][in] */ BYTE context[]) {
-	DEBUG_PRINTF (1, "CordbProcess - GetThreadContext - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::GetThreadContext(
+    /* [in] */ DWORD threadID,
+    /* [in] */ ULONG32 contextSize,
+    /* [size_is][length_is][out][in] */ BYTE context[]) {
+  DEBUG_PRINTF(1, "CordbProcess - GetThreadContext - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::SetThreadContext (
-	/* [in] */ DWORD threadID,
-	           /* [in] */ ULONG32 contextSize,
-	           /* [size_is][length_is][in] */ BYTE context[]) {
-	DEBUG_PRINTF (1, "CordbProcess - SetThreadContext - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::SetThreadContext(
+    /* [in] */ DWORD threadID,
+    /* [in] */ ULONG32 contextSize,
+    /* [size_is][length_is][in] */ BYTE context[]) {
+  DEBUG_PRINTF(1, "CordbProcess - SetThreadContext - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::ReadMemory (
-	/* [in] */ CORDB_ADDRESS address,
-	           /* [in] */ DWORD size,
-	           /* [length_is][size_is][out] */ BYTE buffer[],
-	           /* [out] */ SIZE_T *read) {
-	memcpy (buffer, (void*)address, size);
-	if (read != NULL)
-		*read = size;
-	DEBUG_PRINTF (1, "CordbProcess - ReadMemory - IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::ReadMemory(
+    /* [in] */ CORDB_ADDRESS address,
+    /* [in] */ DWORD size,
+    /* [length_is][size_is][out] */ BYTE buffer[],
+    /* [out] */ SIZE_T *read) {
+  memcpy(buffer, (void *)address, size);
+  if (read != NULL)
+    *read = size;
+  DEBUG_PRINTF(1, "CordbProcess - ReadMemory - IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::WriteMemory (
-	/* [in] */ CORDB_ADDRESS address,
-	           /* [in] */ DWORD size,
-	           /* [size_is][in] */ BYTE buffer[],
-	           /* [out] */ SIZE_T *written) {
-	DEBUG_PRINTF (1, "CordbProcess - WriteMemory - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::WriteMemory(
+    /* [in] */ CORDB_ADDRESS address,
+    /* [in] */ DWORD size,
+    /* [size_is][in] */ BYTE buffer[],
+    /* [out] */ SIZE_T *written) {
+  DEBUG_PRINTF(1, "CordbProcess - WriteMemory - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::ClearCurrentException (
-	/* [in] */ DWORD threadID) {
-	DEBUG_PRINTF (1, "CordbProcess - ClearCurrentException - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::ClearCurrentException(
+    /* [in] */ DWORD threadID) {
+  DEBUG_PRINTF(1, "CordbProcess - ClearCurrentException - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::EnableLogMessages (
-	/* [in] */ BOOL fOnOff) {
-	DEBUG_PRINTF (1, "CordbProcess - EnableLogMessages - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::EnableLogMessages(
+    /* [in] */ BOOL fOnOff) {
+  DEBUG_PRINTF(1, "CordbProcess - EnableLogMessages - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::ModifyLogSwitch (
-	/* [annotation][in] */
-	_In_ WCHAR *pLogSwitchName,
-	/* [in] */ LONG lLevel) {
-	DEBUG_PRINTF (1, "CordbProcess - ModifyLogSwitch - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::ModifyLogSwitch(
+    /* [annotation][in] */
+    _In_ WCHAR *pLogSwitchName,
+    /* [in] */ LONG lLevel) {
+  DEBUG_PRINTF(1, "CordbProcess - ModifyLogSwitch - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::EnumerateAppDomains (
-	/* [out] */ ICorDebugAppDomainEnum **ppAppDomains) {
-	*ppAppDomains = new CordbAppDomainEnum (this);
-	DEBUG_PRINTF (1, "CordbProcess - EnumerateAppDomains - IMPLEMENTED\n");
-	return S_OK;
-}
-
-HRESULT CordbProcess::GetObject (
-	/* [out] */ ICorDebugValue **ppObject) {
-	DEBUG_PRINTF (1, "CordbProcess - GetObject - NOT IMPLEMENTED\n");
-	return S_OK;
-}
-
-HRESULT CordbProcess::ThreadForFiberCookie (
-	/* [in] */ DWORD fiberCookie,
-	           /* [out] */ ICorDebugThread **ppThread) {
-	DEBUG_PRINTF (1, "CordbProcess - ThreadForFiberCookie - NOT IMPLEMENTED\n");
-	return S_OK;
-}
-
-HRESULT CordbProcess::GetHelperThreadID (
-	/* [out] */ DWORD *pThreadID) {
-	DEBUG_PRINTF (1, "GetHelperThreadID - NOT IMPLEMENTED\n");
-	return S_OK;
-}
-
-HRESULT CordbProcess::GetThreadForTaskID (
-	/* [in] */ TASKID taskid,
-	           /* [out] */ ICorDebugThread2 **ppThread) {
-	DEBUG_PRINTF (1, "CordbProcess - GetHelperThreadID - NOT IMPLEMENTED\n");
-	return S_OK;
-}
-
-HRESULT CordbProcess::GetVersion (
-	/* [out] */ COR_VERSION *version) {
-	DEBUG_PRINTF (1, "CordbProcess - GetVersion - NOT IMPLEMENTED\n");
-	return S_OK;
-}
-
-HRESULT CordbProcess::SetUnmanagedBreakpoint (
-	/* [in] */ CORDB_ADDRESS address,
-	           /* [in] */ ULONG32 bufsize,
-	           /* [length_is][size_is][out] */ BYTE buffer[],
-	           /* [out] */ ULONG32 *bufLen) {
-	DEBUG_PRINTF (1, "CordbProcess - SetUnmanagedBreakpoint - NOT IMPLEMENTED\n");
-	return S_OK;
-}
-
-HRESULT CordbProcess::ClearUnmanagedBreakpoint (
-	/* [in] */ CORDB_ADDRESS address) {
-	DEBUG_PRINTF (1, "CordbProcess - ClearUnmanagedBreakpoint - NOT IMPLEMENTED\n");
-	return S_OK;
-}
-
-HRESULT CordbProcess::SetDesiredNGENCompilerFlags (
-	/* [in] */ DWORD pdwFlags) {
-	DEBUG_PRINTF (1, "CordbProcess - SetDesiredNGENCompilerFlags - NOT IMPLEMENTED\n");
-	return S_OK;
-}
-
-HRESULT CordbProcess::GetDesiredNGENCompilerFlags (
-	/* [out] */ DWORD *pdwFlags) {
-	DEBUG_PRINTF (1, "CordbProcess - GetDesiredNGENCompilerFlags - NOT IMPLEMENTED\n");
-	return S_OK;
-}
-
-HRESULT CordbProcess::GetReferenceValueFromGCHandle (
-	/* [in] */ UINT_PTR handle,
-	           /* [out] */ ICorDebugReferenceValue **pOutValue) {
-	DEBUG_PRINTF (1, "CordbProcess - GetReferenceValueFromGCHandle - NOT IMPLEMENTED\n");
-	return S_OK;
-}
-
-HRESULT CordbProcess::QueryInterface (
-	/* [in] */ REFIID id,
-	           /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR* __RPC_FAR*pInterface) {
-	if (id == IID_ICorDebugProcess) {
-		*pInterface = static_cast<ICorDebugProcess*> (this);
-	}
-	else if (id == IID_ICorDebugController) {
-		*pInterface = static_cast<ICorDebugController*> (static_cast<ICorDebugProcess*> (this));
-	}
-	else if (id == IID_ICorDebugProcess2) {
-		*pInterface = static_cast<ICorDebugProcess2*> (this);
-	}
-	else if (id == IID_ICorDebugProcess3) {
-		*pInterface = static_cast<ICorDebugProcess3*> (this);
-	}
-	else if (id == IID_ICorDebugProcess4) {
-		*pInterface = static_cast<ICorDebugProcess4*> (this);
-	}
-	else if (id == IID_ICorDebugProcess5) {
-		*pInterface = static_cast<ICorDebugProcess5*> (this);
-	}
-	else if (id == IID_ICorDebugProcess7) {
-		*pInterface = static_cast<ICorDebugProcess7*> (this);
-	}
-	else if (id == IID_ICorDebugProcess8) {
-		*pInterface = static_cast<ICorDebugProcess8*> (this);
-	}
-	else if (id == IID_ICorDebugProcess10) {
-		*pInterface = static_cast<ICorDebugProcess10*> (this);
-	}
-	else if (id == IID_ICorDebugProcess11) {
-		*pInterface = static_cast<ICorDebugProcess11*> (this);
-	}
-	else if (id == IID_IUnknown) {
-		*pInterface = static_cast<IUnknown*> (static_cast<ICorDebugProcess*> (this));
-	}
-
-	else {
-		DEBUG_PRINTF (1, "CordbProcess - QueryInterface - E_NOTIMPL\n");
-
-
-		*pInterface = NULL;
-		return E_NOINTERFACE;
-	}
-
-	return S_OK;
-}
-
-ULONG CordbProcess::AddRef (void) {
-	return S_OK;
-}
-
-ULONG CordbProcess::Release (void) {
-	return S_OK;
-}
-
-HRESULT CordbProcess::Stop (
-	/* [in] */ DWORD dwTimeoutIgnored) {
-	if (suspended) {
-		DEBUG_PRINTF (1, "CordbProcess - Stop - ALREADY SUSPENDED\n");
-
-		return S_OK;
-	}
-	DEBUG_PRINTF (1, "CordbProcess - Stop - IMPLEMENTED\n");
-
-	Buffer sendbuf;
-	buffer_init (&sendbuf, 128);
-	connection->send_event (CMD_SET_VM, CMD_VM_SUSPEND, &sendbuf);
-	suspended = true;
-	return S_OK;
-}
-
-HRESULT CordbProcess::Continue (
-	/* [in] */ BOOL fIsOutOfBand) {
-	/*if (eval_count > 0) {
-		DEBUG_PRINTF(1, "RESUME pra rodar eval\n");
-		eval_count--;
-		return S_OK;
-	}*/
-	if (suspended == false) {
-		DEBUG_PRINTF (1, "RESUME SEM ESTAR SUSPENSO - fIsOutOfBand \n");
-		return S_OK;
-	}
-	suspended = false;
-	DEBUG_PRINTF (1, "CordbProcess - Continue - IMPLEMENTED\n");
-
-	Buffer sendbuf;
-	buffer_init (&sendbuf, 128);
-	connection->send_event (CMD_SET_VM, CMD_VM_RESUME, &sendbuf);
-	return S_OK;
-}
-
-HRESULT CordbProcess::IsRunning (
-	/* [out] */ BOOL *pbRunning) {
-	*pbRunning = true;
-	DEBUG_PRINTF (1, "CordbProcess - IsRunning - IMPLEMENTED\n");
-	return S_OK;
-}
-
-HRESULT CordbProcess::HasQueuedCallbacks (
-	/* [in] */ ICorDebugThread *pThread,
-	           /* [out] */ BOOL *pbQueued) {
-	//connection->process_packet_from_queue();
-	if (!managed_event_queue->HasQueuedCallbacks (pThread)) {
-		*pbQueued = false;
-		return S_OK;
-	}
-	*pbQueued = true;
-	DEBUG_PRINTF (1, "CordbProcess - HasQueuedCallbacks - IMPLEMENTED\n");
-	return S_OK;
-}
-
-HRESULT CordbProcess::EnumerateThreads (
-	/* [out] */ ICorDebugThreadEnum **ppThreads) {
-	DEBUG_PRINTF (1, "CordbProcess - EnumerateThreads - NOT IMPLEMENTED\n");
-	return S_OK;
-}
-
-HRESULT CordbProcess::SetAllThreadsDebugState (
-	/* [in] */ CorDebugThreadState state,
-	           /* [in] */ ICorDebugThread *pExceptThisThread) {
-	DEBUG_PRINTF (1, "CordbProcess - SetAllThreadsDebugState - NOT IMPLEMENTED\n");
-	return S_OK;
-}
-
-HRESULT CordbProcess::Detach (void) {
-	DEBUG_PRINTF (1, "CordbProcess - Detach - NOT IMPLEMENTED\n");
-	return S_OK;
-}
+HRESULT CordbProcess::EnumerateAppDomains(
+    /* [out] */ ICorDebugAppDomainEnum **ppAppDomains) {
+  *ppAppDomains = new CordbAppDomainEnum(conn, this);
+  DEBUG_PRINTF(1, "CordbProcess - EnumerateAppDomains - IMPLEMENTED\n");
+  return S_OK;
+}
 
-HRESULT CordbProcess::Terminate (
-	/* [in] */ UINT exitCode) {
-	DEBUG_PRINTF (1, "CordbProcess - Terminate - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::GetObject(
+    /* [out] */ ICorDebugValue **ppObject) {
+  DEBUG_PRINTF(1, "CordbProcess - GetObject - NOT IMPLEMENTED\n");
+  return S_OK;
 }
-
-HRESULT CordbProcess::CanCommitChanges (
-	/* [in] */ ULONG cSnapshots,
-	           /* [size_is][in] */ ICorDebugEditAndContinueSnapshot *pSnapshots[],
-	           /* [out] */ ICorDebugErrorInfoEnum **pError) {
-	DEBUG_PRINTF (1, "CordbProcess - CanCommitChanges - NOT IMPLEMENTED\n");
-	return S_OK;
+
+HRESULT CordbProcess::ThreadForFiberCookie(
+    /* [in] */ DWORD fiberCookie,
+    /* [out] */ ICorDebugThread **ppThread) {
+  DEBUG_PRINTF(1, "CordbProcess - ThreadForFiberCookie - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT CordbProcess::CommitChanges (
-	/* [in] */ ULONG cSnapshots,
-	           /* [size_is][in] */ ICorDebugEditAndContinueSnapshot *pSnapshots[],
-	           /* [out] */ ICorDebugErrorInfoEnum **pError) {
-	DEBUG_PRINTF (1, "CordbProcess - CommitChanges - NOT IMPLEMENTED\n");
-	return S_OK;
+HRESULT CordbProcess::GetHelperThreadID(
+    /* [out] */ DWORD *pThreadID) {
+  DEBUG_PRINTF(1, "GetHelperThreadID - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-ManagedEvent::~ManagedEvent () {
-
+HRESULT CordbProcess::GetThreadForTaskID(
+    /* [in] */ TASKID taskid,
+    /* [out] */ ICorDebugThread2 **ppThread) {
+  DEBUG_PRINTF(1, "CordbProcess - GetHelperThreadID - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT ManagedEvent::Dispatch (DispatchArgs args) {
-	return S_OK;
+HRESULT CordbProcess::GetVersion(
+    /* [out] */ COR_VERSION *version) {
+  DEBUG_PRINTF(1, "CordbProcess - GetVersion - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-
-ManagedEvent::ManagedEvent (ICorDebugThread *pThread) {
-	m_dwThreadId = 0;
-	m_pNext = NULL;
+HRESULT CordbProcess::SetUnmanagedBreakpoint(
+    /* [in] */ CORDB_ADDRESS address,
+    /* [in] */ ULONG32 bufsize,
+    /* [length_is][size_is][out] */ BYTE buffer[],
+    /* [out] */ ULONG32 *bufLen) {
+  DEBUG_PRINTF(1, "CordbProcess - SetUnmanagedBreakpoint - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-ManagedEvent::ManagedEvent () {
-	m_dwThreadId = 0;
-	m_pNext = NULL;
+HRESULT CordbProcess::ClearUnmanagedBreakpoint(
+    /* [in] */ CORDB_ADDRESS address) {
+  DEBUG_PRINTF(1,
+               "CordbProcess - ClearUnmanagedBreakpoint - NOT IMPLEMENTED\n");
+  return S_OK;
+}
+
+HRESULT CordbProcess::SetDesiredNGENCompilerFlags(
+    /* [in] */ DWORD pdwFlags) {
+  DEBUG_PRINTF(
+      1, "CordbProcess - SetDesiredNGENCompilerFlags - NOT IMPLEMENTED\n");
+  return S_OK;
+}
+
+HRESULT CordbProcess::GetDesiredNGENCompilerFlags(
+    /* [out] */ DWORD *pdwFlags) {
+  DEBUG_PRINTF(
+      1, "CordbProcess - GetDesiredNGENCompilerFlags - NOT IMPLEMENTED\n");
+  return S_OK;
 }
-
-ManagedEvent::DispatchArgs::DispatchArgs (ICorDebugManagedCallback *pCallback1, ICorDebugManagedCallback2 *pCallback2,
-                                          ICorDebugManagedCallback3 *pCallback3,
-                                          ICorDebugManagedCallback4 *pCallback4) {
-	m_pCallback1 = pCallback1;
-	m_pCallback2 = pCallback2;
-	m_pCallback3 = pCallback3;
-	m_pCallback4 = pCallback4;
+
+HRESULT CordbProcess::GetReferenceValueFromGCHandle(
+    /* [in] */ UINT_PTR handle,
+    /* [out] */ ICorDebugReferenceValue **pOutValue) {
+  DEBUG_PRINTF(
+      1, "CordbProcess - GetReferenceValueFromGCHandle - NOT IMPLEMENTED\n");
+  return S_OK;
 }
+
+HRESULT CordbProcess::QueryInterface(
+    /* [in] */ REFIID id,
+    /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *pInterface) {
+  if (id == IID_ICorDebugProcess) {
+    *pInterface = static_cast<ICorDebugProcess *>(this);
+  } else if (id == IID_ICorDebugController) {
+    *pInterface = static_cast<ICorDebugController *>(
+        static_cast<ICorDebugProcess *>(this));
+  } else if (id == IID_ICorDebugProcess2) {
+    *pInterface = static_cast<ICorDebugProcess2 *>(this);
+  } else if (id == IID_ICorDebugProcess3) {
+    *pInterface = static_cast<ICorDebugProcess3 *>(this);
+  } else if (id == IID_ICorDebugProcess4) {
+    *pInterface = static_cast<ICorDebugProcess4 *>(this);
+  } else if (id == IID_ICorDebugProcess5) {
+    *pInterface = static_cast<ICorDebugProcess5 *>(this);
+  } else if (id == IID_ICorDebugProcess7) {
+    *pInterface = static_cast<ICorDebugProcess7 *>(this);
+  } else if (id == IID_ICorDebugProcess8) {
+    *pInterface = static_cast<ICorDebugProcess8 *>(this);
+  } else if (id == IID_ICorDebugProcess10) {
+    *pInterface = static_cast<ICorDebugProcess10 *>(this);
+  } else if (id == IID_ICorDebugProcess11) {
+    *pInterface = static_cast<ICorDebugProcess11 *>(this);
+  } else if (id == IID_IUnknown) {
+    *pInterface =
+        static_cast<IUnknown *>(static_cast<ICorDebugProcess *>(this));
+  }
 
-ICorDebugManagedCallback *ManagedEvent::DispatchArgs::GetCallback1 () {
-	return m_pCallback1;
-}
+  else {
+    DEBUG_PRINTF(1, "CordbProcess - QueryInterface - E_NOTIMPL\n");
 
-ICorDebugManagedCallback2 *ManagedEvent::DispatchArgs::GetCallback2 () {
-	return m_pCallback2;
-}
+    *pInterface = NULL;
+    return E_NOINTERFACE;
+  }
 
-ICorDebugManagedCallback3 *ManagedEvent::DispatchArgs::GetCallback3 () {
-	return m_pCallback3;
+  return S_OK;
 }
 
-ICorDebugManagedCallback4 *ManagedEvent::DispatchArgs::GetCallback4 () {
-	return m_pCallback4;
-}
+ULONG CordbProcess::AddRef(void) { return S_OK; }
 
-DWORD ManagedEvent::GetOSTid () {
-	return m_dwThreadId;
-}
+ULONG CordbProcess::Release(void) { return S_OK; }
 
-ManagedEventQueue::ManagedEventQueue () {
-	m_pFirstEvent = m_pLastEvent = NULL;
-}
+HRESULT CordbProcess::Stop(
+    /* [in] */ DWORD dwTimeoutIgnored) {
+  if (suspended) {
+    DEBUG_PRINTF(1, "CordbProcess - Stop - ALREADY SUSPENDED\n");
 
-void ManagedEventQueue::Init () {
+    return S_OK;
+  }
+  DEBUG_PRINTF(1, "CordbProcess - Stop - IMPLEMENTED\n");
 
+  Buffer sendbuf;
+  buffer_init(&sendbuf, 128);
+  conn->send_event(CMD_SET_VM, CMD_VM_SUSPEND, &sendbuf);
+  suspended = true;
+  return S_OK;
 }
-
-ManagedEvent *ManagedEventQueue::Dequeue () {
-	if (m_pFirstEvent == NULL) {
-		return NULL;
-	}
 
-	ManagedEvent *pEvent = m_pFirstEvent;
-	m_pFirstEvent = m_pFirstEvent->m_pNext;
-	if (m_pFirstEvent == NULL) {
-		m_pLastEvent = NULL;
-	}
+HRESULT CordbProcess::Continue(
+    /* [in] */ BOOL fIsOutOfBand) {
+  /*if (eval_count > 0) {
+      DEBUG_PRINTF(1, "RESUME pra rodar eval\n");
+      eval_count--;
+      return S_OK;
+  }*/
+  if (suspended == false) {
+    DEBUG_PRINTF(1, "RESUME SEM ESTAR SUSPENSO - fIsOutOfBand \n");
+    return S_OK;
+  }
+  suspended = false;
+  DEBUG_PRINTF(1, "CordbProcess - Continue - IMPLEMENTED\n");
 
-	pEvent->m_pNext = NULL;
-	return pEvent;
+  Buffer sendbuf;
+  buffer_init(&sendbuf, 128);
+  conn->send_event(CMD_SET_VM, CMD_VM_RESUME, &sendbuf);
+  return S_OK;
 }
 
-void ManagedEventQueue::QueueEvent (ManagedEvent *pEvent) {
-	if (m_pLastEvent == NULL) {
-		_ASSERTE (m_pFirstEvent == NULL);
-		m_pFirstEvent = m_pLastEvent = pEvent;
-	}
-	else {
-		m_pLastEvent->m_pNext = pEvent;
-		m_pLastEvent = pEvent;
-	}
+HRESULT CordbProcess::IsRunning(
+    /* [out] */ BOOL *pbRunning) {
+  *pbRunning = true;
+  DEBUG_PRINTF(1, "CordbProcess - IsRunning - IMPLEMENTED\n");
+  return S_OK;
 }
 
-bool ManagedEventQueue::IsEmpty () {
-	if (m_pFirstEvent != NULL) {
-		_ASSERTE (m_pLastEvent != NULL);
-		return false;
-	}
-
-	_ASSERTE (m_pLastEvent == NULL);
-	return true;
+HRESULT CordbProcess::HasQueuedCallbacks(
+    /* [in] */ ICorDebugThread *pThread,
+    /* [out] */ BOOL *pbQueued) {
+  // conn->process_packet_from_queue();
+  *pbQueued = false;
+  DEBUG_PRINTF(1, "CordbProcess - HasQueuedCallbacks - IMPLEMENTED\n");
+  return S_OK;
 }
-
-void ManagedEventQueue::DeleteAll () {
 
+HRESULT CordbProcess::EnumerateThreads(
+    /* [out] */ ICorDebugThreadEnum **ppThreads) {
+  DEBUG_PRINTF(1, "CordbProcess - EnumerateThreads - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-BOOL ManagedEventQueue::HasQueuedCallbacks (ICorDebugThread *pThread) {
-	if (pThread == NULL) {
-		return !IsEmpty();
-	}
-
-	// If we have a thread, look for events with thread affinity.
-	DWORD dwThreadID = 0;
-	HRESULT hr = pThread->GetID (&dwThreadID);
-
-	ManagedEvent *pCurrent = m_pFirstEvent;
-	while (pCurrent != NULL) {
-		if (pCurrent->GetOSTid() == dwThreadID) {
-			return true;
-		}
-		pCurrent = pCurrent->m_pNext;
-	}
-	return false;
+HRESULT CordbProcess::SetAllThreadsDebugState(
+    /* [in] */ CorDebugThreadState state,
+    /* [in] */ ICorDebugThread *pExceptThisThread) {
+  DEBUG_PRINTF(1, "CordbProcess - SetAllThreadsDebugState - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-void ManagedEventQueue::SuspendQueue () {
-
+HRESULT CordbProcess::Detach(void) {
+  DEBUG_PRINTF(1, "CordbProcess - Detach - NOT IMPLEMENTED\n");
+  return S_OK;
 }
-
-void ManagedEventQueue::RestoreSuspendedQueue () {
 
+HRESULT CordbProcess::Terminate(
+    /* [in] */ UINT exitCode) {
+  DEBUG_PRINTF(1, "CordbProcess - Terminate - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-EvalCompleteEvent::EvalCompleteEvent (ICorDebugAppDomain *pAppDomain, ICorDebugThread *pThread, ICorDebugEval *pEval) :
-	ManagedEvent (pThread) {
-	this->m_pAppDomain = pAppDomain;
-	this->m_pThread = pThread;
-	this->m_pEval = pEval;
+HRESULT CordbProcess::CanCommitChanges(
+    /* [in] */ ULONG cSnapshots,
+    /* [size_is][in] */ ICorDebugEditAndContinueSnapshot *pSnapshots[],
+    /* [out] */ ICorDebugErrorInfoEnum **pError) {
+  DEBUG_PRINTF(1, "CordbProcess - CanCommitChanges - NOT IMPLEMENTED\n");
+  return S_OK;
 }
 
-HRESULT EvalCompleteEvent::Dispatch (DispatchArgs args) {
-	return args.GetCallback1()->EvalComplete (m_pAppDomain, m_pThread, m_pEval);
+HRESULT CordbProcess::CommitChanges(
+    /* [in] */ ULONG cSnapshots,
+    /* [size_is][in] */ ICorDebugEditAndContinueSnapshot *pSnapshots[],
+    /* [out] */ ICorDebugErrorInfoEnum **pError) {
+  DEBUG_PRINTF(1, "CordbProcess - CommitChanges - NOT IMPLEMENTED\n");
+  return S_OK;
 }
