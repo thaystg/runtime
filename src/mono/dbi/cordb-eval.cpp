@@ -11,11 +11,20 @@
 #include <cordb-value.h>
 #include <cordb.h>
 
+#include "stdafx.h"
+#include "corerror.h"
+#include "rwutil.h"
+
 CordbEval::CordbEval(Connection *conn, CordbThread *thread)
     : CordbBaseMono(conn) {
   this->thread = thread;
   ppValue = NULL;
   cmdId = -1;
+  //send a suspend because after the eval icordebug will send a resume
+  Buffer localbuf;
+  buffer_init(&localbuf, 128);
+  conn->send_event(CMD_SET_VM, CMD_VM_SUSPEND, &localbuf);
+  buffer_free(&localbuf);
 }
 
 HRESULT STDMETHODCALLTYPE CordbEval::CallParameterizedFunction(
@@ -29,16 +38,50 @@ HRESULT STDMETHODCALLTYPE CordbEval::CallParameterizedFunction(
   buffer_add_int(&localbuf, 1);
   buffer_add_int(&localbuf, ((CordbFunction *)pFunction)->id);
   buffer_add_int(&localbuf, nArgs);
+  for (int i = 0; i < nArgs; i++) {
+    CorElementType ty;
+    ppArgs[i]->GetType(&ty);
+    CordbContent *cc;
+    ppArgs[i]->GetAddress((CORDB_ADDRESS *)&cc);
+    buffer_add_byte(&localbuf, ty);
+    switch (ty) {
+      case MONO_TYPE_BOOLEAN:
+      case MONO_TYPE_I1:
+      case MONO_TYPE_U1:
+        buffer_add_int(&localbuf, cc->booleanValue);
+        break;
+      case MONO_TYPE_CHAR:
+      case MONO_TYPE_I2:
+      case MONO_TYPE_U2:
+        buffer_add_int(&localbuf, cc->charValue);
+        break;
+      case MONO_TYPE_I4:
+      case MONO_TYPE_U4:
+      case MONO_TYPE_R4:
+        buffer_add_int(&localbuf, cc->intValue);
+        break;
+      case MONO_TYPE_I8:
+      case MONO_TYPE_U8:
+      case MONO_TYPE_R8:
+        buffer_add_long(&localbuf, cc->longValue);
+        break;
+      case MONO_TYPE_CLASS:
+      case MONO_TYPE_SZARRAY:
+      case MONO_TYPE_STRING:
+          buffer_add_id(&localbuf, cc->intValue);
+          break;
+    }
+  }
   cmdId = conn->send_event(CMD_SET_VM, CMD_VM_INVOKE_METHOD, &localbuf);
   buffer_free(&localbuf);
   g_ptr_array_add(conn->pending_eval, this);
   return S_OK;
 }
 
-void CordbEval::EvalComplete(Buffer *localbuf2) {
+void CordbEval::EvalComplete(Buffer *bAnswer) {
 
-  decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-  CordbObjectValue::CreateCordbValue(conn, localbuf2, &ppValue);
+  decode_byte(bAnswer->buf, &bAnswer->buf, bAnswer->end);
+  CordbObjectValue::CreateCordbValue(conn, bAnswer, &ppValue);
   conn->ppCordb->pCallback->EvalComplete(
       static_cast<ICorDebugAppDomain *>(
           g_ptr_array_index(thread->ppProcess->appdomains, 0)),
@@ -75,8 +118,24 @@ CordbEval::NewParameterizedArray(ICorDebugType *pElementType, ULONG32 rank,
 
 HRESULT STDMETHODCALLTYPE CordbEval::NewStringWithLength(LPCWSTR string,
                                                          UINT uiLength) {
-  DEBUG_PRINTF(1, "CordbEval - NewStringWithLength - NOT IMPLEMENTED\n");
-  return E_NOTIMPL;
+  Buffer localbuf;
+  buffer_init(&localbuf, 128);
+  buffer_add_id(&localbuf, thread->thread_id);
+  int cmdId = conn->send_event(CMD_SET_THREAD, CMD_THREAD_GET_APPDOMAIN, &localbuf);
+  buffer_free(&localbuf);
+
+  Buffer *bAnswer = conn->get_answer(cmdId);
+  int domainId = decode_id(bAnswer->buf, &bAnswer->buf, bAnswer->end);
+
+  LPSTR       szString;
+  UTF8STR(string, szString);
+
+  buffer_init(&localbuf, 128);
+  buffer_add_id(&localbuf, domainId);
+  buffer_add_string(&localbuf, szString);
+  this->cmdId = conn->send_event(CMD_SET_APPDOMAIN, CMD_APPDOMAIN_CREATE_STRING, &localbuf);
+  g_ptr_array_add(conn->pending_eval, this);
+  return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbEval::RudeAbort(void) {

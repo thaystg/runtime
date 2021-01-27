@@ -187,9 +187,9 @@ HRESULT CordbModule::GetBaseAddress(
                                &localbuf);
   buffer_free(&localbuf);
 
-  Buffer *localbuf2 = conn->get_answer(cmdId);
+  Buffer *bAnswer = conn->get_answer(cmdId);
   assembly_metadata_blob = decode_byte_array(
-      localbuf2->buf, &localbuf2->buf, localbuf2->end, &assembly_metadata_len);
+      bAnswer->buf, &bAnswer->buf, bAnswer->end, &assembly_metadata_len);
 
   DEBUG_PRINTF(1, "CordbModule - GetBaseAddress\n");
 
@@ -209,9 +209,9 @@ HRESULT CordbModule::GetName(
       conn->send_event(CMD_SET_ASSEMBLY, CMD_ASSEMBLY_GET_LOCATION, &localbuf);
   buffer_free(&localbuf);
 
-  Buffer *localbuf2 = conn->get_answer(cmdId);
+  Buffer *bAnswer = conn->get_answer(cmdId);
   char *assembly_name =
-      decode_string(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+      decode_string(bAnswer->buf, &bAnswer->buf, bAnswer->end);
 
   DEBUG_PRINTF(1, "CordbModule - assembly_name - %d - %s\n", id, assembly_name);
 
@@ -252,8 +252,8 @@ HRESULT CordbModule::GetFunctionFromToken(
                                CMD_ASSEMBLY_GET_METHOD_FROM_TOKEN, &localbuf);
   buffer_free(&localbuf);
 
-  Buffer *localbuf2 = conn->get_answer(cmdId);
-  int id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+  Buffer *bAnswer = conn->get_answer(cmdId);
+  int id = decode_id(bAnswer->buf, &bAnswer->buf, bAnswer->end);
   CordbFunction *func = NULL;
   func = pProcess->cordb->findFunction(id);
   if (func == NULL) {

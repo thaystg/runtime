@@ -198,13 +198,13 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetActiveFrame(
                                      &localbuf);
   buffer_free(&localbuf);
 
-  Buffer *localbuf2 = conn->get_answer(cmdId);
-  int nframes = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+  Buffer *bAnswer = conn->get_answer(cmdId);
+  int nframes = decode_int(bAnswer->buf, &bAnswer->buf, bAnswer->end);
   for (int i = 0; i < nframes; i++) {
-    int frameid = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-    int methodId = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-    int il_offset = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-    int flags = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+    int frameid = decode_int(bAnswer->buf, &bAnswer->buf, bAnswer->end);
+    int methodId = decode_id(bAnswer->buf, &bAnswer->buf, bAnswer->end);
+    int il_offset = decode_int(bAnswer->buf, &bAnswer->buf, bAnswer->end);
+    int flags = decode_byte(bAnswer->buf, &bAnswer->buf, bAnswer->end);
     if (i == 0) {
       CordbNativeFrame *frame =
           new CordbNativeFrame(conn, frameid, methodId, il_offset, flags, this);
@@ -212,8 +212,8 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetActiveFrame(
     }
   }
   guint32 ctx_len;
-  guint8 *ctx = decode_byte_array(localbuf2->buf, &localbuf2->buf,
-                                  localbuf2->end, &ctx_len);
+  guint8 *ctx = decode_byte_array(bAnswer->buf, &bAnswer->buf,
+                                  bAnswer->end, &ctx_len);
   registerset = new CordbRegisteSet(conn, ctx, ctx_len);
 
   return S_OK;

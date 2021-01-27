@@ -60,15 +60,15 @@ HRESULT STDMETHODCALLTYPE CordbFrameEnum::GetCount(ULONG *pcelt) {
       conn->send_event(CMD_SET_THREAD, CMD_THREAD_GET_FRAME_INFO, &localbuf);
   buffer_free(&localbuf);
 
-  Buffer *localbuf2 = conn->get_answer(cmdId);
-  nframes = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+  Buffer *bAnswer = conn->get_answer(cmdId);
+  nframes = decode_int(bAnswer->buf, &bAnswer->buf, bAnswer->end);
   frames = (CordbNativeFrame **)malloc(sizeof(CordbNativeFrame *) * nframes);
 
   for (int i = 0; i < nframes; i++) {
-    int frameid = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-    int methodId = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-    int il_offset = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
-    int flags = decode_byte(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+    int frameid = decode_int(bAnswer->buf, &bAnswer->buf, bAnswer->end);
+    int methodId = decode_id(bAnswer->buf, &bAnswer->buf, bAnswer->end);
+    int il_offset = decode_int(bAnswer->buf, &bAnswer->buf, bAnswer->end);
+    int flags = decode_byte(bAnswer->buf, &bAnswer->buf, bAnswer->end);
 
     CordbNativeFrame *frame =
         new CordbNativeFrame(conn, frameid, methodId, il_offset, flags, thread);
@@ -76,8 +76,8 @@ HRESULT STDMETHODCALLTYPE CordbFrameEnum::GetCount(ULONG *pcelt) {
   }
 
   guint32 ctx_len;
-  guint8 *ctx = decode_byte_array(localbuf2->buf, &localbuf2->buf,
-                                  localbuf2->end, &ctx_len);
+  guint8 *ctx = decode_byte_array(bAnswer->buf, &bAnswer->buf,
+                                  bAnswer->end, &ctx_len);
 
   if (!thread->registerset)
     thread->registerset = new CordbRegisteSet(conn, ctx, ctx_len);
@@ -267,8 +267,8 @@ HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetLocalVariable(
                                &localbuf);
   buffer_free(&localbuf);
 
-  Buffer *localbuf2 = conn->get_answer(cmdId);
-  return CordbObjectValue::CreateCordbValue(conn, localbuf2, ppValue);
+  Buffer *bAnswer = conn->get_answer(cmdId);
+  return CordbObjectValue::CreateCordbValue(conn, bAnswer, ppValue);
 }
 
 HRESULT STDMETHODCALLTYPE CordbJITILFrame::EnumerateArguments(
@@ -290,10 +290,10 @@ HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetArgument(
                                CMD_STACK_FRAME_GET_ARGUMENT, &localbuf);
   buffer_free(&localbuf);
 
-  Buffer *localbuf2 = conn->get_answer(cmdId);
+  Buffer *bAnswer = conn->get_answer(cmdId);
   DEBUG_PRINTF(1, "CordbFrame - GetArgument - IMPLEMENTED - dwIndex - %d\n",
                dwIndex);
-  return CordbObjectValue::CreateCordbValue(conn, localbuf2, ppValue);
+  return CordbObjectValue::CreateCordbValue(conn, bAnswer, ppValue);
 }
 
 HRESULT STDMETHODCALLTYPE CordbJITILFrame::GetStackDepth(

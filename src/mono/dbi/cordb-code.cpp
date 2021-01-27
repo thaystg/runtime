@@ -51,8 +51,8 @@ HRESULT __stdcall CordbCode::GetSize(ULONG32 *pcBytes) {
   int cmdId = conn->send_event(CMD_SET_METHOD, CMD_METHOD_GET_BODY, &localbuf);
   buffer_free(&localbuf);
 
-  Buffer *localbuf2 = conn->get_answer(cmdId);
-  int code_size = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+  Buffer *bAnswer = conn->get_answer(cmdId);
+  int code_size = decode_int(bAnswer->buf, &bAnswer->buf, bAnswer->end);
   *pcBytes = code_size;
   DEBUG_PRINTF(1, "CordbCode - GetSize - IMPLEMENTED\n");
   return S_OK;
@@ -78,9 +78,9 @@ HRESULT __stdcall CordbCode::GetCode(ULONG32 startOffset, ULONG32 endOffset,
   int cmdId = conn->send_event(CMD_SET_METHOD, CMD_METHOD_GET_BODY, &localbuf);
   buffer_free(&localbuf);
 
-  Buffer *localbuf2 = conn->get_answer(cmdId);
-  guint8 *code = decode_byte_array(localbuf2->buf, &localbuf2->buf,
-                                   localbuf2->end, pcBufferSize);
+  Buffer *bAnswer = conn->get_answer(cmdId);
+  guint8 *code = decode_byte_array(bAnswer->buf, &bAnswer->buf,
+                                   bAnswer->end, pcBufferSize);
 
   memcpy(buffer, code, *pcBufferSize);
   DEBUG_PRINTF(1, "CordbCode - GetCode - IMPLEMENTED\n");

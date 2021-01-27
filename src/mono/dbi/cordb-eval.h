@@ -18,7 +18,7 @@ class CordbEval : public CordbBaseMono,
 public:
   int cmdId;
   CordbEval(Connection *conn, CordbThread *thread);
-  void EvalComplete(Buffer *localbuf2);
+  void EvalComplete(Buffer *bAnswer);
 
   virtual HRESULT STDMETHODCALLTYPE CallParameterizedFunction(
       ICorDebugFunction *pFunction, ULONG32 nTypeArgs,

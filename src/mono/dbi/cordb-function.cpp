@@ -63,9 +63,9 @@ HRESULT __stdcall CordbFunction::GetModule(ICorDebugModule **ppModule) {
         1, "CordbFunction - GetModule - IMPLEMENTED - ENTREI NO 0.1 - %d\n",
         id);
 
-    Buffer *localbuf2 = conn->get_answer(cmdId);
+    Buffer *bAnswer = conn->get_answer(cmdId);
 
-    int module_id = decode_id(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+    int module_id = decode_id(bAnswer->buf, &bAnswer->buf, bAnswer->end);
 
     DEBUG_PRINTF(
         1, "CordbFunction - GetModule - IMPLEMENTED - ENTREI NO 0.2 - %d\n",
@@ -102,9 +102,9 @@ HRESULT __stdcall CordbFunction::GetToken(mdMethodDef *pMethodDef) {
     DEBUG_PRINTF(
         1, "CordbFunction - GetToken - IMPLEMENTED - ENTREI NO 0.1 - %d\n", id);
 
-    Buffer *localbuf2 = conn->get_answer(cmdId);
+    Buffer *bAnswer = conn->get_answer(cmdId);
 
-    this->token = decode_int(localbuf2->buf, &localbuf2->buf, localbuf2->end);
+    this->token = decode_int(bAnswer->buf, &bAnswer->buf, bAnswer->end);
   }
   *pMethodDef = this->token;
   DEBUG_PRINTF(1, "CordbFunction - GetToken - IMPLEMENTED - %d\n", *pMethodDef);

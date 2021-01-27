@@ -101,7 +101,7 @@ public:
                                           mdFieldDef fieldDef,
                                           ICorDebugValue **ppValue);
 
-  static HRESULT CreateCordbValue(Connection *conn, Buffer *localbuf2,
+  static HRESULT CreateCordbValue(Connection *conn, Buffer *bAnswer,
                                   ICorDebugValue **ppValue);
 
   HRESULT STDMETHODCALLTYPE GetVirtualMethod(mdMemberRef memberRef,

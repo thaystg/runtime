@@ -446,8 +446,11 @@ HRESULT CordbProcess::Detach(void) {
 
 HRESULT CordbProcess::Terminate(
     /* [in] */ UINT exitCode) {
-  DEBUG_PRINTF(1, "CordbProcess - Terminate - NOT IMPLEMENTED\n");
-  return S_OK;
+    Buffer sendbuf;
+    buffer_init(&sendbuf, 128);
+    buffer_add_int(&sendbuf, -1);
+    conn->send_event(CMD_SET_VM, CMD_VM_EXIT, &sendbuf);
+    return S_OK;
 }
 
 HRESULT CordbProcess::CanCommitChanges(
