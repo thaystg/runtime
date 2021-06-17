@@ -10,7 +10,7 @@
 #include "mono/component/component.h"
 
 typedef struct MonoComponentDebugger {
-	int version;
+	MonoComponent component;
 	void (*parse_options) (char *options);
 	void (*init) (void);
 	void (*breakpoint_hit) (void *sigctx);
