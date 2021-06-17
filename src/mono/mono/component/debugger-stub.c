@@ -13,6 +13,9 @@ static bool
 debugger_avaliable (void);
 
 static void
+stub_debugger_parse_options (char *options);
+
+static void
 stub_debugger_init (void);
 
 static void
@@ -62,6 +65,7 @@ static MonoComponentDebugger fn_table = {
 	&stub_debugger_single_step_event,
 	&stub_debugger_single_step_from_context,
 	&stub_debugger_breakpoint_from_context,
+	&stub_debugger_free_mem_manager,
 	&stub_debugger_unhandled_exception,
 	&stub_debugger_handle_exception,
 	&stub_debugger_begin_exception_filter,
