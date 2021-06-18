@@ -57,6 +57,9 @@ stub_debugger_breakpoint_from_context (MonoContext *ctx);
 static void
 stub_debugger_send_crash (char *json_dump, MonoStackHash *hashes, int pause);
 
+void
+stub_mono_de_init (DebuggerEngineCallbacksTHAYS *cbs);
+
 static MonoComponentDebugger fn_table = {
 	{ MONO_COMPONENT_ITF_VERSION, &debugger_avaliable },
 	&stub_debugger_parse_options,
@@ -74,6 +77,7 @@ static MonoComponentDebugger fn_table = {
 	&stub_debugger_debug_log,
 	&stub_debugger_debug_log_is_enabled,
 	&stub_debugger_send_crash,
+	&stub_mono_de_init,
 };
 
 static bool
@@ -161,6 +165,11 @@ stub_debugger_breakpoint_from_context (MonoContext *ctx)
 
 static void
 stub_debugger_send_crash (char *json_dump, MonoStackHash *hashes, int pause)
+{
+}
+
+void
+stub_mono_de_init (DebuggerEngineCallbacksTHAYS *cbs)
 {
 }
 

@@ -4271,7 +4271,7 @@ mini_init (const char *filename, const char *runtime_version)
 #endif
 
 	if (sdb_options)
-		mini_get_dbg_callbacks ()->parse_options (sdb_options);
+		mono_component_debugger ()->parse_options (sdb_options);
 
 	mono_os_mutex_init_recursive (&jit_mutex);
 

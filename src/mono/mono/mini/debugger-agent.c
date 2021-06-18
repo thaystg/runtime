@@ -88,6 +88,7 @@
 #include "debugger-engine.h"
 #include "mono/metadata/debug-mono-ppdb.h"
 #include "mono/metadata/custom-attrs-internals.h"
+#include "mono/metadata/components.h"
 
 #ifdef HAVE_UCONTEXT_H
 #include <ucontext.h>
@@ -701,113 +702,7 @@ mono_debugger_is_disconnected (void)
 static void
 debugger_agent_init (void)
 {
-	if (!agent_config.enabled)
-		return;
-
-	DebuggerEngineCallbacks cbs;
-	memset (&cbs, 0, sizeof (cbs));
-	cbs.tls_get_restore_state = tls_get_restore_state;
-	cbs.try_process_suspend = try_process_suspend;
-	cbs.begin_breakpoint_processing = begin_breakpoint_processing;
-	cbs.begin_single_step_processing = begin_single_step_processing;
-	cbs.ss_discard_frame_context = ss_discard_frame_context;
-	cbs.ss_calculate_framecount = ss_calculate_framecount;
-	cbs.ensure_jit = ensure_jit;
-	cbs.ensure_runtime_is_suspended = ensure_runtime_is_suspended;
-	cbs.get_this_async_id = get_this_async_id;
-	cbs.set_set_notification_for_wait_completion_flag = set_set_notification_for_wait_completion_flag;
-	cbs.get_notify_debugger_of_wait_completion_method = get_notify_debugger_of_wait_completion_method;
-	cbs.create_breakpoint_events = create_breakpoint_events;
-	cbs.process_breakpoint_events = process_breakpoint_events;
-	cbs.ss_create_init_args = ss_create_init_args;
-	cbs.ss_args_destroy = ss_args_destroy;
-	cbs.handle_multiple_ss_requests = handle_multiple_ss_requests;
-
-	mono_de_init (&cbs);
-
-	transport_init ();
-
-	/* Need to know whenever a thread has acquired the loader mutex */
-	mono_loader_lock_track_ownership (TRUE);
-
-	event_requests = g_ptr_array_new ();
-
-	mono_coop_mutex_init (&debugger_thread_exited_mutex);
-	mono_coop_cond_init (&debugger_thread_exited_cond);
-
-	MonoProfilerHandle prof = mono_profiler_create (NULL);
-	mono_profiler_set_runtime_initialized_callback (prof, runtime_initialized);
-	mono_profiler_set_domain_loaded_callback (prof, appdomain_load);
-	mono_profiler_set_domain_unloading_callback (prof, appdomain_start_unload);
-	mono_profiler_set_domain_unloaded_callback (prof, appdomain_unload);
-	mono_profiler_set_thread_started_callback (prof, thread_startup);
-	mono_profiler_set_thread_stopped_callback (prof, thread_end);
-	mono_profiler_set_assembly_loaded_callback (prof, assembly_load);
-	mono_profiler_set_assembly_unloading_callback (prof, assembly_unload);
-	mono_profiler_set_jit_done_callback (prof, jit_done);
-	mono_profiler_set_jit_failed_callback (prof, jit_failed);
-	mono_profiler_set_gc_finalizing_callback (prof, gc_finalizing);
-	mono_profiler_set_gc_finalized_callback (prof, gc_finalized);
-	
-	mono_native_tls_alloc (&debugger_tls_id, NULL);
-
-	/* Needed by the hash_table_new_type () call below */
-	mono_gc_base_init ();
-
-	thread_to_tls = mono_g_hash_table_new_type_internal ((GHashFunc)mono_object_hash_internal, NULL, MONO_HASH_KEY_GC, MONO_ROOT_SOURCE_DEBUGGER, NULL, "Debugger TLS Table");
-
-	tid_to_thread = mono_g_hash_table_new_type_internal (NULL, NULL, MONO_HASH_VALUE_GC, MONO_ROOT_SOURCE_DEBUGGER, NULL, "Debugger Thread Table");
-
-	tid_to_thread_obj = mono_g_hash_table_new_type_internal (NULL, NULL, MONO_HASH_VALUE_GC, MONO_ROOT_SOURCE_DEBUGGER, NULL, "Debugger Thread Object Table");
-
-	pending_assembly_loads = g_ptr_array_new ();
-
-	log_level = agent_config.log_level;
-
-	embedding = agent_config.embedding;
-	disconnected = TRUE;
-
-	if (agent_config.log_file) {
-		log_file = fopen (agent_config.log_file, "w+");
-		if (!log_file) {
-			PRINT_ERROR_MSG ("Unable to create log file '%s': %s.\n", agent_config.log_file, strerror (errno));
-			exit (1);
-		}
-	} else {
-		log_file = stdout;
-	}
-	mono_de_set_log_level (log_level, log_file);
-
-	ids_init ();
-	objrefs_init ();
-	suspend_init ();
-
-	mini_get_debug_options ()->gen_sdb_seq_points = TRUE;
-	/* 
-	 * This is needed because currently we don't handle liveness info.
-	 */
-	mini_get_debug_options ()->mdb_optimizations = TRUE;
-
-#ifndef MONO_ARCH_HAVE_CONTEXT_SET_INT_REG
-	/* This is needed because we can't set local variables in registers yet */
-	mono_disable_optimizations (MONO_OPT_LINEARS);
-#endif
-
-	/*
-	 * The stack walk done from thread_interrupt () needs to be signal safe, but it
-	 * isn't, since it can call into mono_aot_find_jit_info () which is not signal
-	 * safe (#3411). So load AOT info eagerly when the debugger is running as a
-	 * workaround.
-	 */
-	mini_get_debug_options ()->load_aot_jit_info_eagerly = TRUE;
-
-#ifdef HAVE_SETPGID
-	if (agent_config.setpgid)
-		setpgid (0, 0);
-#endif
-
-	if (!agent_config.onuncaught && !agent_config.onthrow)
-		finish_agent_init (TRUE);
+	mono_component_debugger ()->init ();
 }
 
 /*
