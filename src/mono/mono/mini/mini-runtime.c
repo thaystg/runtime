@@ -86,7 +86,6 @@
 
 #include "mini-gc.h"
 #include "mini-llvm.h"
-#include "debugger-agent.h"
 #include "lldb.h"
 #include "mini-runtime.h"
 #include "interp/interp.h"
@@ -3491,10 +3490,10 @@ MONO_SIG_HANDLER_FUNC (, mono_sigsegv_signal_handler)
 
 #if defined(MONO_ARCH_SOFT_DEBUG_SUPPORTED) && defined(HAVE_SIG_INFO)
 	if (mono_arch_is_single_step_event (info, ctx)) {
-		mini_get_dbg_callbacks ()->single_step_event (ctx);
+		mono_component_debugger ()->single_step_event (ctx);
 		return;
 	} else if (mono_arch_is_breakpoint_event (info, ctx)) {
-		mini_get_dbg_callbacks ()->breakpoint_hit (ctx);
+		mono_component_debugger ()->breakpoint_hit (ctx);
 		return;
 	}
 #endif
@@ -4125,7 +4124,7 @@ free_jit_mem_manager (MonoMemoryManager *mem_manager)
 	g_hash_table_destroy (info->seq_points);
 	g_hash_table_destroy (info->arch_seq_points);
 	if (info->agent_info)
-		mini_get_dbg_callbacks ()->free_mem_manager (info);
+		mono_component_debugger ()->free_mem_manager (info);
 	g_hash_table_destroy (info->gsharedvt_arg_tramp_hash);
 	if (info->llvm_jit_callees) {
 		g_hash_table_foreach (info->llvm_jit_callees, free_jit_callee_list, NULL);
@@ -4192,21 +4191,6 @@ mini_install_interp_callbacks (const MonoEECallbacks *cbs)
 	mono_interp_callbacks_pointer = cbs;
 }
 
-static MonoDebuggerCallbacks dbg_cbs;
-
-void
-mini_install_dbg_callbacks (MonoDebuggerCallbacks *cbs)
-{
-	g_assert (cbs->version == MONO_DBG_CALLBACKS_VERSION);
-	memcpy (&dbg_cbs, cbs, sizeof (MonoDebuggerCallbacks));
-}
-
-MonoDebuggerCallbacks*
-mini_get_dbg_callbacks (void)
-{
-	return &dbg_cbs;
-}
-
 int
 mono_ee_api_version (void)
 {
@@ -4265,11 +4249,6 @@ mini_init (const char *filename, const char *runtime_version)
 		mono_ee_interp_init (mono_interp_opts_string);
 #endif
 
-	mono_debugger_agent_stub_init ();
-#ifndef DISABLE_SDB
-	mono_debugger_agent_init ();
-#endif
-
 	if (sdb_options)
 		mono_component_debugger ()->parse_options (sdb_options);
 
@@ -4310,8 +4289,8 @@ mini_init (const char *filename, const char *runtime_version)
 	callbacks.get_runtime_build_info = mono_get_runtime_build_info;
 	callbacks.get_runtime_build_version = mono_get_runtime_build_version;
 	callbacks.set_cast_details = mono_set_cast_details;
-	callbacks.debug_log = mini_get_dbg_callbacks ()->debug_log;
-	callbacks.debug_log_is_enabled = mini_get_dbg_callbacks ()->debug_log_is_enabled;
+	callbacks.debug_log = mono_component_debugger ()->debug_log;
+	callbacks.debug_log_is_enabled = mono_component_debugger ()->debug_log_is_enabled;
 	callbacks.get_vtable_trampoline = mini_get_vtable_trampoline;
 	callbacks.get_imt_trampoline = mini_get_imt_trampoline;
 	callbacks.imt_entry_inited = mini_imt_entry_inited;
@@ -4405,7 +4384,7 @@ mini_init (const char *filename, const char *runtime_version)
 	if (default_opt & MONO_OPT_AOT)
 		mono_aot_init ();
 
-	mini_get_dbg_callbacks ()->init ();
+	mono_component_debugger ()->init ();
 
 #ifdef TARGET_WASM
 	mono_wasm_debugger_init ();
@@ -4786,7 +4765,7 @@ register_icalls (void)
 	register_icall (mono_fill_class_rgctx, mono_icall_sig_ptr_ptr_int, FALSE);
 	register_icall (mono_fill_method_rgctx, mono_icall_sig_ptr_ptr_int, FALSE);
 
-	register_dyn_icall (mini_get_dbg_callbacks ()->user_break, mono_debugger_agent_user_break, mono_icall_sig_void, FALSE);
+	register_dyn_icall (mono_component_debugger ()->user_break, mono_debugger_agent_user_break, mono_icall_sig_void, FALSE);
 
 	register_icall (mini_llvm_init_method, mono_icall_sig_void_ptr_ptr_ptr_ptr, TRUE);
 	register_icall_no_wrapper (mini_llvmonly_resolve_iface_call_gsharedvt, mono_icall_sig_ptr_object_int_ptr_ptr);

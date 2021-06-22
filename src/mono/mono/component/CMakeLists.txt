@@ -22,6 +22,12 @@ list(APPEND components
 set(${MONO_DEBUGGER_COMPONENT_NAME}-sources
   ${MONO_COMPONENT_PATH}/debugger.c
   ${MONO_COMPONENT_PATH}/debugger.h
+  ${MONO_COMPONENT_PATH}/debugger-agent.c
+  ${MONO_COMPONENT_PATH}/debugger-agent.h
+  ${MONO_COMPONENT_PATH}/debugger-engine.c
+  ${MONO_COMPONENT_PATH}/debugger-engine.h
+  ${MONO_COMPONENT_PATH}/debugger-state-machine.h
+  ${MONO_COMPONENT_PATH}/debugger-state-machine.c
   )
 set(${MONO_DEBUGGER_COMPONENT_NAME}-stub-sources
   ${MONO_COMPONENT_PATH}/debugger-stub.c

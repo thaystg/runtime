@@ -26,7 +26,7 @@ typedef struct {
 		MdbgProtStepFilter filter; /* For kind == MOD_KIND_STEP */
 	} data;
 	gboolean caught, uncaught, subclasses, not_filtered_feature, everything_else; /* For kind == MOD_KIND_EXCEPTION_ONLY */
-} DbgModifier;
+} Modifier;
 
 typedef struct{
 	int id;
@@ -34,15 +34,15 @@ typedef struct{
 	int suspend_policy;
 	int nmodifiers;
 	gpointer info;
-	DbgModifier modifiers [MONO_ZERO_LEN_ARRAY];
-} DbgEventRequest;
+	Modifier modifiers [MONO_ZERO_LEN_ARRAY];
+} EventRequest;
 
 typedef struct {
 	MonoJitInfo *ji;
 	MonoDomain *domain;
 	MonoMethod *method;
 	guint32 native_offset;
-} DbgEngineStackFrameTHAYS;
+} DbgEngineStackFrame;
 
 
 typedef struct {
@@ -71,12 +71,21 @@ typedef struct {
 	/*
 	 * Frame data, will be freed at the end of ss_start if provided
 	 */
-	DbgEngineStackFrameTHAYS **frames;
+	DbgEngineStackFrame **frames;
 	int nframes;
-} SingleStepArgsTHAYS;
+} SingleStepArgs;
 
 typedef struct {
-	DbgEventRequest *req;
+	const char* name;
+	void (*connect) (const char* address);
+	void (*close1) (void);
+	void (*close2) (void);
+	gboolean(*send) (void* buf, int len);
+	int (*recv) (void* buf, int len);
+} DebuggerTransport;
+
+typedef struct {
+	EventRequest *req;
 	MonoInternalThread *thread;
 	MdbgProtStepDepth depth;
 	MdbgProtStepSize size;
@@ -99,7 +108,7 @@ typedef struct {
 	/* Used to know if we are in process of async step-out and distishing from exception breakpoints */
 	MonoMethod* async_stepout_method;
 	int refcount;
-} SingleStepReqTHAYS;
+} SingleStepReq;
 
 typedef struct {
 	MonoContext *(*tls_get_restore_state) (void *tls);
@@ -108,22 +117,45 @@ typedef struct {
 	void (*begin_single_step_processing) (MonoContext *ctx, gboolean from_signal);
 
 	void (*ss_discard_frame_context) (void *tls);
-	void (*ss_calculate_framecount) (void *tls, MonoContext *ctx, gboolean force_use_ctx, DbgEngineStackFrameTHAYS ***frames, int *nframes);
-	gboolean (*ensure_jit) (DbgEngineStackFrameTHAYS *frame);
+	void (*ss_calculate_framecount) (void *tls, MonoContext *ctx, gboolean force_use_ctx, DbgEngineStackFrame ***frames, int *nframes);
+	gboolean (*ensure_jit) (DbgEngineStackFrame *frame);
 	int (*ensure_runtime_is_suspended) (void);
 
-	int (*get_this_async_id) (DbgEngineStackFrameTHAYS *frame);
+	int (*get_this_async_id) (DbgEngineStackFrame *frame);
 
 	void* (*create_breakpoint_events) (GPtrArray *ss_reqs, GPtrArray *bp_reqs, MonoJitInfo *ji, MdbgProtEventKind kind);
 	void (*process_breakpoint_events) (void *_evts, MonoMethod *method, MonoContext *ctx, int il_offset);
 
-	gboolean (*set_set_notification_for_wait_completion_flag) (DbgEngineStackFrameTHAYS *f);
+	gboolean (*set_set_notification_for_wait_completion_flag) (DbgEngineStackFrame *f);
 	MonoMethod* (*get_notify_debugger_of_wait_completion_method)(void);
 
-	int (*ss_create_init_args) (SingleStepReqTHAYS *ss_req, SingleStepArgsTHAYS *args);
-	void (*ss_args_destroy) (SingleStepArgsTHAYS *ss_args);
+	int (*ss_create_init_args) (SingleStepReq *ss_req, SingleStepArgs *args);
+	void (*ss_args_destroy) (SingleStepArgs *ss_args);
 	int (*handle_multiple_ss_requests)(void);
-} DebuggerEngineCallbacksTHAYS;
+} DebuggerEngineCallbacks;
+
+/*
+ * Contains generic information about a breakpoint.
+ */
+typedef struct {
+	/*
+	 * The method where the breakpoint is placed. Can be NULL in which case it
+	 * is inserted into every method. This is used to implement method entry/
+	 * exit events. Can be a generic method definition, in which case the
+	 * breakpoint is inserted into every instance.
+	 */
+	MonoMethod* method;
+	long il_offset;
+	EventRequest* req;
+	/*
+	 * A list of BreakpointInstance structures describing where the breakpoint
+	 * was inserted. There could be more than one because of
+	 * generics/appdomains/method entry/exit.
+	 */
+	GPtrArray* children;
+} MonoBreakpoint;
+
+typedef int DbgEngineErrorCode;
 
 typedef struct MonoComponentDebugger {
 	MonoComponent component;
@@ -143,9 +175,29 @@ typedef struct MonoComponentDebugger {
 	void (*debug_log) (int level, MonoString *category, MonoString *message);
 	gboolean (*debug_log_is_enabled) (void);
 	void (*send_crash) (char *json_dump, MonoStackHash *hashes, int pause);
-	void (*mono_de_init) (DebuggerEngineCallbacksTHAYS *cbs);
-	DebuggerEngineCallbacksTHAYS cbs;
+	void (*register_transport) (DebuggerTransport* trans); //debugger-agent
+	gboolean (*mono_debugger_agent_transport_handshake) (void);
+	void (*mono_debugger_agent_parse_options) (char* options);
+	void (*mono_de_init) (DebuggerEngineCallbacks *cbs); //debugger-engine
+	void (*mono_debugger_free_objref) (gpointer value); //debugger-engine removeAfterMergeWasmPR
+	void (*mono_de_set_log_level) (int level, FILE* file); //debugger-engine removeAfterMergeWasmPR
+	void (*mono_de_add_pending_breakpoints) (MonoMethod* method, MonoJitInfo* ji); //debugger-engine removeAfterMergeWasmPR
+	void (*mono_de_clear_breakpoint) (MonoBreakpoint* bp); //debugger-engine removeAfterMergeWasmPR
+	void (*mono_de_process_single_step) (void* tls, gboolean from_signal); //debugger-engine removeAfterMergeWasmPR
+	void (*mono_de_process_breakpoint) (void* tls, gboolean from_signal); //debugger-engine removeAfterMergeWasmPR
+	MonoBreakpoint* (*mono_de_set_breakpoint) (MonoMethod* method, long il_offset, EventRequest* req, MonoError* error); //debugger-engine removeAfterMergeWasmPR
+	void (*mono_de_cancel_all_ss) (void); //debugger-engine removeAfterMergeWasmPR
+	DbgEngineErrorCode (*mono_de_ss_create) (MonoInternalThread* thread, MdbgProtStepSize size, MdbgProtStepDepth depth, MdbgProtStepFilter filter, EventRequest* req); //debugger-engine removeAfterMergeWasmPR
+	void (*mono_de_domain_add) (MonoDomain* domain); //debugger-engine removeAfterMergeWasmPR
+	void (*mono_de_collect_breakpoints_by_sp) (SeqPoint* sp, MonoJitInfo* ji, GPtrArray* ss_reqs, GPtrArray* bp_reqs); //debugger-engine removeAfterMergeWasmPR
+	MonoBreakpoint* (*mono_de_get_breakpoint_by_id) (int id); //debugger-engine removeAfterMergeWasmPR
+	DbgEngineErrorCode (*mono_de_set_interp_var) (MonoType* t, gpointer addr, guint8* val_buf); //debugger-engine removeAfterMergeWasmPR
+	gboolean (*set_set_notification_for_wait_completion_flag) (DbgEngineStackFrame* frame); //debugger-engine removeAfterMergeWasmPR
+	MonoMethod* (*get_notify_debugger_of_wait_completion_method) (void); //debugger-engine removeAfterMergeWasmPR
+	MonoClass* (*get_class_to_get_builder_field) (DbgEngineStackFrame* frame); //debugger-engine removeAfterMergeWasmPR
+	MonoMethod* (*get_object_id_for_debugger_method) (MonoClass* async_builder_class); //debugger-engine removeAfterMergeWasmPR
 } MonoComponentDebugger;
+
 
 typedef int DbgEngineErrorCodeTHAYS;
 #define DE_ERR_NONE 0
@@ -168,7 +220,7 @@ MONO_COMPONENT_EXPORT_ENTRYPOINT
 MonoComponentDebugger *
 mono_component_debugger_init (void);
 
-
+#define MONO_DBG_CALLBACKS_VERSION (4)
 
 
 #endif/*_MONO_COMPONENT_DEBUGGER_H*/
