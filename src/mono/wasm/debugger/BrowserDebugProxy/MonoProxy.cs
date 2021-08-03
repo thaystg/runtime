@@ -522,7 +522,7 @@ namespace Microsoft.WebAssembly.Diagnostics
                         try {
                             return await CallOnFunction(id, args, token);
                         }
-                        catch (Exception){
+                        catch (Exception) {
                             SendResponse(id,
                                 Result.Exception(new ArgumentException(
                                     $"Runtime.callFunctionOn not supported with ({args["objectId"]}).")),
@@ -542,32 +542,32 @@ namespace Microsoft.WebAssembly.Diagnostics
             switch (objectId.Scheme)
             {
                 case "object":
-                    args["details"]  = await SdbHelper.GetObjectProxy(id, int.Parse(objectId.Value), token);
+                    args["details"] = await SdbHelper.GetObjectProxy(id, int.Parse(objectId.Value), token);
                     break;
                 case "valuetype":
-                    args["details"]  = await SdbHelper.GetValueTypeProxy(id, int.Parse(objectId.Value), token);
+                    args["details"] = await SdbHelper.GetValueTypeProxy(id, int.Parse(objectId.Value), token);
                     break;
                 case "pointer":
-                    args["details"]  = await SdbHelper.GetPointerContent(id, int.Parse(objectId.Value), token);
+                    args["details"] = await SdbHelper.GetPointerContent(id, int.Parse(objectId.Value), token);
                     break;
                 case "array":
-                    args["details"]  = await SdbHelper.GetArrayValues(id, int.Parse(objectId.Value), token);
+                    args["details"] = await SdbHelper.GetArrayValues(id, int.Parse(objectId.Value), token);
                     break;
                 case "cfo_res":
-                {
-                    Result cfo_res = await SendMonoCommand(id, MonoCommands.CallFunctionOn(args), token);
-                    cfo_res = Result.OkFromObject(new { result = cfo_res.Value?["result"]?["value"]});
-                    SendResponse(id, cfo_res, token);
-                    return true;
-                }
+                    {
+                        Result cfo_res = await SendMonoCommand(id, MonoCommands.CallFunctionOn(args), token);
+                        cfo_res = Result.OkFromObject(new { result = cfo_res.Value?["result"]?["value"] });
+                        SendResponse(id, cfo_res, token);
+                        return true;
+                    }
                 case "scope":
-                {
-                    SendResponse(id,
-                    Result.Exception(new ArgumentException(
-                        $"Runtime.callFunctionOn not supported with scope ({objectId}).")),
-                        token);
-                    return true;
-                }
+                    {
+                        SendResponse(id,
+                        Result.Exception(new ArgumentException(
+                            $"Runtime.callFunctionOn not supported with scope ({objectId}).")),
+                            token);
+                        return true;
+                    }
                 default:
                     return false;
             }
@@ -585,11 +585,11 @@ namespace Microsoft.WebAssembly.Diagnostics
                 retDebuggerCmdReader.ReadByte(); //number of objects returned.
                 var obj = await SdbHelper.CreateJObjectForVariableValue(id, retDebuggerCmdReader, "ret", false, -1, token);
                 /*JTokenType? res_value_type = res.Value?["result"]?["value"]?.Type;*/
-                res = Result.OkFromObject(new { result = obj["value"]});
+                res = Result.OkFromObject(new { result = obj["value"] });
                 SendResponse(id, res, token);
                 return true;
             }
-            res = Result.OkFromObject(new { result = res.Value?["result"]?["value"]});
+            res = Result.OkFromObject(new { result = res.Value?["result"]?["value"] });
             SendResponse(id, res, token);
             return true;
         }
@@ -630,10 +630,10 @@ namespace Microsoft.WebAssembly.Diagnostics
                 switch (objectId.Scheme)
                 {
                     case "scope":
-                    {
-                        var res = await GetScopeProperties(id, int.Parse(objectId.Value), token);
-                        return res.Value?["result"];
-                    }
+                        {
+                            var res = await GetScopeProperties(id, int.Parse(objectId.Value), token);
+                            return res.Value?["result"];
+                        }
                     case "valuetype":
                         return await SdbHelper.GetValueTypeValues(id, int.Parse(objectId.Value), accessorPropertiesOnly, token);
                     case "array":
@@ -641,13 +641,13 @@ namespace Microsoft.WebAssembly.Diagnostics
                     case "object":
                         return await SdbHelper.GetObjectValues(id, int.Parse(objectId.Value), true, false, accessorPropertiesOnly, ownProperties, token);
                     case "pointer":
-                        return new JArray{await SdbHelper.GetPointerContent(id, int.Parse(objectId.Value), token)};
+                        return new JArray { await SdbHelper.GetPointerContent(id, int.Parse(objectId.Value), token) };
                     case "cfo_res":
-                    {
-                        Result res = await SendMonoCommand(id, MonoCommands.GetDetails(int.Parse(objectId.Value), args), token);
-                        string value_json_str = res.Value["result"]?["value"]?["__value_as_json_string__"]?.Value<string>();
-                        return value_json_str != null ? JArray.Parse(value_json_str) : null;
-                    }
+                        {
+                            Result res = await SendMonoCommand(id, MonoCommands.GetDetails(int.Parse(objectId.Value), args), token);
+                            string value_json_str = res.Value["result"]?["value"]?["__value_as_json_string__"]?.Value<string>();
+                            return value_json_str != null ? JArray.Parse(value_json_str) : null;
+                        }
                     default:
                         return null;
 
@@ -706,18 +706,40 @@ namespace Microsoft.WebAssembly.Diagnostics
             return true;
         }
 
+        private async Task<bool> LoadAssemblyDebugInformation(SessionId sessionId, ExecutionContext context, MonoBinaryReader retDebuggerCmdReader, CancellationToken token)
+        {
+            int assemblyId = retDebuggerCmdReader.ReadInt32();
+            var store = await LoadStore(sessionId, token);
+            if (await SdbHelper.HasDebugInfo(sessionId, assemblyId, token))
+            {
+                foreach (var source in store.Add(sessionId, assemblyId, await SdbHelper.GetMetadataBlob(sessionId, assemblyId, token), await SdbHelper.GetPdbBlob(sessionId, assemblyId, token)))
+                {
+                    await OnSourceFileAdded(sessionId, source, context, token);
+                }
+            }
+            //hack used for debugger-tests
+            store.CountAssembliesReceivedFromDebuggerAgent++;
+            Console.WriteLine($"tenho {store.CountAssembliesReceivedFromDebuggerAgent} - espero ter {store.CountAssembliesLoadedOnStartup}");
+            if (store.CountAssembliesLoadedOnStartup == store.CountAssembliesReceivedFromDebuggerAgent)
+            {
+                context.Source.SetResult(context.store);
+                SendEvent(sessionId, "Mono.runtimeReady", new JObject(), token);
+            }
+            return true;
+        }
+
         private async Task<bool> SendBreakpointsOfMethodUpdated(SessionId sessionId, ExecutionContext context, MonoBinaryReader retDebuggerCmdReader, CancellationToken token)
         {
             var method_id = retDebuggerCmdReader.ReadInt32();
             var method_token = await SdbHelper.GetMethodToken(sessionId, method_id, token);
-            var assembly_id = await SdbHelper.GetAssemblyIdFromMethod(sessionId, method_id, token);
-            var assembly_name = await SdbHelper.GetAssemblyName(sessionId, assembly_id, token);
+            var assemblyId = await SdbHelper.GetAssemblyIdFromMethod(sessionId, method_id, token);
+            var assembly_name = await SdbHelper.GetAssemblyName(sessionId, assemblyId, token);
             var method_name = await SdbHelper.GetMethodName(sessionId, method_id, token);
             DebugStore store = await LoadStore(sessionId, token);
             AssemblyInfo asm = store.GetAssemblyByName(assembly_name);
             if (asm == null)
             {
-                assembly_name = await SdbHelper.GetAssemblyNameFull(sessionId, assembly_id, token);
+                assembly_name = await SdbHelper.GetAssemblyNameFull(sessionId, assemblyId, token);
                 asm = store.GetAssemblyByName(assembly_name);
                 if (asm == null)
                 {
@@ -757,20 +779,14 @@ namespace Microsoft.WebAssembly.Diagnostics
                 var il_pos = retDebuggerCmdReader.ReadInt32();
                 var flags = retDebuggerCmdReader.ReadByte();
                 var method_token = await SdbHelper.GetMethodToken(sessionId, methodId, token);
-                var assembly_id = await SdbHelper.GetAssemblyIdFromMethod(sessionId, methodId, token);
-                var assembly_name = await SdbHelper.GetAssemblyName(sessionId, assembly_id, token);
+                var assemblyId = await SdbHelper.GetAssemblyIdFromMethod(sessionId, methodId, token);
                 var method_name = await SdbHelper.GetMethodName(sessionId, methodId, token);
                 DebugStore store = await LoadStore(sessionId, token);
-                AssemblyInfo asm = store.GetAssemblyByName(assembly_name);
+                AssemblyInfo asm = store.GetAssemblyById(assemblyId);
                 if (asm == null)
                 {
-                    assembly_name = await SdbHelper.GetAssemblyNameFull(sessionId, assembly_id, token); //maybe is a lazy loaded assembly
-                    asm = store.GetAssemblyByName(assembly_name);
-                    if (asm == null)
-                    {
-                        Log("debug", $"Unable to find assembly: {assembly_name}");
-                        continue;
-                    }
+                    Log("debug", $"Unable to find assembly: {await SdbHelper.GetAssemblyName(sessionId, assemblyId, token)}");
+                    continue;
                 }
 
                 MethodInfo method = asm.GetMethodByToken(method_token);
@@ -783,14 +799,14 @@ namespace Microsoft.WebAssembly.Diagnostics
                     }
                     catch (Exception e)
                     {
-                        Log("info", $"Unable to find il offset: {il_pos} in method token: {method_token} assembly name: {assembly_name} exception: {e}");
+                        Log("info", $"Unable to find il offset: {il_pos} in method token: {method_token} assembly name: {await SdbHelper.GetAssemblyName(sessionId, assemblyId, token)} exception: {e}");
                         continue;
                     }
                 }
 
                 if (method == null)
                 {
-                    Log("debug", $"Unable to find il offset: {il_pos} in method token: {method_token} assembly name: {assembly_name}");
+                    Log("debug", $"Unable to find il offset: {il_pos} in method token: {method_token} assembly name: {await SdbHelper.GetAssemblyName(sessionId, assemblyId, token)}");
                     continue;
                 }
 
@@ -807,7 +823,7 @@ namespace Microsoft.WebAssembly.Diagnostics
                     continue;
                 }
 
-                Log("debug", $"frame il offset: {il_pos} method token: {method_token} assembly name: {assembly_name}");
+                Log("debug", $"frame il offset: {il_pos} method token: {method_token} assembly id: {assemblyId}");
                 Log("debug", $"\tmethod {method_name} location: {location}");
                 frames.Add(new Frame(method, location, frame_id));
 
@@ -894,6 +910,12 @@ namespace Microsoft.WebAssembly.Diagnostics
                 int thread_id = retDebuggerCmdReader.ReadInt32();
                 switch (event_kind)
                 {
+                    case EventKind.AssemblyLoad:
+                    {
+                        var ret = await LoadAssemblyDebugInformation(sessionId, context, retDebuggerCmdReader, token);
+                        await SendCommand(sessionId, "Debugger.resume", new JObject(), token);
+                        return ret;
+                    }
                     case EventKind.MethodUpdate:
                     {
                         var ret = await SendBreakpointsOfMethodUpdated(sessionId, context, retDebuggerCmdReader, token);
@@ -1060,8 +1082,8 @@ namespace Microsoft.WebAssembly.Diagnostics
 
             switch (eventName)
             {
-                case "AssemblyLoaded":
-                    return await OnAssemblyLoadedJSEvent(sessionId, eventArgs, token);
+                /*case "AssemblyLoaded":
+                    return await OnAssemblyLoadedJSEvent(sessionId, eventArgs, token);*/
                 default:
                 {
                     logger.LogDebug($"Unknown js event name: {eventName} with args {eventArgs}");
@@ -1070,11 +1092,11 @@ namespace Microsoft.WebAssembly.Diagnostics
             }
         }
 
-        private async Task<bool> OnAssemblyLoadedJSEvent(SessionId sessionId, JObject eventArgs, CancellationToken token)
+        /*private async Task<bool> OnAssemblyLoadedJSEvent(SessionId sessionId, JObject eventArgs, CancellationToken token)
         {
             try
             {
-                var store = await LoadStore(sessionId, token);
+                var store = LoadStore(sessionId, token);
                 var assembly_name = eventArgs?["assembly_name"]?.Value<string>();
 
                 if (store.GetAssemblyByUnqualifiedName(assembly_name) != null)
@@ -1108,7 +1130,7 @@ namespace Microsoft.WebAssembly.Diagnostics
                 logger.LogDebug($"Failed to load assemblies and PDBs: {e}");
                 return false;
             }
-        }
+        }*/
 
         private async Task<bool> OnEvaluateOnCallFrame(MessageId msg_id, int scopeId, string expression, CancellationToken token)
         {
@@ -1186,13 +1208,14 @@ namespace Microsoft.WebAssembly.Diagnostics
 
         private async Task<Breakpoint> SetMonoBreakpoint(SessionId sessionId, string reqId, SourceLocation location, string condition, CancellationToken token)
         {
+            Console.WriteLine("vou finalmente adicionar o breakpoint");
             var bp = new Breakpoint(reqId, location, condition, BreakpointState.Pending);
             string asm_name = bp.Location.CliLocation.Method.Assembly.Name;
             int method_token = bp.Location.CliLocation.Method.Token;
             int il_offset = bp.Location.CliLocation.Offset;
 
-            var assembly_id = await SdbHelper.GetAssemblyId(sessionId, asm_name, token);
-            var methodId = await SdbHelper.GetMethodIdByToken(sessionId, assembly_id, method_token, token);
+            var assemblyId = await SdbHelper.GetAssemblyId(sessionId, asm_name, token);
+            var methodId = await SdbHelper.GetMethodIdByToken(sessionId, assemblyId, method_token, token);
             var breakpoint_id = await SdbHelper.SetBreakpoint(sessionId, methodId, il_offset, token);
 
             if (breakpoint_id > 0)
@@ -1201,6 +1224,7 @@ namespace Microsoft.WebAssembly.Diagnostics
                 bp.State = BreakpointState.Active;
                 //Log ("verbose", $"BP local id {bp.LocalId} enabled with remote id {bp.RemoteId}");
             }
+            SendEvent(sessionId, "Mono.runtimeReady", new JObject(), token);
             return bp;
         }
 
@@ -1228,19 +1252,9 @@ namespace Microsoft.WebAssembly.Diagnostics
 
             try
             {
-                string[] loaded_files = context.LoadedFiles;
-
-                if (loaded_files == null)
-                {
-                    Result loaded = await SendMonoCommand(sessionId, MonoCommands.GetLoadedFiles(), token);
-                    loaded_files = loaded.Value?["result"]?["value"]?.ToObject<string[]>();
-                }
-
-                await
-                foreach (SourceFile source in context.store.Load(sessionId, loaded_files, token).WithCancellation(token))
-                {
-                    await OnSourceFileAdded(sessionId, source, context, token);
-                }
+                Result loaded = await SendMonoCommand(sessionId, MonoCommands.GetCountLoadedFiles(), token);
+                int count = loaded.Value["result"]["value"].Value<int>();
+                context.store.CountAssembliesLoadedOnStartup = count;
             }
             catch (Exception e)
             {
@@ -1274,11 +1288,12 @@ namespace Microsoft.WebAssembly.Diagnostics
             await SdbHelper.EnableReceiveRequests(sessionId, EventKind.UserBreak, token);
             await SdbHelper.EnableReceiveRequests(sessionId, EventKind.EnC, token);
             await SdbHelper.EnableReceiveRequests(sessionId, EventKind.MethodUpdate, token);
+            await SdbHelper.EnableReceiveRequests(sessionId, EventKind.AssemblyLoad, token);
 
             DebugStore store = await LoadStore(sessionId, token);
-
+            Console.WriteLine("vou setar o result antes de mandar o runtimeReady");
             context.ready.SetResult(store);
-            SendEvent(sessionId, "Mono.runtimeReady", new JObject(), token);
+            Console.WriteLine("vou mandar o runtimeReady");
             return store;
         }
 

@@ -526,9 +526,15 @@ public class LoadDebuggerTest {
         byte[] pdb_bytes = null;
         if (pdb_base64 != null)
             pdb_bytes = Convert.FromBase64String(pdb_base64);
-
-        var loadedAssembly = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromStream(new System.IO.MemoryStream(asm_bytes), new System.IO.MemoryStream(pdb_bytes));
-        Console.WriteLine($"Loaded - {loadedAssembly}");
+        try
+        {
+            var loadedAssembly = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromStream(new System.IO.MemoryStream(asm_bytes), new System.IO.MemoryStream(pdb_bytes));
+            Console.WriteLine($"Loaded - {loadedAssembly}");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("deu ruim - " + e);
+        }
     }
 }
 

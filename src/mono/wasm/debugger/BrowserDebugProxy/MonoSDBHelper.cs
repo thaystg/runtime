@@ -187,6 +187,10 @@ namespace Microsoft.WebAssembly.Diagnostics
         GetTypeFromToken = 11,
         GetMethodFromToken = 12,
         HasDebugInfo = 13,
+        GetCAttrs = 14,
+        GetCustomCAttrs = 15,
+        GetPEImageAdress = 16,
+        HasAnyDebugInfo = 17,
     }
 
     internal enum CmdModule {
@@ -368,6 +372,15 @@ namespace Microsoft.WebAssembly.Diagnostics
             Read(value, 0, valueLen);
             return new string(value);
         }
+
+        public byte[] ReadByteArray()
+        {
+            var valueLen = ReadInt32();
+            byte[] value = new byte[valueLen];
+            Read(value, 0, valueLen);
+            return value;
+        }
+
         public unsafe long ReadLong()
         {
             byte[] data = new byte[8];
@@ -769,6 +782,33 @@ namespace Microsoft.WebAssembly.Diagnostics
             var ret_debugger_cmd_reader = await SendDebuggerAgentCommand<CmdModule>(sessionId, CmdModule.GetInfo, command_params, token);
             ret_debugger_cmd_reader.ReadString();
             return ret_debugger_cmd_reader.ReadString();
+        }
+
+        public async Task<bool> HasDebugInfo(SessionId sessionId, int assemblyId, CancellationToken token)
+        {
+            var commandParams = new MemoryStream();
+            var commandParamsWriter = new MonoBinaryWriter(commandParams);
+            commandParamsWriter.Write(assemblyId);
+            var retDebuggerCmdReader = await SendDebuggerAgentCommand<CmdAssembly>(sessionId, CmdAssembly.HasAnyDebugInfo, commandParams, token);
+            return retDebuggerCmdReader.ReadInt32() == 1;
+        }
+
+        public async Task<byte[]> GetMetadataBlob(SessionId sessionId, int assemblyId, CancellationToken token)
+        {
+            var commandParams = new MemoryStream();
+            var commandParamsWriter = new MonoBinaryWriter(commandParams);
+            commandParamsWriter.Write(assemblyId);
+            var retDebuggerCmdReader = await SendDebuggerAgentCommand<CmdAssembly>(sessionId, CmdAssembly.GetMetadataBlob, commandParams, token);
+            return retDebuggerCmdReader.ReadByteArray();
+        }
+
+        public async Task<byte[]> GetPdbBlob(SessionId sessionId, int assemblyId, CancellationToken token)
+        {
+            var commandParams = new MemoryStream();
+            var commandParamsWriter = new MonoBinaryWriter(commandParams);
+            commandParamsWriter.Write(assemblyId);
+            var retDebuggerCmdReader = await SendDebuggerAgentCommand<CmdAssembly>(sessionId, CmdAssembly.GetPdbBlob, commandParams, token);
+            return retDebuggerCmdReader.ReadByteArray();
         }
 
         public async Task<string> GetAssemblyName(SessionId sessionId, int assembly_id, CancellationToken token)

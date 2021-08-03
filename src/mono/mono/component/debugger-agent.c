@@ -1631,8 +1631,10 @@ mono_init_debugger_agent_for_wasm (int log_level_parm, MonoProfilerHandle *prof)
 	transport = &transports [0];
 	memset(&debugger_wasm_thread, 0, sizeof(DebuggerTlsData));
 	agent_config.enabled = TRUE;
-
+	agent_config.defer = TRUE;
 	mono_profiler_set_jit_done_callback (*prof, jit_done);
+	mono_profiler_set_assembly_loaded_callback (*prof, assembly_load);
+	mono_profiler_set_domain_loaded_callback (*prof, appdomain_load);
 }
 #endif
 
@@ -3961,10 +3963,14 @@ invalidate_each_thread (gpointer key, gpointer value, gpointer user_data)
 static void
 assembly_load (MonoProfiler *prof, MonoAssembly *assembly)
 {
+#ifdef TARGET_WASM	
+	process_profiler_event (EVENT_KIND_ASSEMBLY_LOAD, assembly);
+#else	
 	/* Sent later in jit_end () */
 	dbg_lock ();
 	g_ptr_array_add (pending_assembly_loads, assembly);
 	dbg_unlock ();
+#endif	
 }
 
 static void
@@ -7617,67 +7623,67 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		g_free (name);
 		break;
 	}
-    case CMD_ASSEMBLY_GET_METADATA_BLOB: {
-        MonoImage* image = ass->image;
-        if (ass->dynamic) {
-            return ERR_NOT_IMPLEMENTED;
-        }
-        buffer_add_byte_array (buf, (guint8*)image->raw_data, image->raw_data_len);
-        break;
-    }
-    case CMD_ASSEMBLY_GET_IS_DYNAMIC: {
-        buffer_add_byte (buf, ass->dynamic);
-        break;
-    }
-    case CMD_ASSEMBLY_GET_PDB_BLOB: {
-        MonoImage* image = ass->image;
-        MonoDebugHandle* handle = mono_debug_get_handle (image); 
-        if (!handle) {
-            return ERR_INVALID_ARGUMENT;
-        }
-        MonoPPDBFile* ppdb = handle->ppdb;
-        if (ppdb) {
-            image = mono_ppdb_get_image (ppdb);
-            buffer_add_byte_array (buf, (guint8*)image->raw_data, image->raw_data_len);
-        } else {
-            buffer_add_byte_array (buf, NULL, 0);
-        }
-        break;
-    }
-    case CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN: {
-        if (ass->dynamic) {
-            return ERR_NOT_IMPLEMENTED;
-        }
-        guint32 token = decode_int (p, &p, end);
-        ERROR_DECL (error);
-        error_init (error);
-        MonoClass* mono_class = mono_class_get_checked (ass->image, token, error);
-        if (!is_ok (error)) {
-            add_error_string (buf, mono_error_get_message (error));
-            mono_error_cleanup (error);
-            return ERR_INVALID_ARGUMENT;
-        }
-        buffer_add_typeid (buf, domain, mono_class);
-        mono_error_cleanup (error);
-        break;
-    }
-    case CMD_ASSEMBLY_GET_METHOD_FROM_TOKEN: {
-        if (ass->dynamic) {
-            return ERR_NOT_IMPLEMENTED;
-        }
-        guint32 token = decode_int (p, &p, end);
-        ERROR_DECL (error);
-        error_init (error);
-        MonoMethod* mono_method = mono_get_method_checked (ass->image, token, NULL, NULL, error);
-        if (!is_ok (error)) {
-            add_error_string (buf, mono_error_get_message (error));
-            mono_error_cleanup (error);
-            return ERR_INVALID_ARGUMENT;
-        }
-        buffer_add_methodid (buf, domain, mono_method);
-        mono_error_cleanup (error);
-        break;
-    }
+	case CMD_ASSEMBLY_GET_METADATA_BLOB: {
+		MonoImage* image = ass->image;
+		if (ass->dynamic) {
+			return ERR_NOT_IMPLEMENTED;
+		}
+		buffer_add_byte_array (buf, (guint8*)image->raw_data, image->raw_data_len);
+		break;
+	}
+	case CMD_ASSEMBLY_GET_IS_DYNAMIC: {
+		buffer_add_byte (buf, ass->dynamic);
+		break;
+	}
+	case CMD_ASSEMBLY_GET_PDB_BLOB: {
+		MonoImage* image = ass->image;
+		MonoDebugHandle* handle = mono_debug_get_handle (image); 
+		if (!handle) {
+			return ERR_INVALID_ARGUMENT;
+		}
+		MonoPPDBFile* ppdb = handle->ppdb;
+		if (ppdb) {
+			image = mono_ppdb_get_image (ppdb);
+			buffer_add_byte_array (buf, (guint8*)image->raw_data, image->raw_data_len);
+		} else {
+			buffer_add_byte_array (buf, NULL, 0);
+		}
+		break;
+	}
+	case CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN: {
+		if (ass->dynamic) {
+			return ERR_NOT_IMPLEMENTED;
+		}
+		guint32 token = decode_int (p, &p, end);
+		ERROR_DECL (error);
+		error_init (error);
+		MonoClass* mono_class = mono_class_get_checked (ass->image, token, error);
+		if (!is_ok (error)) {
+			add_error_string (buf, mono_error_get_message (error));
+			mono_error_cleanup (error);
+			return ERR_INVALID_ARGUMENT;
+		}
+		buffer_add_typeid (buf, domain, mono_class);
+		mono_error_cleanup (error);
+		break;
+	}
+	case CMD_ASSEMBLY_GET_METHOD_FROM_TOKEN: {
+		if (ass->dynamic) {
+			return ERR_NOT_IMPLEMENTED;
+		}
+		guint32 token = decode_int (p, &p, end);
+		ERROR_DECL (error);
+		error_init (error);
+		MonoMethod* mono_method = mono_get_method_checked (ass->image, token, NULL, NULL, error);
+		if (!is_ok (error)) {
+			add_error_string (buf, mono_error_get_message (error));
+			mono_error_cleanup (error);
+			return ERR_INVALID_ARGUMENT;
+		}
+		buffer_add_methodid (buf, domain, mono_method);
+		mono_error_cleanup (error);
+		break;
+	}
 	case CMD_ASSEMBLY_HAS_DEBUG_INFO: {
 		buffer_add_byte (buf, !ass->dynamic && mono_debug_image_has_debug_info (ass->image));
 		break;
@@ -7715,7 +7721,15 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		// PRINT_DEBUG_MSG(1, "MDBGPROT_CMD_ASSEMBLY_GET_PEIMAGE_ADDRESS - [%p] - %d\n", module_handle, image->raw_data_len);
 		buffer_add_long (buf, (gssize)image->raw_data);
 		buffer_add_int (buf, image->raw_data_len);
-        break;
+        	break;
+	}
+	case MDBGPROT_CMD_ASSEMBLY_HAS_ANY_DEBUG_INFO: {
+		MonoImage* image = ass->image;
+		if (ass->dynamic) {
+			return ERR_NOT_IMPLEMENTED;
+		}
+		buffer_add_int(buf, mono_has_pdb_checksum (image->raw_data, image->raw_data_len));
+		break;
 	}
 	default:
 		return ERR_NOT_IMPLEMENTED;

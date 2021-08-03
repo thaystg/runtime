@@ -491,7 +491,6 @@ namespace Microsoft.WebAssembly.Diagnostics
 
     internal class AssemblyInfo
     {
-        private static int next_id;
         private readonly int id;
         private readonly ILogger logger;
         private Dictionary<int, MethodInfo> methods = new Dictionary<int, MethodInfo>();
@@ -509,9 +508,9 @@ namespace Microsoft.WebAssembly.Diagnostics
 
         public bool TriedToLoadSymbolsOnDemand { get; set; }
 
-        public unsafe AssemblyInfo(string url, byte[] assembly, byte[] pdb)
+        public unsafe AssemblyInfo(string url, int id, byte[] assembly, byte[] pdb)
         {
-            this.id = Interlocked.Increment(ref next_id);
+            this.id = id;
             asmStream = new MemoryStream(assembly);
             peReader = new PEReader(asmStream);
             asmMetadataReader = PEReaderExtensions.GetMetadataReader(peReader);
@@ -531,6 +530,7 @@ namespace Microsoft.WebAssembly.Diagnostics
             }
             Name = asmMetadataReader.GetAssemblyDefinition().GetAssemblyName().Name + ".dll";
             AssemblyNameUnqualified = asmMetadataReader.GetAssemblyDefinition().GetAssemblyName().Name + ".dll";
+            Console.WriteLine($"Name - {Name}");
             Populate();
         }
 
@@ -879,7 +879,8 @@ namespace Microsoft.WebAssembly.Diagnostics
         private List<AssemblyInfo> assemblies = new List<AssemblyInfo>();
         private readonly HttpClient client;
         private readonly ILogger logger;
-
+        internal int CountAssembliesLoadedOnStartup  { get; set; }
+        internal int CountAssembliesReceivedFromDebuggerAgent  { get; set; }
         public DebugStore(ILogger logger, HttpClient client)
         {
             this.client = client;
@@ -905,12 +906,12 @@ namespace Microsoft.WebAssembly.Diagnostics
             }
         }
 
-        public IEnumerable<SourceFile> Add(SessionId sessionId, byte[] assembly_data, byte[] pdb_data)
+        public IEnumerable<SourceFile> Add(SessionId sessionId, int assemblyId, byte[] assemblyData, byte[] pdbData)
         {
             AssemblyInfo assembly = null;
             try
             {
-                assembly = new AssemblyInfo(sessionId.ToString(), assembly_data, pdb_data);
+                assembly = new AssemblyInfo(sessionId.ToString(), assemblyId, assemblyData, pdbData);
             }
             catch (Exception e)
             {
@@ -934,69 +935,11 @@ namespace Microsoft.WebAssembly.Diagnostics
             }
         }
 
-        public async IAsyncEnumerable<SourceFile> Load(SessionId sessionId, string[] loaded_files, [EnumeratorCancellation] CancellationToken token)
-        {
-            var asm_files = new List<string>();
-            var pdb_files = new List<string>();
-            foreach (string file_name in loaded_files)
-            {
-                if (file_name.EndsWith(".pdb", StringComparison.OrdinalIgnoreCase))
-                    pdb_files.Add(file_name);
-                else
-                    asm_files.Add(file_name);
-            }
-
-            List<DebugItem> steps = new List<DebugItem>();
-            foreach (string url in asm_files)
-            {
-                try
-                {
-                    string candidate_pdb = Path.ChangeExtension(url, "pdb");
-                    string pdb = pdb_files.FirstOrDefault(n => n == candidate_pdb);
-
-                    steps.Add(
-                        new DebugItem
-                        {
-                            Url = url,
-                            Data = Task.WhenAll(client.GetByteArrayAsync(url, token), pdb != null ? client.GetByteArrayAsync(pdb, token) : Task.FromResult<byte[]>(null))
-                        });
-                }
-                catch (Exception e)
-                {
-                    logger.LogDebug($"Failed to read {url} ({e.Message})");
-                }
-            }
-
-            foreach (DebugItem step in steps)
-            {
-                AssemblyInfo assembly = null;
-                try
-                {
-                    byte[][] bytes = await step.Data.ConfigureAwait(false);
-                    assembly = new AssemblyInfo(step.Url, bytes[0], bytes[1]);
-                }
-                catch (Exception e)
-                {
-                    logger.LogDebug($"Failed to load {step.Url} ({e.Message})");
-                }
-                if (assembly == null)
-                    continue;
-
-                if (GetAssemblyByUnqualifiedName(assembly.AssemblyNameUnqualified) != null)
-                {
-                    logger.LogDebug($"Skipping loading {assembly.Name} into the debug store, as it already exists");
-                    continue;
-                }
-
-                assemblies.Add(assembly);
-                foreach (SourceFile source in assembly.Sources)
-                    yield return source;
-            }
-        }
-
         public IEnumerable<SourceFile> AllSources() => assemblies.SelectMany(a => a.Sources);
 
         public SourceFile GetFileById(SourceId id) => AllSources().SingleOrDefault(f => f.SourceId.Equals(id));
+
+        public AssemblyInfo GetAssemblyById(int id) => assemblies.FirstOrDefault(a => a.Id == id);
 
         public AssemblyInfo GetAssemblyByName(string name) => assemblies.FirstOrDefault(a => a.Name.Equals(name, StringComparison.InvariantCultureIgnoreCase));
 

@@ -180,6 +180,8 @@ namespace Microsoft.WebAssembly.Diagnostics
 
         public static MonoCommands GetLoadedFiles() => new MonoCommands("MONO.mono_wasm_get_loaded_files()");
 
+        public static MonoCommands GetCountLoadedFiles() => new MonoCommands("MONO.mono_wasm_get_count_loaded_files()");
+
         public static MonoCommands SendDebuggerAgentCommand(int id, int command_set, int command, string command_parameters)
         {
             return new MonoCommands($"MONO.mono_wasm_send_dbg_command ({id}, {command_set}, {command},'{command_parameters}')");

@@ -39,7 +39,6 @@ EMSCRIPTEN_KEEPALIVE gboolean mono_wasm_send_dbg_command_with_parms (int id, Mdb
 
 //JS functions imported that we use
 extern void mono_wasm_fire_debugger_agent_message (void);
-extern void mono_wasm_asm_loaded (const char *asm_name, const char *assembly_data, guint32 assembly_len, const char *pdb_data, guint32 pdb_len);
 
 G_END_DECLS
 
@@ -76,12 +75,6 @@ void wasm_debugger_log (int level, const gchar *format, ...)
 		console.debug("%s: %s", namespace, message);
 	}, level, mesg);
 	g_free (mesg);
-}
-
-static void
-appdomain_load (MonoProfiler *prof, MonoDomain *domain)
-{
-	mono_de_domain_add (domain);
 }
 
 static MonoContext*
@@ -180,9 +173,6 @@ mono_wasm_debugger_init (MonoDefaults *mono_defaults)
 	get_mini_debug_options ()->load_aot_jit_info_eagerly = TRUE;
 
 	MonoProfilerHandle prof = mono_profiler_create (NULL);
-	//FIXME support multiple appdomains
-	mono_profiler_set_domain_loaded_callback (prof, appdomain_load);
-	mono_profiler_set_assembly_loaded_callback (prof, assembly_loaded);
 
 //debugger-agent initialization	
 	DebuggerTransport trans;
@@ -191,35 +181,6 @@ mono_wasm_debugger_init (MonoDefaults *mono_defaults)
 
 	mono_debugger_agent_register_transport (&trans);
 	mono_init_debugger_agent_for_wasm (log_level, &prof);
-}
-
-static void
-assembly_loaded (MonoProfiler *prof, MonoAssembly *assembly)
-{
-	PRINT_DEBUG_MSG (2, "assembly_loaded callback called for %s\n", assembly->aname.name);
-	MonoImage *assembly_image = assembly->image;
-	MonoImage *pdb_image = NULL;
-
-	if (!mono_is_debugger_attached ()) {
-		has_pending_lazy_loaded_assemblies = TRUE;
-		return;
-	}
-
-	if (mono_wasm_assembly_already_added(assembly->aname.name))
-		return;
-
-	if (mono_has_pdb_checksum ((char *) assembly_image->raw_data, assembly_image->raw_data_len)) { //if it's a release assembly we don't need to send to DebuggerProxy
-		MonoDebugHandle *handle = mono_debug_get_handle (assembly_image);
-		if (handle) {
-			MonoPPDBFile *ppdb = handle->ppdb;
-			if (ppdb && !mono_ppdb_is_embedded (ppdb)) { //if it's an embedded pdb we don't need to send pdb extrated to DebuggerProxy. 
-				pdb_image = mono_ppdb_get_image (ppdb);
-				mono_wasm_asm_loaded (assembly_image->assembly_name, assembly_image->raw_data, assembly_image->raw_data_len, pdb_image->raw_data, pdb_image->raw_data_len);
-				return;
-			}
-		}
-		mono_wasm_asm_loaded (assembly_image->assembly_name, assembly_image->raw_data, assembly_image->raw_data_len, NULL, 0);
-	}
 }
 
 static void

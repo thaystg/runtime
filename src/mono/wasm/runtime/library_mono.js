@@ -81,6 +81,7 @@ var MonoSupportLib = {
 			module ["mono_wasm_get_icudt_name"] = MONO.mono_wasm_get_icudt_name.bind(MONO);
 			module ["mono_wasm_globalization_init"] = MONO.mono_wasm_globalization_init.bind(MONO);
 			module ["mono_wasm_get_loaded_files"] = MONO.mono_wasm_get_loaded_files.bind(MONO);
+			module ["mono_wasm_get_count_loaded_files"] = MONO.mono_wasm_get_count_loaded_files.bind(MONO);
 			module ["mono_wasm_new_root_buffer"] = MONO.mono_wasm_new_root_buffer.bind(MONO);
 			module ["mono_wasm_new_root_buffer_from_pointer"] = MONO.mono_wasm_new_root_buffer_from_pointer.bind(MONO);
 			module ["mono_wasm_new_root"] = MONO.mono_wasm_new_root.bind(MONO);
@@ -497,14 +498,14 @@ var MonoSupportLib = {
 
 				if (!this.mono_wasm_string_get_data)
 					this.mono_wasm_string_get_data = Module.cwrap ("mono_wasm_string_get_data", null, ['number', 'number', 'number', 'number']);
-				
+
 				if (!this.mono_wasm_string_decoder_buffer)
 					this.mono_wasm_string_decoder_buffer = Module._malloc(12);
-				
+
 				let ppChars = this.mono_wasm_string_decoder_buffer + 0,
 					pLengthBytes = this.mono_wasm_string_decoder_buffer + 4,
 					pIsInterned = this.mono_wasm_string_decoder_buffer + 8;
-				
+
 				this.mono_wasm_string_get_data (mono_string, ppChars, pLengthBytes, pIsInterned);
 
 				// TODO: Is this necessary?
@@ -518,8 +519,8 @@ var MonoSupportLib = {
 
 				if (pLengthBytes && pChars) {
 					if (
-						isInterned && 
-						MONO.interned_string_table && 
+						isInterned &&
+						MONO.interned_string_table &&
 						MONO.interned_string_table.has(mono_string)
 					) {
 						result = MONO.interned_string_table.get(mono_string);
@@ -532,7 +533,7 @@ var MonoSupportLib = {
 							// console.log("interned", mono_string, result.length);
 							MONO.interned_string_table.set(mono_string, result);
 						}
-					}						
+					}
 				}
 
 				this.mono_wasm_string_root.value = 0;
@@ -1127,15 +1128,13 @@ var MonoSupportLib = {
 		},
 
 		_finalize_startup: function (args, ctx) {
-			var loaded_files_with_debug_info = [];
+			var loaded_files_list = [];
 
 			MONO.loaded_assets = ctx.loaded_assets;
-			ctx.loaded_files.forEach(value => loaded_files_with_debug_info.push(value.url));
-			MONO.loaded_files = loaded_files_with_debug_info;
-			if (ctx.tracing) {
-				console.log ("MONO_WASM: loaded_assets: " + JSON.stringify(ctx.loaded_assets));
-				console.log ("MONO_WASM: loaded_files: " + JSON.stringify(ctx.loaded_files));
-			}
+			ctx.loaded_files.forEach(value => loaded_files_list.push(value.url));
+			MONO.loaded_files = loaded_files_list;
+			console.log ("MONO_WASM: loaded_assets: " + JSON.stringify(ctx.loaded_assets));
+			console.log ("MONO_WASM: loaded_files: " + JSON.stringify(ctx.loaded_files));
 
 			var load_runtime = Module.cwrap ('mono_wasm_load_runtime', null, ['string', 'number']);
 
@@ -1344,6 +1343,14 @@ var MonoSupportLib = {
 			return MONO.loaded_files;
 		},
 
+		// Used by the debugger to enumerate loaded dlls and pdbs
+		mono_wasm_get_count_loaded_files: function() {
+			if (!this.mono_wasm_set_is_debugger_attached)
+				this.mono_wasm_set_is_debugger_attached = Module.cwrap ('mono_wasm_set_is_debugger_attached', 'void', ['bool']);
+			this.mono_wasm_set_is_debugger_attached (true);
+			return MONO.loaded_files.length;
+		},
+
 		mono_wasm_get_loaded_asset_table: function() {
 			return MONO.loaded_assets;
 		},
@@ -1439,7 +1446,7 @@ var MonoSupportLib = {
 		 * @throws Will throw an error if the config file loading fails
 		 */
 		mono_wasm_load_config: async function (configFilePath) {
-			Module.addRunDependency(configFilePath);	
+			Module.addRunDependency(configFilePath);
 			try {
 				let config = null;
 				// NOTE: when we add nodejs make sure to include the nodejs fetch package
@@ -1487,29 +1494,6 @@ var MonoSupportLib = {
 		debugger;
 	},
 
-	mono_wasm_asm_loaded: function (assembly_name, assembly_ptr, assembly_len, pdb_ptr, pdb_len) {
-		// Only trigger this codepath for assemblies loaded after app is ready
-		if (MONO.mono_wasm_runtime_is_ready !== true)
-			return;
-
-		const assembly_name_str = assembly_name !== 0 ? Module.UTF8ToString(assembly_name).concat('.dll') : '';
-
-		const assembly_data = new Uint8Array(Module.HEAPU8.buffer, assembly_ptr, assembly_len);
-		const assembly_b64 = MONO._base64Converter.toBase64StringImpl(assembly_data);
-
-		let pdb_b64;
-		if (pdb_ptr) {
-			const pdb_data = new Uint8Array(Module.HEAPU8.buffer, pdb_ptr, pdb_len);
-			pdb_b64 = MONO._base64Converter.toBase64StringImpl(pdb_data);
-		}
-
-		MONO.mono_wasm_raise_debug_event({
-			eventName: 'AssemblyLoaded',
-			assembly_name: assembly_name_str,
-			assembly_b64,
-			pdb_b64
-		});
-	}
 };
 
 autoAddDeps(MonoSupportLib, '$MONO')
