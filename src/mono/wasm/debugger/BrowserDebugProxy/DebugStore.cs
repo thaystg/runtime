@@ -894,6 +894,7 @@ namespace Microsoft.WebAssembly.Diagnostics
 
             foreach (Uri url in new[] { SourceUri, SourceLinkUri })
             {
+                Console.WriteLine(url);
                 MemoryStream mem = await GetDataAsync(url, token).ConfigureAwait(false);
                 if (mem != null && mem.Length > 0 && (!checkHash || CheckPdbHash(ComputePdbHash(mem))))
                 {
