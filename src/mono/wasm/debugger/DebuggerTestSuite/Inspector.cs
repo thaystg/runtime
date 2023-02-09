@@ -215,12 +215,12 @@ namespace DebuggerTests
             {
                 case "Target.attachedToTarget":
                 {
-                    var sessionIdNewTarget = new SessionId(args["sessionId"]?.Value<string>());
+                    /*var sessionIdNewTarget = new SessionId(args["sessionId"]?.Value<string>());
                     await Client.SendCommand(sessionIdNewTarget, "Profiler.enable", null, token);
                     await Client.SendCommand(sessionIdNewTarget, "Runtime.enable", null, token);
                     await Client.SendCommand(sessionIdNewTarget, "Debugger.enable", null, token);
                     await Client.SendCommand(sessionIdNewTarget, "Runtime.runIfWaitingForDebugger", null, token);
-                    await Client.SendCommand(sessionIdNewTarget, "Debugger.setAsyncCallStackDepth", JObject.FromObject(new { maxDepth = 32}), token);
+                    await Client.SendCommand(sessionIdNewTarget, "Debugger.setAsyncCallStackDepth", JObject.FromObject(new { maxDepth = 32}), token);*/
                     break;
                 }
                 case "Debugger.paused":
@@ -357,8 +357,19 @@ namespace DebuggerTests
             try
             {
                 await LaunchBrowser(start, span);
-
+                Console.WriteLine("to antes de esperar o context");
+                //await Client.ReceivedExecutionContextCreated.Task;
                 var init_cmds = getInitCmds(Client, _cancellationTokenSource.Token);
+                Console.WriteLine("to depois de esperar o context");
+                var result = await Client.SendCommand("Target.createTarget", JObject.FromObject(new {url = "http://localhost:9400/debugger-driver.html"}), _cancellationTokenSource.Token);
+                Console.WriteLine(result);
+                Console.WriteLine(result.Value["targetId"]?.Value<string>());
+                //Console.WriteLine(await Client.SendCommand("Target.activateTarget", JObject.FromObject(new {targetId = result.Value["targetId"]?.Value<string>()}), _cancellationTokenSource.Token));                
+                Console.WriteLine(await Client.SendCommand("Target.attachToTarget", JObject.FromObject(new {targetId = result.Value["targetId"]?.Value<string>(), flatten = true}), _cancellationTokenSource.Token));                
+                Console.WriteLine(await Client.SendCommand("Runtime.runIfWaitingForDebugger", null, _cancellationTokenSource.Token));
+                Console.WriteLine(await Client.SendCommand("Runtime.enable", null, _cancellationTokenSource.Token));
+                Console.WriteLine(await Client.SendCommand("Debugger.disable", null, _cancellationTokenSource.Token));
+                Console.WriteLine(await Client.SendCommand("Debugger.enable", JObject.FromObject(new {maxScriptsCacheSize = 100000}), _cancellationTokenSource.Token));
 
                 Task<Result> readyTask = Task.Run(async () => Result.FromJson(await WaitFor(APP_READY)));
                 init_cmds.Add((APP_READY, readyTask));

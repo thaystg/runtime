@@ -52,7 +52,7 @@ internal class ChromeProvider : WasmHostProvider
         string? line;
         try
         {
-            ProcessStartInfo psi = GetProcessStartInfo(s_browserPath.Value, GetInitParms(remoteDebuggingPort), targetUrl);
+            ProcessStartInfo psi = GetProcessStartInfo(s_browserPath.Value, GetInitParms(remoteDebuggingPort), "about:blank"/*targetUrl*/);
             line = await LaunchHostAsync(
                                     psi,
                                     context,
@@ -80,7 +80,6 @@ internal class ChromeProvider : WasmHostProvider
         }
 
         string con_str = await ExtractConnUrl(line, _logger);
-
         _logger.LogInformation($"{messagePrefix} launching proxy for {con_str}");
 
         _debuggerProxy = new DebuggerProxy(loggerFactory, loggerId: Id);

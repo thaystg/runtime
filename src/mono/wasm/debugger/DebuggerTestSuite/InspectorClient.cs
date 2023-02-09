@@ -20,7 +20,6 @@ namespace DebuggerTests
         protected Dictionary<MessageId, TaskCompletionSource<Result>> pending_cmds = new Dictionary<MessageId, TaskCompletionSource<Result>>();
         protected Func<string, string, JObject, CancellationToken, Task> onEvent;
         protected int next_cmd_id;
-
         public SessionId CurrentSessionId { get; set; } = SessionId.Null;
 
         public InspectorClient(ILogger logger) : base(logger) { }
@@ -34,15 +33,24 @@ namespace DebuggerTests
         protected virtual Task HandleMessage(string msg, CancellationToken token)
         {
             var res = JObject.Parse(msg);
-
+            Console.WriteLine($"to recebendo a mensagem - {msg}");
+            if (res["method"]?.Value<string>()?.Equals("Runtime.executionContextCreated") == true)
+            {
+                //pending_cmds.Clear();
+                //next_cmd_id = 1;
+                //SendCommand("Runtime.enable", null, token);
+                Console.WriteLine("vou enviar de novo");
+                //SendCommand("Debugger.enable", null, token);
+                //SendCommand("Debugger.setAsyncCallStackDepth", JObject.FromObject(new { maxDepth = 32 }), token);
+            }
             if (res["id"] == null)
                 return onEvent(res["sessionId"]?.Value<string>(), res["method"].Value<string>(), res["params"] as JObject, token);
 
             var id = res.ToObject<MessageId>();
             if (!pending_cmds.Remove(id, out var item))
                 logger.LogError($"Unable to find command {id}");
-
-            item.SetResult(Result.FromJson(res));
+            else
+                item.SetResult(Result.FromJson(res));
             return null;
         }
 
@@ -61,6 +69,10 @@ namespace DebuggerTests
             RunLoopStopped += (_, args) =>
             {
                 logger.LogDebug($"Failing {pending_cmds.Count} pending cmds");
+                foreach (var pending in pending_cmds)
+                {
+
+                }
                 if (args.reason == RunLoopStopReason.Exception)
                 {
                     foreach (var cmd in pending_cmds.Values)
@@ -82,6 +94,7 @@ namespace DebuggerTests
         public virtual Task<Result> SendCommand(SessionId sessionId, string method, JObject args, CancellationToken token)
         {
             int id = ++next_cmd_id;
+            Console.WriteLine($"to enviando a mensagem - {id} - {method} - {args}");            
             if (args == null)
                 args = new JObject();
 
