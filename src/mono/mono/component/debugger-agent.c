@@ -7756,6 +7756,11 @@ assembly_commands (int command, guint8 *p, guint8 *end, Buffer *buf)
 		buffer_add_int (buf, image->raw_data_len);
         break;
 	}
+	case MDBGPROT_CMD_ASSEMBLY_GET_PEIMAGE: {
+		MonoImage* image = ass->image;
+		m_dbgprot_buffer_add_byte_array (buf, (uint8_t *) image->raw_data, image->raw_data_len);
+		break;
+	}
 	default:
 		return ERR_NOT_IMPLEMENTED;
 	}
