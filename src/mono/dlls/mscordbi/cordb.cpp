@@ -18,11 +18,13 @@
 
 #define DEBUG_ADDRESS "127.0.0.1"
 
-MONO_API HRESULT CoreCLRCreateCordbObjectEx(
-    int iDebuggerVersion, DWORD pid, LPCWSTR lpApplicationGroupId, HMODULE hmodTargetCLR, void** ppCordb)
+MONO_EXTERN_C
+MONO_API_EXPORT
+HRESULT CoreCLRCreateCordbObjectEx(
+    int iDebuggerVersion, DWORD port, LPCWSTR lpApplicationGroupId, HMODULE hmodTargetCLR, void** ppCordb)
 {
     LOG((LF_CORDB, LL_INFO100000, "CoreCLRCreateCordbObjectEx\n"));
-    *ppCordb = new Cordb(pid);
+    *ppCordb = new Cordb(port);
     return S_OK;
 }
 
@@ -114,11 +116,12 @@ HRESULT Cordb::CanLaunchOrAttach(DWORD dwProcessId, BOOL win32DebuggingEnabled)
     return S_OK;
 }
 
-Cordb::Cordb(DWORD PID) : CordbBaseMono(NULL)
+Cordb::Cordb(DWORD port) : CordbBaseMono(NULL)
 {
     m_pCallback     = NULL;
     m_pSemReadWrite = new UTSemReadWrite();
-    m_nPID = PID;
+    m_nPort = port;
+    m_pProcess = NULL;
 
 #ifndef TARGET_WINDOWS
     PAL_InitializeDLL();
@@ -127,13 +130,17 @@ Cordb::Cordb(DWORD PID) : CordbBaseMono(NULL)
 #ifdef LOGGING
     InitializeLogging();
 #endif
+    AddRef();
 }
 
 Cordb::~Cordb()
 {
-    this->GetCallback()->Release();
-    m_pProcess->InternalRelease();
-    delete m_pSemReadWrite;
+    if (this->GetCallback())
+        this->GetCallback()->Release();
+    if (m_pProcess)
+        m_pProcess->InternalRelease();
+    if (m_pSemReadWrite)
+        delete m_pSemReadWrite;
 #ifdef LOGGING
     ShutdownLogging();
 #endif
@@ -248,7 +255,8 @@ void Connection::Receive()
         if (iResult == -1)
         {
             m_dbgprot_buffer_free(&recvbuf_header);
-            m_pCordb->GetCallback()->ExitProcess(static_cast<ICorDebugProcess*>(GetProcess()));
+            if (m_pCordb->GetCallback())
+                m_pCordb->GetCallback()->ExitProcess(static_cast<ICorDebugProcess*>(GetProcess()));
             break;
         }
         while (iResult == 0)
@@ -514,10 +522,9 @@ void Connection::StartConnection()
     LOG((LF_CORDB, LL_INFO100000, "Start Connection\n"));
 
     m_socket = new Socket();
-    int port = 56000 + (m_pCordb->PID() % 1000);
     char* s_port = new char[10];
-    sprintf_s(s_port, 10, "%d", port);
-    LOG((LF_CORDB, LL_INFO100000, "Listening to %s:%s\n", DEBUG_ADDRESS, s_port));
+    sprintf_s(s_port, 10, "%d", m_pCordb->Port());
+    LOG((LF_CORDB, LL_INFO100000, "Listening to %s:%s\n", DEBUG_ADDRESS, m_pCordb->Port()));
 
     int ret = m_socket->OpenSocketAcceptConnection(DEBUG_ADDRESS, s_port);
     delete[] s_port;
@@ -565,13 +572,17 @@ int Connection::SendEvent(int cmd_set, int cmd, MdbgProtBuffer* sendbuf)
     return ret;
 }
 
-MONO_API HRESULT CoreCLRCreateCordbObject(int iDebuggerVersion, DWORD pid, HMODULE hmodTargetCLR, void** ppCordb)
+MONO_EXTERN_C
+MONO_API_EXPORT
+HRESULT CoreCLRCreateCordbObject(int iDebuggerVersion, DWORD port, HMODULE hmodTargetCLR, void** ppCordb)
 {
-    *ppCordb = new Cordb(pid);
+    *ppCordb = new Cordb(port);
     return S_OK;
 }
 
-MONO_API HRESULT CreateCordbObject(int iDebuggerVersion, void** ppCordb)
+MONO_EXTERN_C
+MONO_API_EXPORT
+HRESULT CreateCordbObject(int iDebuggerVersion, void** ppCordb)
 {
     *ppCordb = new Cordb(0);
     return S_OK;

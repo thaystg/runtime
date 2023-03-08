@@ -12,7 +12,7 @@
 #include <cordb.h>
 
 using namespace std;
-
+#define MONO_TYPE_NAME_FORMAT_FULL_NAME 2
 CordbValue::CordbValue(Connection* conn, CorElementType type, CordbContent value, int size) : CordbBaseMono(conn)
 {
     this->m_type  = type;
@@ -210,7 +210,7 @@ HRESULT STDMETHODCALLTYPE CordbReferenceValue::GetExactType(ICorDebugType** ppTy
 
             m_dbgprot_buffer_init(&localbuf, 128);
             m_dbgprot_buffer_add_id(&localbuf, type_id);
-
+            m_dbgprot_buffer_add_int(&localbuf, MONO_TYPE_NAME_FORMAT_FULL_NAME);
             cmdId = conn->SendEvent(MDBGPROT_CMD_SET_TYPE, MDBGPROT_CMD_TYPE_GET_INFO, &localbuf);
             m_dbgprot_buffer_free(&localbuf);
 
@@ -258,6 +258,7 @@ HRESULT STDMETHODCALLTYPE CordbReferenceValue::GetExactType(ICorDebugType** ppTy
 
                 m_dbgprot_buffer_init(&localbuf, 128);
                 m_dbgprot_buffer_add_id(&localbuf, klass_id);
+                m_dbgprot_buffer_add_int(&localbuf, MONO_TYPE_NAME_FORMAT_FULL_NAME);
 
                 cmdId = conn->SendEvent(MDBGPROT_CMD_SET_TYPE, MDBGPROT_CMD_TYPE_GET_INFO, &localbuf);
                 m_dbgprot_buffer_free(&localbuf);
@@ -687,6 +688,8 @@ HRESULT CordbObjectValue::CreateCordbValue(Connection* conn, MdbgProtBuffer* pRe
                 MdbgProtBuffer localbuf;
                 m_dbgprot_buffer_init(&localbuf, 128);
                 m_dbgprot_buffer_add_id(&localbuf, klass_id);
+                m_dbgprot_buffer_add_int(&localbuf, MONO_TYPE_NAME_FORMAT_FULL_NAME);
+
                 int cmdId = conn->SendEvent(MDBGPROT_CMD_SET_TYPE, MDBGPROT_CMD_TYPE_GET_INFO, &localbuf);
                 m_dbgprot_buffer_free(&localbuf);
                 ReceivedReplyPacket* received_reply_packet = conn->GetReplyWithError(cmdId);
@@ -719,6 +722,8 @@ HRESULT CordbObjectValue::CreateCordbValue(Connection* conn, MdbgProtBuffer* pRe
                     MdbgProtBuffer localbuf;
                     m_dbgprot_buffer_init(&localbuf, 128);
                     m_dbgprot_buffer_add_id(&localbuf, klass_id);
+                    m_dbgprot_buffer_add_int(&localbuf, MONO_TYPE_NAME_FORMAT_FULL_NAME);                    
+
                     int cmdId = conn->SendEvent(MDBGPROT_CMD_SET_TYPE, MDBGPROT_CMD_TYPE_GET_INFO, &localbuf);
                     m_dbgprot_buffer_free(&localbuf);
                     ReceivedReplyPacket* received_reply_packet = conn->GetReplyWithError(cmdId);

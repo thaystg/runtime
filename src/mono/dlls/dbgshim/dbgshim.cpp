@@ -45,52 +45,8 @@ typedef HRESULT (STDAPICALLTYPE *FPCoreCLRCreateCordbObject)(
     HMODULE hmodTargetCLR,
     IUnknown **ppCordb);
 
-static HRESULT RunAndroidCmd(char* c_android_adb_path, char const* c_command_to_execute)
-{
-    PROCESS_INFORMATION processInfo;
-    STARTUPINFOW startupInfo;
-    DWORD dwCreationFlags = 0;
-
-    ZeroMemory(&processInfo, sizeof(processInfo));
-    ZeroMemory(&startupInfo, sizeof(startupInfo));
-
-    startupInfo.cb = sizeof(startupInfo);
-
-    LPWSTR w_android_run_adb_command = (LPWSTR)malloc(2048 * sizeof(WCHAR));
-    char* c_android_run_adb_command = (char*)malloc(2048 * sizeof(char));
-
-    sprintf_s(c_android_run_adb_command, 2048, "%s %s", c_android_adb_path, c_command_to_execute);
-
-    MultiByteToWideChar(CP_UTF8, 0, c_android_run_adb_command, -1, w_android_run_adb_command, 2048);
-    BOOL result = CreateProcessW(
-        NULL,
-        w_android_run_adb_command,
-        NULL,
-        NULL,
-        FALSE,
-        dwCreationFlags,
-        NULL,
-        NULL,
-        &startupInfo,
-        &processInfo);
-
-    if (!result) {
-        free(c_android_run_adb_command);
-        free(w_android_run_adb_command);
-        return HRESULT_FROM_WIN32(GetLastError());
-    }
-    free(c_android_run_adb_command);
-    free(w_android_run_adb_command);
-    return S_OK;
-}
-//-----------------------------------------------------------------------------
-// Public API.
-//
-// CreateProcessForLaunch - a stripped down version of the Windows CreateProcess
-// that can be supported cross-platform.
-//
-//-----------------------------------------------------------------------------
-MONO_API HRESULT
+MONO_EXTERN_C
+MONO_API_EXPORT HRESULT
 CreateProcessForLaunch(
     _In_ LPWSTR lpCommandLine,
     _In_ BOOL bSuspendProcess,
@@ -99,70 +55,19 @@ CreateProcessForLaunch(
     _Out_ PDWORD pProcessId,
     _Out_ HANDLE *pResumeHandle)
 {
-    PUBLIC_CONTRACT;
-    PROCESS_INFORMATION processInfo;
-    STARTUPINFOW startupInfo;
-    DWORD dwCreationFlags = 0;
-
-    ZeroMemory(&processInfo, sizeof(processInfo));
-    ZeroMemory(&startupInfo, sizeof(startupInfo));
-
-    startupInfo.cb = sizeof(startupInfo);
-    char* c_android_adb_path = getenv("ANDROID_ADB_PATH");
-
-    if (strlen(c_android_adb_path) > 0) {
-        HRESULT ret = RunAndroidCmd(c_android_adb_path, "shell setprop debug.mono.extra \"debug=10.0.2.2:56000,loglevel=10,timeout=100000000000000\"");
-        if (ret != S_OK) {
-            *pProcessId = 0;
-            *pResumeHandle = NULL;
-            return ret;
-        }
-    }
-    else
-        putenv("MONO_ENV_OPTIONS='--debugger-agent=transport=dt_socket,address=127.0.0.1:pid_based,server=n,suspend=y,loglevel=10,timeout=100000'");
-
-    BOOL result = CreateProcessW(
-        NULL,
-        lpCommandLine,
-        NULL,
-        NULL,
-        FALSE,
-        dwCreationFlags,
-        NULL,
-        lpCurrentDirectory,
-        &startupInfo,
-        &processInfo);
-
-    if (!result) {
-        *pProcessId = 0;
-        *pResumeHandle = NULL;
-        return HRESULT_FROM_WIN32(GetLastError());
-    }
-
-    if (processInfo.hProcess != NULL)
-    {
-        CloseHandle(processInfo.hProcess);
-    }
-
-    if (strlen(c_android_adb_path) > 0) {
-        *pProcessId = 1000; //TODO identify the correct processID of the process running on android or find another way to decide the port number
-    }
-    else {
-        *pProcessId = processInfo.dwProcessId;
-        *pResumeHandle = processInfo.hThread;
-    }
-
     return S_OK;
 }
 
-MONO_API HRESULT
+MONO_EXTERN_C
+MONO_API_EXPORT HRESULT
 ResumeProcess(
     _In_ HANDLE hResumeHandle)
 {
     return S_OK;
 }
 
-MONO_API HRESULT
+MONO_EXTERN_C
+MONO_API_EXPORT HRESULT
 CloseResumeHandle(
     _In_ HANDLE hResumeHandle)
 {
@@ -170,7 +75,7 @@ CloseResumeHandle(
 }
 
 
-HRESULT CreateCoreDbg(HMODULE hDBIModule, DWORD processId, int iDebuggerVersion, IUnknown **ppCordb)
+HRESULT CreateCoreDbg(HMODULE hDBIModule, DWORD portId, int iDebuggerVersion, IUnknown **ppCordb)
 {
     HRESULT hr = S_OK;
 
@@ -186,59 +91,26 @@ HRESULT CreateCoreDbg(HMODULE hDBIModule, DWORD processId, int iDebuggerVersion,
         return CORDBG_E_INCOMPATIBLE_PROTOCOL;
     }
 
-    return fpCreate(iDebuggerVersion, processId, NULL, ppCordb);
+    return fpCreate(iDebuggerVersion, portId, NULL, ppCordb);
 
     return hr;
 }
 
 static IUnknown* pCordb = NULL;
 
-MONO_API HRESULT
+MONO_EXTERN_C
+MONO_API_EXPORT HRESULT
 RegisterForRuntimeStartup(
-    _In_ DWORD dwProcessId,
+    _In_ DWORD dwPort,
     _In_ PSTARTUP_CALLBACK pfnCallback,
     _In_ PVOID parameter,
     _Out_ PVOID *ppUnregisterToken)
 {
-    if (pCordb != NULL)
-        return S_OK;
-
-    HRESULT hr = S_OK;
-    HMODULE hMod = NULL;
-
-    char* msCorDbiPath = getenv("MSCORDBI_PATH");
-#ifdef TARGET_WINDOWS
-    hMod = LoadLibraryA(msCorDbiPath);
-#else
-    hMod = dlopen(msCorDbiPath, RTLD_LAZY);
-#endif
-    if (hMod == NULL)
-    {
-        hr = CORDBG_E_DEBUG_COMPONENT_MISSING;
-        goto exit;
-    }
-
-    hr = CreateCoreDbg(hMod, dwProcessId, 0, &pCordb);
-
-    exit:
-    if (FAILED(hr))
-    {
-        _ASSERTE(pCordb == NULL);
-
-        if (hMod != NULL)
-        {
-            FreeLibrary(hMod);
-        }
-
-        // Invoke the callback on error
-        pfnCallback(NULL, parameter, hr);
-        return hr;
-    }
-    pfnCallback(pCordb, parameter, S_OK);
     return S_OK;
 }
 
-MONO_API HRESULT
+MONO_EXTERN_C
+MONO_API_EXPORT HRESULT
 RegisterForRuntimeStartupEx(
     _In_ DWORD dwProcessId,
     _In_ LPCWSTR szApplicationGroupId,
@@ -249,14 +121,16 @@ RegisterForRuntimeStartupEx(
     return S_OK;
 }
 
-MONO_API HRESULT
+MONO_EXTERN_C
+MONO_API_EXPORT HRESULT
 UnregisterForRuntimeStartup(
     _In_ PVOID pUnregisterToken)
 {
     return S_OK;
 }
 
-MONO_API HRESULT
+MONO_EXTERN_C
+MONO_API_EXPORT HRESULT
 GetStartupNotificationEvent(
     _In_ DWORD debuggeePID,
     _Out_ HANDLE* phStartupEvent)
@@ -264,7 +138,8 @@ GetStartupNotificationEvent(
     return S_OK;
 }
 
-MONO_API HRESULT
+MONO_EXTERN_C
+MONO_API_EXPORT HRESULT
 EnumerateCLRs(DWORD debuggeePID,
     _Out_ HANDLE** ppHandleArrayOut,
     _Out_ LPWSTR** ppStringArrayOut,
@@ -273,7 +148,8 @@ EnumerateCLRs(DWORD debuggeePID,
     return S_OK;
 }
 
-MONO_API HRESULT
+MONO_EXTERN_C
+MONO_API_EXPORT HRESULT
 CloseCLREnumeration(
     _In_ HANDLE* pHandleArray,
     _In_ LPWSTR* pStringArray,
@@ -282,7 +158,8 @@ CloseCLREnumeration(
     return S_OK;
 }
 
-MONO_API HRESULT
+MONO_EXTERN_C
+MONO_API_EXPORT HRESULT
 CreateVersionStringFromModule(
     _In_ DWORD pidDebuggee,
     _In_ LPCWSTR szModuleName,
@@ -293,7 +170,8 @@ CreateVersionStringFromModule(
     return S_OK;
 }
 
-MONO_API HRESULT
+MONO_EXTERN_C
+MONO_API_EXPORT HRESULT
 CreateDebuggingInterfaceFromVersionEx(
     _In_ int iDebuggerVersion,
     _In_ LPCWSTR szDebuggeeVersion,
@@ -302,7 +180,8 @@ CreateDebuggingInterfaceFromVersionEx(
     return S_OK;
 }
 
-MONO_API
+MONO_EXTERN_C
+MONO_API_EXPORT
 HRESULT
 CreateDebuggingInterfaceFromVersion2(
     _In_ int iDebuggerVersion,
@@ -313,10 +192,72 @@ CreateDebuggingInterfaceFromVersion2(
     return S_OK;
 }
 
-MONO_API HRESULT
+MONO_EXTERN_C
+MONO_API_EXPORT HRESULT
 CreateDebuggingInterfaceFromVersion(
     _In_ LPCWSTR szDebuggeeVersion,
     _Out_ IUnknown ** ppCordb)
 {
     return S_OK;
 }
+
+MONO_EXTERN_C
+MONO_API_EXPORT
+HRESULT
+RegisterForRuntimeStartup3(
+    _In_ DWORD dwProcessId,
+    _In_ LPCWSTR szApplicationGroupId,
+    _In_ IUnknown* pLibraryProvider,
+    _In_ PSTARTUP_CALLBACK pfnCallback,
+    _In_ PVOID parameter,
+    _Out_ PVOID *ppUnregisterToken)
+{
+    return S_OK;
+}
+
+MONO_EXTERN_C
+MONO_API_EXPORT
+HRESULT
+CreateDebuggingInterfaceFromVersion3(
+    _In_ int iDebuggerVersion,
+    _In_ LPCWSTR szDebuggeeVersion,
+    _In_ LPCWSTR szApplicationGroupId,
+    _In_ IUnknown* pLibraryProvider,
+    _Out_ IUnknown ** ppCordb)
+{
+    return S_OK;
+}
+
+MONO_EXTERN_C
+MONO_API_EXPORT
+HRESULT
+RegisterForRuntimeStartupRemotePort(
+    _In_ DWORD dwRemotePortId,
+    _Out_ IUnknown ** ppCordb)
+{
+    if (pCordb != NULL)
+        return S_OK;
+
+    HRESULT hr = S_OK;
+    HMODULE hMod = NULL;
+
+    char* msCorDbiPath = getenv("MSCORDBI_PATH");
+    if (msCorDbiPath == NULL)
+        msCorDbiPath = (char*)"T:\\thays\\runtime_icordbg\\runtime\\artifacts\\bin\\mono\\windows.x64.Debug\\mscordbi.dll";
+#ifdef TARGET_WINDOWS
+    hMod = LoadLibraryA(msCorDbiPath);
+#else
+    hMod = dlopen(msCorDbiPath, RTLD_LAZY);
+#endif
+    if (hMod == NULL)
+    {
+        hr = CORDBG_E_DEBUG_COMPONENT_MISSING;
+        return hr;
+    }
+
+    hr = CreateCoreDbg(hMod, dwRemotePortId, 0, &pCordb);
+    *ppCordb = pCordb;
+    return S_OK;
+}
+
+

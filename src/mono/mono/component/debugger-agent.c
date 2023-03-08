@@ -1188,6 +1188,14 @@ socket_transport_connect (const char *address)
 					continue;
 				}
 
+				if (agent_config.timeout > 0) //then we should have a small timeout to retry - icordbg
+				{
+					struct timeval timeout;
+					timeout.tv_sec  = 5;
+					timeout.tv_usec = 0;
+					setsockopt(sfd, SOL_SOCKET, SO_SNDTIMEO, (const char *)&timeout, sizeof(timeout));
+				}
+
 				res = connect (sfd, &sockaddr.addr, sock_len);
 
 				if (res != SOCKET_ERROR)

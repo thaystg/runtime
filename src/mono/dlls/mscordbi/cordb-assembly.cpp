@@ -88,8 +88,9 @@ HRESULT CordbAssembly::GetName(ULONG32 cchName, ULONG32* pcchName, WCHAR szName[
 
             m_pAssemblyName = m_dbgprot_decode_string_with_len(pReply->p, &pReply->p, pReply->end, &m_nAssemblyNameLen);
 
-            char* c_mobile_symbols_path = getenv("MOBILE_SYMBOLS_PATH");
-            if (strlen(c_mobile_symbols_path) > 0) {
+            const char* c_mobile_symbols_path = getenv("MOBILE_SYMBOLS_PATH");
+            c_mobile_symbols_path = "T:\\thays\\IcordbgIsBack\\testMaui\\obj\\Debug\\net7.0-android\\android\\assets\\";
+            if (c_mobile_symbols_path != NULL && strlen(c_mobile_symbols_path) > 0) {
 
                 size_t size_path = strlen(m_pAssemblyName);
                 size_t pos_separator = 0;

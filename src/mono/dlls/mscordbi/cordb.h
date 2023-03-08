@@ -170,17 +170,17 @@ class Cordb : public ICorDebug, public ICorDebugRemote, public CordbBaseMono
 {
     ICorDebugManagedCallback* m_pCallback;
     CordbProcess*             m_pProcess;
-    DWORD                     m_nPID;
+    DWORD                     m_nPort;
 public:
-    DWORD PID()
+    DWORD Port()
     {
-        return m_nPID;
+        return m_nPort;
     }
     ICorDebugManagedCallback* GetCallback() const
     {
         return m_pCallback;
     }
-    Cordb(DWORD pid);
+    Cordb(DWORD port);
     ULONG STDMETHODCALLTYPE AddRef(void)
     {
         return (BaseAddRef());
