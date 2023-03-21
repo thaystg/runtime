@@ -54,6 +54,7 @@ public:
     {
         return m_pCordb;
     }
+    int GetObjectIdByAddress(CORDB_ADDRESS address);
     ~CordbProcess();
     HRESULT STDMETHODCALLTYPE EnumerateLoaderHeapMemoryRegions(ICorDebugMemoryRangeEnum** ppRanges);
     HRESULT STDMETHODCALLTYPE EnableGCNotificationEvents(BOOL fEnable);

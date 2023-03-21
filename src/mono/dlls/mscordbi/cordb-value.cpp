@@ -226,7 +226,7 @@ HRESULT STDMETHODCALLTYPE CordbReferenceValue::GetExactType(ICorDebugType** ppTy
             type_id                  = m_dbgprot_decode_id(pReply->p, &pReply->p, pReply->end);
             int type_id2             = m_dbgprot_decode_id(pReply->p, &pReply->p, pReply->end);
             int token                = m_dbgprot_decode_int(pReply->p, &pReply->p, pReply->end);
-            m_pClass                 = conn->GetProcess()->FindOrAddClass(token, module_id);
+            m_pClass                 = conn->GetProcess()->FindOrAddClass(token, assembly_id);
             m_pClass->InternalAddRef();
             m_pCordbType = conn->GetProcess()->FindOrAddClassType(m_type, m_pClass);
             m_pCordbType->InternalAddRef();
@@ -324,10 +324,28 @@ HRESULT STDMETHODCALLTYPE CordbReferenceValue::IsNull(BOOL* pbNull)
 
 HRESULT STDMETHODCALLTYPE CordbReferenceValue::GetValue(CORDB_ADDRESS* pValue)
 {
-    if (m_debuggerId == -1)
+    if (m_pAddress == NULL) {
         *pValue = NULL;
-    else
-        *pValue = (CORDB_ADDRESS)&m_debuggerId;
+        LOG((LF_CORDB, LL_INFO1000000, "CordbReferenceValue - GetValue - IMPLEMENTED\n"));
+        return S_OK;
+    }
+    MdbgProtBuffer localbuf;
+    m_dbgprot_buffer_init(&localbuf, 128);
+    m_dbgprot_buffer_add_long(&localbuf, m_pAddress);
+    m_dbgprot_buffer_add_int(&localbuf, sizeof(CORDB_ADDRESS));
+    int cmdId = conn->SendEvent(MDBGPROT_CMD_SET_VM, MDBGPROT_CMD_VM_READ_MEMORY, &localbuf);
+    m_dbgprot_buffer_free(&localbuf);
+
+    ReceivedReplyPacket* received_reply_packet = conn->GetReplyWithError(cmdId);
+    CHECK_ERROR_RETURN_FALSE(received_reply_packet);
+    MdbgProtBuffer* pReply = received_reply_packet->Buffer();
+    int memoryReadSize = 0;
+    uint8_t* memoryRead = m_dbgprot_decode_byte_array(pReply->p, &pReply->p, pReply->end, (int32_t*)&memoryReadSize);
+    CORDB_ADDRESS value;
+    memcpy(&value, memoryRead, memoryReadSize);
+    free(memoryRead);
+
+    *pValue = value;
     LOG((LF_CORDB, LL_INFO1000000, "CordbReferenceValue - GetValue - IMPLEMENTED\n"));
     return S_OK;
 }
@@ -354,7 +372,7 @@ HRESULT STDMETHODCALLTYPE CordbReferenceValue::Dereference(ICorDebugValue** ppVa
     }
     else
     {
-        CordbObjectValue* objectValue = new CordbObjectValue(conn, m_type, m_debuggerId, m_pClass);
+        CordbObjectValue* objectValue = new CordbObjectValue(conn, m_type, m_debuggerId, m_pClass, m_pAddress);
         objectValue->QueryInterface(IID_ICorDebugValue, (void**)ppValue);
     }
     LOG((LF_CORDB, LL_INFO1000000, "CordbReferenceValue - Dereference - IMPLEMENTED\n"));
@@ -390,7 +408,7 @@ CordbReferenceValue::~CordbReferenceValue()
         m_pClass->InternalRelease();
 }
 
-CordbObjectValue::CordbObjectValue(Connection* conn, CorElementType type, int object_id, CordbClass* klass)
+CordbObjectValue::CordbObjectValue(Connection* conn, CorElementType type, int object_id, CordbClass* klass, CORDB_ADDRESS address)
     : CordbBaseMono(conn)
 {
     this->m_type       = type;
@@ -399,6 +417,7 @@ CordbObjectValue::CordbObjectValue(Connection* conn, CorElementType type, int ob
     if (klass)
         klass->InternalAddRef();
     m_pCordbType = NULL;
+    m_pAddress = address;
 }
 
 CordbObjectValue::~CordbObjectValue()
@@ -425,7 +444,7 @@ HRESULT STDMETHODCALLTYPE CordbObjectValue::GetSize(ULONG32* pSize)
 
 HRESULT STDMETHODCALLTYPE CordbObjectValue::GetAddress(CORDB_ADDRESS* pAddress)
 {
-    *pAddress = (CORDB_ADDRESS)&m_debuggerId;
+    *pAddress = (CORDB_ADDRESS)m_pAddress; 
     LOG((LF_CORDB, LL_INFO1000000, "CordbObjectValue - GetAddress - IMPLEMENTED\n"));
     return S_OK;
 }

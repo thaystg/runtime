@@ -114,9 +114,10 @@ class CordbObjectValue : public CordbBaseMono,
     int            m_debuggerId;
     CordbClass*    m_pClass;
     CordbType*     m_pCordbType;
+    CORDB_ADDRESS  m_pAddress;
 
 public:
-    CordbObjectValue(Connection* conn, CorElementType type, int object_id, CordbClass* klass);
+    CordbObjectValue(Connection* conn, CorElementType type, int object_id, CordbClass* klass, CORDB_ADDRESS address);
     ULONG STDMETHODCALLTYPE AddRef(void)
     {
         return (BaseAddRef());

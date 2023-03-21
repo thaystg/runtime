@@ -38,6 +38,19 @@ CordbProcess::CordbProcess(Cordb* cordb) : CordbBaseMono(NULL)
         m_pTypeMapArray->Append(new MapSHashWithRemove<long, CordbType*>());
     }
 }
+int CordbProcess::GetObjectIdByAddress(CORDB_ADDRESS address)
+{
+    MdbgProtBuffer localbuf;
+    m_dbgprot_buffer_init(&localbuf, 128);
+    m_dbgprot_buffer_add_long(&localbuf, address);
+    int cmdId = conn->SendEvent(MDBGPROT_CMD_SET_VM, MDBGPROT_CMD_VM_GET_OBJECT_ID_BY_ADDRESS, &localbuf);
+    m_dbgprot_buffer_free(&localbuf);
+
+    ReceivedReplyPacket* received_reply_packet = conn->GetReplyWithError(cmdId);
+    CHECK_ERROR_RETURN_FALSE(received_reply_packet);
+    MdbgProtBuffer* pReply = received_reply_packet->Buffer();
+    return m_dbgprot_decode_int(pReply->p, &pReply->p, pReply->end);
+}
 
 CordbProcess::~CordbProcess()
 {

@@ -427,8 +427,11 @@ HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetLocalMemoryValue(CORDB_ADDRESS   
                                                                 PCCOR_SIGNATURE  pvSigBlob,
                                                                 ICorDebugValue** ppValue)
 {
-    LOG((LF_CORDB, LL_INFO100000, "CordbNativeFrame - GetLocalMemoryValue - NOT IMPLEMENTED\n"));
-    return E_NOTIMPL;
+    int debugId = conn->GetProcess()->GetObjectIdByAddress(address);
+    CordbReferenceValue* refValue  = new CordbReferenceValue(conn, (CorElementType)pvSigBlob[0], debugId, NULL, NULL, address);
+    refValue->QueryInterface(IID_ICorDebugValue, (void**)ppValue);
+    LOG((LF_CORDB, LL_INFO100000, "CordbNativeFrame - GetLocalMemoryValue - PARTIALLY IMPLEMENTED\n"));
+    return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetLocalRegisterMemoryValue(CorDebugRegister highWordReg,

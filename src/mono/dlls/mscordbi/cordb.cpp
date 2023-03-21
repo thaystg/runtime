@@ -130,7 +130,7 @@ Cordb::Cordb(DWORD port) : CordbBaseMono(NULL)
 #ifdef LOGGING
     InitializeLogging();
 #endif
-    AddRef();
+    AddRef();//TODO probably remove this
 }
 
 Cordb::~Cordb()
