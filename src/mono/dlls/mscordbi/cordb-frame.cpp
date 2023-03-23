@@ -386,6 +386,11 @@ CordbNativeFrame::CordbNativeFrame(
     this->m_nPosFrame = posFrame;
 }
 
+CordbThread* CordbNativeFrame::GetThread()
+{
+    return m_pThread;
+}
+
 HRESULT STDMETHODCALLTYPE CordbNativeFrame::GetIP(ULONG32* pnOffset)
 {
     LOG((LF_CORDB, LL_INFO100000, "CordbNativeFrame - GetIP - NOT IMPLEMENTED\n"));

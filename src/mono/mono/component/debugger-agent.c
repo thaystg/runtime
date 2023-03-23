@@ -5236,7 +5236,7 @@ buffer_add_value_full (Buffer *buf, MonoType *t, void *addr, MonoDomain *domain,
 			}
 			buffer_add_objid (buf, obj);
 			if (CHECK_ICORDBG (TRUE))
-				buffer_add_long (buf, (gssize) addr);
+				buffer_add_long (buf, (gssize) obj);
 		}
 		break;
 	handle_vtype:
@@ -7264,9 +7264,9 @@ vm_commands (int command, int id, guint8 *p, guint8 *end, Buffer *buf)
 		break;
 	}
 	case MDBGPROT_CMD_VM_GET_OBJECT_ID_BY_ADDRESS: {
-		MonoObject** obj = (MonoObject**)GINT_TO_POINTER (decode_long (p, &p, end));
-		PRINT_DEBUG_MSG (1, "MDBGPROT_CMD_VM_GET_OBJECT_ID_BY_ADDRESS - [%p] - [%p]\n", obj, *obj);		
-		buffer_add_objid (buf, *obj);
+		MonoObject* obj = (MonoObject*)GINT_TO_POINTER (decode_long (p, &p, end));
+		PRINT_DEBUG_MSG (1, "MDBGPROT_CMD_VM_GET_OBJECT_ID_BY_ADDRESS - [%p] - [%p]\n", obj);
+		buffer_add_objid (buf, obj);
 		break;
 	}
 	case MDBGPROT_CMD_GET_ASSEMBLY_BY_NAME: {
@@ -8422,11 +8422,20 @@ type_commands_internal (int command, MonoClass *klass, MonoDomain *domain, guint
 	}
 	case MDBGPROT_CMD_TYPE_GET_VALUES_ICORDBG: {
 		MonoClass *dummy_class;
+		MonoThread *thread_obj;
+		MonoInternalThread *thread = NULL;
 		int field_token =  decode_int (p, &p, end);
+		int objid = decode_objid (p, &p, end);
+		if (objid != -1)
+		{
+			err = get_object (objid, (MonoObject**)&thread_obj);
+			if (err != ERR_NONE)
+				thread = THREAD_TO_INTERNAL (thread_obj);
+		}
 		MonoClassField *f = mono_field_from_token_checked (m_class_get_image (klass), field_token, &dummy_class, NULL, error);
 		PRINT_DEBUG_MSG (1, "Getting value of field %s\n", f->name);
 		if (f) {
-			if (get_static_field_value(f, klass, domain, NULL, buf) == -1)
+			if (get_static_field_value(f, klass, domain, thread, buf) == -1)
 				goto invalid_fieldid;
 		}
 		else
@@ -8702,6 +8711,29 @@ type_commands_internal (int command, MonoClass *klass, MonoDomain *domain, guint
 			mono_error_cleanup (error);
 			goto loader_error;
 		}
+		break;
+	}
+	case MDBGPROT_CMD_TYPE_BIND_GENERIC_PARAMETERS: {
+		MonoType **type_argv;
+		int i, type_argc;
+		MonoDomain *d;
+		type_argc = decode_int (p, &p, end);
+		type_argv = g_new0 (MonoType*, type_argc);
+		for (i = 0; i < type_argc; ++i) {
+			MonoClass *klass_to_bind = decode_typeid (p, &p, end, &d, &err);
+			if (err != ERR_NONE) {
+				g_free (type_argv);
+				return err;
+			}
+			if (domain != d) {
+				g_free (type_argv);
+				return ERR_INVALID_ARGUMENT;
+			}
+			type_argv [i] = m_class_get_byval_arg (klass_to_bind);
+		}
+		MonoClass *bound_class = mono_class_bind_generic_parameters (klass, type_argc, type_argv, FALSE/*check if is dynamic*/);
+		buffer_add_typeid (buf, domain, bound_class);
+		g_free (type_argv);
 		break;
 	}
 	default:
@@ -9278,6 +9310,39 @@ method_commands_internal (int command, MonoMethod *method, MonoDomain *domain, g
 		{
 			buffer_add_string (buf, mono_method_full_name (method, TRUE));
 		}
+		break;
+	}
+	case MDBGPROT_CMD_METHOD_BIND_GENERIC_TYPE_PARAMETERS: {
+		MonoType **type_argv;
+		int i, type_argc;
+		MonoDomain *d;
+		MonoMethod *m;
+		type_argc = decode_int (p, &p, end);
+		type_argv = g_new0 (MonoType*, type_argc);
+		for (i = 0; i < type_argc; ++i) {
+			MonoClass *klass = decode_typeid (p, &p, end, &d, &err);
+			if (err != ERR_NONE) {
+				g_free (type_argv);
+				return err;
+			}
+			if (domain != d) {
+				g_free (type_argv);
+				return ERR_INVALID_ARGUMENT;
+			}
+			type_argv [i] = m_class_get_byval_arg (klass);
+		}
+		MonoClass *bound_class = mono_class_bind_generic_parameters (method->klass, type_argc, type_argv, FALSE/*check if is dynamic*/);
+		g_free (type_argv);
+		gpointer iter = NULL;
+		mono_class_setup_methods (bound_class);
+		while ((m = mono_class_get_methods (bound_class, &iter))) {
+			if (method->token == m->token)
+			{
+				buffer_add_methodid (buf, domain, m);
+				break;
+			}
+		}
+		buffer_add_int (buf, -1);
 		break;
 	}
 	default:

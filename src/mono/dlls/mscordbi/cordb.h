@@ -250,11 +250,11 @@ public:
         {\
             if (localbuf->Buffer()->end > localbuf->Buffer()->p) {\
                 char *error_msg = m_dbgprot_decode_string(localbuf->Buffer()->p, &localbuf->Buffer()->p, localbuf->Buffer()->end);         \
-                LOG((LF_CORDB, LL_INFO100000, "ERROR RECEIVED - %s\n", error_msg));                                                         \
+              LOG((LF_CORDB, LL_INFO100000, "ERROR RECEIVED - %s\n", error_msg));                                                         \
                 free(error_msg);                                                                                                           \
             }\
             else {\
-                LOG((LF_CORDB, LL_INFO100000, "ERROR RECEIVED - %d - %d\n", localbuf->Error(), localbuf->Error2()));                                                         \
+              LOG((LF_CORDB, LL_INFO100000, "ERROR RECEIVED - %d - %d\n", localbuf->Error(), localbuf->Error2()));                                                         \
             }\
             EX_THROW(HRException, (E_FAIL));                                                                                           \
         }                                                                                                                              \

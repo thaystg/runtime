@@ -63,7 +63,7 @@ HRESULT CordbFunctionBreakpoint::Activate(BOOL bActive)
     }
     else
     {
-        LOG((LF_CORDB, LL_INFO100000, "CordbFunctionBreakpoint - Activate - FALSE - NOT IMPLEMENTED\n"));
+      LOG((LF_CORDB, LL_INFO100000, "CordbFunctionBreakpoint - Activate - FALSE - NOT IMPLEMENTED\n"));
     }
     return S_OK;
 }

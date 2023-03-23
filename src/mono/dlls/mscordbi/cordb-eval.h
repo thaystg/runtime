@@ -19,7 +19,9 @@ public:
     CordbEval(Connection* conn, CordbThread* thread);
     ~CordbEval();
     void EvalComplete(MdbgProtBuffer* pReply);
-
+    int GetMethodFromGenericTypeBound(ICorDebugFunction* pFunction,
+                                        ULONG32            nTypeArgs,
+                                        ICorDebugType*     ppTypeArgs[]);
     HRESULT STDMETHODCALLTYPE CallParameterizedFunction(ICorDebugFunction* pFunction,
                                       ULONG32            nTypeArgs,
                                       ICorDebugType*     ppTypeArgs[],

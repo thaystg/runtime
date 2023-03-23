@@ -47,7 +47,6 @@ HRESULT STDMETHODCALLTYPE CordbBlockingObjectEnum::QueryInterface(REFIID id, voi
         *ppInterface = (ICorDebugBlockingObjectEnum*)this;
     else if (id == IID_IUnknown)
         *ppInterface = (IUnknown*)(ICorDebugBlockingObjectEnum*)this;
-    LOG((LF_CORDB, LL_INFO100000, "CordbBlockingObjectEnum - QueryInterface - IMPLEMENTED\n"));
     AddRef();
     return S_OK;
 }

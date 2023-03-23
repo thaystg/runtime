@@ -261,7 +261,6 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetActiveFrame(ICorDebugFrame** ppFrame)
 
 HRESULT STDMETHODCALLTYPE CordbThread::GetRegisterSet(ICorDebugRegisterSet** ppRegisters)
 {
-    LOG((LF_CORDB, LL_INFO1000000, "CordbThread - GetRegisterSet - IMPLEMENTED\n"));
     if (m_pRegisterSet != NULL)
         m_pRegisterSet->InternalRelease();
     HRESULT hr = S_OK;
@@ -283,7 +282,6 @@ HRESULT STDMETHODCALLTYPE CordbThread::GetRegisterSet(ICorDebugRegisterSet** ppR
         int64_t stack_pointer = m_dbgprot_decode_long(pReply->p, &pReply->p, pReply->end);
         m_pRegisterSet = new CordbRegisterSet(conn, stack_pointer);
         m_pRegisterSet->InternalAddRef();
-        LOG((LF_CORDB, LL_INFO100000, "CordbThread - GetRegisterSet - IMPLEMENTED - %ld\n", stack_pointer)); 
     }
     EX_CATCH_HRESULT(hr);
 

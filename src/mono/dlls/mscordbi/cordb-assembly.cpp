@@ -221,7 +221,6 @@ HRESULT CordbModule::SetJMCStatus(BOOL bIsJustMyCode, ULONG32 cOthers, mdToken p
         _ASSERTE(!"not yet impl for cOthers != 0");
         return E_NOTIMPL;
     }
-    LOG((LF_CORDB, LL_INFO100000, "CordbModule - SetJMCStatus - IMPLEMENTED\n"));
     //on mono JMC is not by module, for now receiving this for one module, will affect all.
     if (bIsJustMyCode)
         conn->GetProcess()->SetJMCStatus(bIsJustMyCode);

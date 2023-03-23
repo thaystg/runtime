@@ -54,6 +54,49 @@ public:
     CordbContent* GetValue() {return &m_value;}
 };
 
+class CordbValueTypeValue : public CordbBaseMono,
+                            public ICorDebugReferenceValue,
+                            public ICorDebugValue2,
+                            public ICorDebugValue3,
+                            public ICorDebugGenericValue
+{
+    CorElementType m_type;
+    int            m_debuggerId;
+    CordbClass*    m_pClass;
+    CordbType*     m_pCordbType;
+    CORDB_ADDRESS  m_pAddress;
+public:
+    CordbValueTypeValue(Connection* conn, CorElementType type, CordbClass* klass = NULL, CordbType* cordbType = NULL, CORDB_ADDRESS cordbAddress = NULL);
+    ULONG STDMETHODCALLTYPE AddRef(void)
+    {
+        return (BaseAddRef());
+    }
+    ULONG STDMETHODCALLTYPE Release(void)
+    {
+        return (BaseRelease());
+    }
+    const char* GetClassName()
+    {
+        return "CordbValueTypeValue";
+    }
+    ~CordbValueTypeValue();
+    HRESULT STDMETHODCALLTYPE GetType(CorElementType* pType);
+    HRESULT STDMETHODCALLTYPE GetSize(ULONG32* pSize);
+    HRESULT STDMETHODCALLTYPE GetAddress(CORDB_ADDRESS* pAddress);
+    HRESULT STDMETHODCALLTYPE CreateBreakpoint(ICorDebugValueBreakpoint** ppBreakpoint);
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject);
+
+    HRESULT STDMETHODCALLTYPE GetExactType(ICorDebugType** ppType);
+    HRESULT STDMETHODCALLTYPE GetSize64(ULONG64* pSize);
+    HRESULT STDMETHODCALLTYPE GetValue(void* pTo);
+    HRESULT STDMETHODCALLTYPE SetValue(void* pFrom);
+    HRESULT STDMETHODCALLTYPE IsNull(BOOL* pbNull);
+    HRESULT STDMETHODCALLTYPE GetValue(CORDB_ADDRESS* pValue);
+    HRESULT STDMETHODCALLTYPE SetValue(CORDB_ADDRESS value);
+    HRESULT STDMETHODCALLTYPE Dereference(ICorDebugValue** ppValue);
+    HRESULT STDMETHODCALLTYPE DereferenceStrong(ICorDebugValue** ppValue);
+};
+
 class CordbReferenceValue : public CordbBaseMono,
                             public ICorDebugReferenceValue,
                             public ICorDebugValue2,
@@ -95,6 +138,8 @@ public:
     HRESULT STDMETHODCALLTYPE SetValue(CORDB_ADDRESS value);
     HRESULT STDMETHODCALLTYPE Dereference(ICorDebugValue** ppValue);
     HRESULT STDMETHODCALLTYPE DereferenceStrong(ICorDebugValue** ppValue);
+
+    CordbClass* GetClass(int type_id);
 };
 
 class CordbObjectValue : public CordbBaseMono,
@@ -117,7 +162,7 @@ class CordbObjectValue : public CordbBaseMono,
     CORDB_ADDRESS  m_pAddress;
 
 public:
-    CordbObjectValue(Connection* conn, CorElementType type, int object_id, CordbClass* klass, CORDB_ADDRESS address);
+    CordbObjectValue(Connection* conn, CorElementType type, int object_id, CordbClass* klass, CORDB_ADDRESS address, CordbType* cordbType = NULL);
     ULONG STDMETHODCALLTYPE AddRef(void)
     {
         return (BaseAddRef());

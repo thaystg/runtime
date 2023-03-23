@@ -8,6 +8,8 @@
 #include <cordb-class.h>
 #include <cordb-process.h>
 #include <cordb-value.h>
+#include <cordb-frame.h>
+#include <cordb-thread.h>
 #include <cordb.h>
 
 #include "cordb-assembly.h"
@@ -69,7 +71,6 @@ HRESULT STDMETHODCALLTYPE CordbClass::GetStaticFieldValue(mdFieldDef       field
                                                           ICorDebugValue** ppValue)
 {
     GetDebuggerId();
-    LOG((LF_CORDB, LL_INFO100000, "CordbClass - GetStaticFieldValue - IMPLEMENTED\n"));
     HRESULT hr = S_OK;
     EX_TRY
     {
@@ -80,6 +81,7 @@ HRESULT STDMETHODCALLTYPE CordbClass::GetStaticFieldValue(mdFieldDef       field
             m_dbgprot_buffer_init(&localbuf, 128);
             m_dbgprot_buffer_add_id(&localbuf, m_debuggerId);
             m_dbgprot_buffer_add_int(&localbuf, fieldDef);
+            m_dbgprot_buffer_add_int(&localbuf, pFrame ? ((CordbNativeFrame*)pFrame)->GetThread()->GetThreadId() : -1);
 
             int cmdId = conn->SendEvent(MDBGPROT_CMD_SET_TYPE, MDBGPROT_CMD_TYPE_GET_VALUES_ICORDBG, &localbuf);
             m_dbgprot_buffer_free(&localbuf);
@@ -123,7 +125,27 @@ HRESULT STDMETHODCALLTYPE CordbClass::GetParameterizedType(CorElementType  eleme
                                                            ICorDebugType*  ppTypeArgs[],
                                                            ICorDebugType** ppType)
 {
-    LOG((LF_CORDB, LL_INFO100000, "CordbClass - GetParameterizedType - IMPLEMENTED\n"));
+    if (nTypeArgs > 0)
+    {
+        MdbgProtBuffer localbuf;
+        m_dbgprot_buffer_init(&localbuf, 128);
+        m_dbgprot_buffer_add_int(&localbuf, GetDebuggerId());
+        m_dbgprot_buffer_add_int(&localbuf, nTypeArgs);
+        for (ULONG32 i = 0; i < nTypeArgs; i++)
+        {
+            ICorDebugClass* pClass;
+            ppTypeArgs[i]->GetClass(&pClass);
+            m_dbgprot_buffer_add_int(&localbuf, ((CordbClass*)pClass)->GetDebuggerId());
+        }
+        
+        int cmdId = conn->SendEvent(MDBGPROT_CMD_SET_TYPE, MDBGPROT_CMD_TYPE_BIND_GENERIC_PARAMETERS, &localbuf);
+        m_dbgprot_buffer_free(&localbuf);
+
+        ReceivedReplyPacket* received_reply_packet = conn->GetReplyWithError(cmdId);
+        CHECK_ERROR_RETURN_FALSE(received_reply_packet);
+        MdbgProtBuffer* pReply = received_reply_packet->Buffer();
+        m_debuggerId = m_dbgprot_decode_int(pReply->p, &pReply->p, pReply->end);
+    }
     CordbType *ret = conn->GetProcess()->FindOrAddClassType(elementType, this);
     ret->QueryInterface(IID_ICorDebugType, (void**)ppType);
     return S_OK;

@@ -66,7 +66,6 @@ HRESULT CordbFunction::QueryInterface(REFIID id, void** pInterface)
 
 HRESULT CordbFunction::GetModule(ICorDebugModule** ppModule)
 {
-    LOG((LF_CORDB, LL_INFO100000, "CordbFunction - GetModule - IMPLEMENTED\n"));
     HRESULT hr = S_OK;
     EX_TRY 
     {    
@@ -125,7 +124,6 @@ HRESULT CordbFunction::GetClass(ICorDebugClass** ppClass)
 
 HRESULT CordbFunction::GetToken(mdMethodDef* pMethodDef)
 {
-    LOG((LF_CORDB, LL_INFO100000, "CordbFunction - GetToken - IMPLEMENTED\n"));
     HRESULT hr = S_OK;
     EX_TRY 
     {     

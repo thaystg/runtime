@@ -57,7 +57,6 @@ HRESULT Cordb::Terminate(void)
 
 HRESULT Cordb::SetManagedHandler(ICorDebugManagedCallback* pCallback)
 {
-    LOG((LF_CORDB, LL_INFO1000000, "Cordb - SetManagedHandler - IMPLEMENTED\n"));
     this->m_pCallback = pCallback;
     this->GetCallback()->AddRef();
     return S_OK;
@@ -261,7 +260,7 @@ void Connection::Receive()
         }
         while (iResult == 0)
         {
-            LOG((LF_CORDB, LL_INFO100000, "transport_recv () sleep returned %d, expected %d.\n", iResult,
+          LOG((LF_CORDB, LL_INFO100000, "transport_recv () sleep returned %d, expected %d.\n", iResult,
                  HEADER_LENGTH));
             iResult = m_socket->Receive((char*)recvbuf_header.buf, HEADER_LENGTH);
             Sleep(1000);
@@ -339,7 +338,7 @@ void Connection::ProcessPacketInternal(MdbgProtBuffer* recvbuf)
 
         long thread_id = m_dbgprot_decode_id(recvbuf->p, &recvbuf->p, recvbuf->end);
 
-        LOG((LF_CORDB, LL_INFO100000, "Received %d %d events %s, suspend=%d\n", i, nevents,
+      LOG((LF_CORDB, LL_INFO100000, "Received %d %d events %s, suspend=%d\n", i, nevents,
              m_dbgprot_event_to_string(etype), spolicy));
 
         switch (etype)
@@ -420,7 +419,7 @@ void Connection::ProcessPacketInternal(MdbgProtBuffer* recvbuf)
             break;
             default:
             {
-                LOG((LF_CORDB, LL_INFO100000, "Not implemented - %s\n", m_dbgprot_event_to_string(etype)));
+              LOG((LF_CORDB, LL_INFO100000, "Not implemented - %s\n", m_dbgprot_event_to_string(etype)));
             }
         }
     }

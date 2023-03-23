@@ -24,7 +24,6 @@ HRESULT CordbAppDomain::Stop(DWORD dwTimeoutIgnored)
 
 HRESULT CordbAppDomain::Continue(BOOL fIsOutOfBand)
 {
-    LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - Continue - IMPLEMENTED\n"));
     pProcess->Continue(fIsOutOfBand);
     return S_OK;
 }
