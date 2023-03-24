@@ -113,8 +113,21 @@ HRESULT CordbFunction::GetClass(ICorDebugClass** ppClass)
         CHECK_ERROR_RETURN_FALSE(received_reply_packet);
         MdbgProtBuffer* pReply = received_reply_packet->Buffer();
 
-        int m_type = m_dbgprot_decode_int(pReply->p, &pReply->p, pReply->end);
-        CordbClass* m_pClass = conn->GetProcess()->FindOrAddClass(m_type, m_pModule->GetDebuggerId());
+        int typeToken = m_dbgprot_decode_int(pReply->p, &pReply->p, pReply->end);
+
+
+        m_dbgprot_buffer_init(&localbuf, 128);
+        m_dbgprot_buffer_add_id(&localbuf, m_debuggerId);
+        cmdId = conn->SendEvent(MDBGPROT_CMD_SET_METHOD, MDBGPROT_CMD_METHOD_GET_DECLARING_TYPE, &localbuf);
+        m_dbgprot_buffer_free(&localbuf);
+
+        received_reply_packet = conn->GetReplyWithError(cmdId);
+        CHECK_ERROR_RETURN_FALSE(received_reply_packet);
+        pReply = received_reply_packet->Buffer();
+
+        int type_id = m_dbgprot_decode_int(pReply->p, &pReply->p, pReply->end);
+
+        CordbClass* m_pClass = conn->GetProcess()->FindOrAddClass(typeToken, type_id, m_pModule->GetDebuggerId());
         hr = m_pClass->QueryInterface(IID_ICorDebugClass, (void**)ppClass);
     }
     EX_CATCH_HRESULT(hr);

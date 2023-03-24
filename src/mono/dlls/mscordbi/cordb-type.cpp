@@ -7,21 +7,20 @@
 #include <cordb-breakpoint.h>
 #include <cordb-class.h>
 #include <cordb-type.h>
+#include <cordb-process.h>
 #include <cordb.h>
 
 using namespace std;
 
-CordbType::CordbType(CorElementType type, Connection* conn, CordbClass* klass, CordbType* typeParameter)
+CordbType::CordbType(CorElementType type, Connection* conn, CordbClass* klass)
     : CordbBaseMono(conn)
 {
     if (type == ELEMENT_TYPE_CLASS && klass == NULL)
         assert(0);
     this->m_pClass         = klass;
     this->m_type           = type;
-    this->m_pTypeParameter = typeParameter;
+    m_pTypeParameterList   = NULL;
     m_pTypeEnum            = NULL;
-    if (typeParameter)
-        typeParameter->InternalAddRef();
     if (klass)
         klass->InternalAddRef();
 }
@@ -30,8 +29,14 @@ CordbType::~CordbType()
 {
     if (m_pClass)
         m_pClass->InternalRelease();
-    if (m_pTypeParameter)
-        m_pTypeParameter->InternalRelease();
+
+    for (DWORD i = 0; i < m_pTypeParameterList->GetCount(); i++)
+    {
+        CordbType* m_pTypeParameter = (CordbType*)m_pTypeParameterList->Get(i);
+        if (m_pTypeParameter)
+            m_pTypeParameter->InternalRelease();
+    }
+    delete m_pTypeParameterList;
     if (m_pTypeEnum)
         m_pTypeEnum->InternalRelease();
 }
@@ -59,7 +64,70 @@ HRESULT STDMETHODCALLTYPE CordbType::EnumerateTypeParameters(ICorDebugTypeEnum**
 {
     if (m_pTypeEnum == NULL)
     {
-        m_pTypeEnum = new CordbTypeEnum(conn, m_pTypeParameter);
+        if (m_pClass)
+        {
+            MdbgProtBuffer localbuf;
+            m_dbgprot_buffer_init(&localbuf, 128);
+            m_dbgprot_buffer_add_id(&localbuf, m_pClass->GetDebuggerId());
+            m_dbgprot_buffer_add_int(&localbuf, MONO_TYPE_NAME_FORMAT_FULL_NAME);
+            int cmdId = conn->SendEvent(MDBGPROT_CMD_SET_TYPE, MDBGPROT_CMD_TYPE_GET_INFO, &localbuf);
+            m_dbgprot_buffer_free(&localbuf);
+
+            ReceivedReplyPacket* received_reply_packet = conn->GetReplyWithError(cmdId);
+            CHECK_ERROR_RETURN_FALSE(received_reply_packet);
+            MdbgProtBuffer* pReply = received_reply_packet->Buffer();
+
+            char* namespace_str      = m_dbgprot_decode_string(pReply->p, &pReply->p, pReply->end);
+            char* class_name_str     = m_dbgprot_decode_string(pReply->p, &pReply->p, pReply->end);
+            char* class_fullname_str = m_dbgprot_decode_string(pReply->p, &pReply->p, pReply->end);
+            int   assembly_id        = m_dbgprot_decode_id(pReply->p, &pReply->p, pReply->end);
+            int   module_id          = m_dbgprot_decode_id(pReply->p, &pReply->p, pReply->end);
+            int type_id1             = m_dbgprot_decode_id(pReply->p, &pReply->p, pReply->end);
+            int type_id2             = m_dbgprot_decode_id(pReply->p, &pReply->p, pReply->end);
+            int token                = m_dbgprot_decode_int(pReply->p, &pReply->p, pReply->end);
+            int rank                 = m_dbgprot_decode_byte(pReply->p, &pReply->p, pReply->end);
+            int flags                = m_dbgprot_decode_int(pReply->p, &pReply->p, pReply->end);
+            int flags2               = m_dbgprot_decode_byte(pReply->p, &pReply->p, pReply->end);
+            int nestedClass          = m_dbgprot_decode_int(pReply->p, &pReply->p, pReply->end);
+            for (int i = 0; i < nestedClass; i++)
+            {
+                int typeNestedId = m_dbgprot_decode_int(pReply->p, &pReply->p, pReply->end);
+            }
+            int typeIdG = m_dbgprot_decode_int(pReply->p, &pReply->p, pReply->end);
+            int g_inst_count        = m_dbgprot_decode_int(pReply->p, &pReply->p, pReply->end);
+            int gInstId = 0;
+            if (g_inst_count > 0)
+                m_pTypeParameterList = new ArrayList();
+            for (int i = 0; i < g_inst_count; i++)
+            {
+                gInstId = m_dbgprot_decode_int(pReply->p, &pReply->p, pReply->end);
+
+                MdbgProtBuffer localbuf;
+                m_dbgprot_buffer_init(&localbuf, 128);
+                m_dbgprot_buffer_add_id(&localbuf, gInstId);
+                m_dbgprot_buffer_add_int(&localbuf, MONO_TYPE_NAME_FORMAT_FULL_NAME);
+                int cmdId = conn->SendEvent(MDBGPROT_CMD_SET_TYPE, MDBGPROT_CMD_TYPE_GET_INFO, &localbuf);
+                m_dbgprot_buffer_free(&localbuf);
+
+                ReceivedReplyPacket* received_reply_packet = conn->GetReplyWithError(cmdId);
+                CHECK_ERROR_RETURN_FALSE(received_reply_packet);
+                MdbgProtBuffer* pReply = received_reply_packet->Buffer();
+                char* namespace_str      = m_dbgprot_decode_string(pReply->p, &pReply->p, pReply->end);
+                char* class_name_str     = m_dbgprot_decode_string(pReply->p, &pReply->p, pReply->end);
+                char* class_fullname_str = m_dbgprot_decode_string(pReply->p, &pReply->p, pReply->end);
+                int   assembly_id        = m_dbgprot_decode_id(pReply->p, &pReply->p, pReply->end);
+                int   module_id          = m_dbgprot_decode_id(pReply->p, &pReply->p, pReply->end);
+                int type_id1             = m_dbgprot_decode_id(pReply->p, &pReply->p, pReply->end);
+                int type_id2             = m_dbgprot_decode_id(pReply->p, &pReply->p, pReply->end);
+                int token                = m_dbgprot_decode_int(pReply->p, &pReply->p, pReply->end);
+
+                CordbClass *m_pClassParm = conn->GetProcess()->FindOrAddClass(token, gInstId, assembly_id);
+                CordbType *type = conn->GetProcess()->FindOrAddClassType(ELEMENT_TYPE_CLASS, m_pClassParm);
+                type->InternalAddRef();
+                m_pTypeParameterList->Append(type);
+            }
+        }
+        m_pTypeEnum = new CordbTypeEnum(conn, m_pTypeParameterList);
         m_pTypeEnum->InternalAddRef();
     }
     m_pTypeEnum->QueryInterface(IID_ICorDebugTypeEnum, (void**)ppTyParEnum);
@@ -70,8 +138,8 @@ HRESULT STDMETHODCALLTYPE CordbType::EnumerateTypeParameters(ICorDebugTypeEnum**
 
 HRESULT STDMETHODCALLTYPE CordbType::GetFirstTypeParameter(ICorDebugType** value)
 {
-    LOG((LF_CORDB, LL_INFO1000000, "CordbType - GetFirstTypeParameter - IMPLEMENTED\n"));
-    m_pTypeParameter->QueryInterface(IID_ICorDebugType, (void**)value);
+    if (m_pTypeParameterList && m_pTypeParameterList->GetCount() > 0)
+        ((CordbType*)m_pTypeParameterList->Get(0))->QueryInterface(IID_ICorDebugType, (void**)value);
     return S_OK;
 }
 
@@ -120,26 +188,27 @@ HRESULT STDMETHODCALLTYPE CordbType::GetTypeID(COR_TYPEID* id)
     return E_NOTIMPL;
 }
 
-CordbTypeEnum::CordbTypeEnum(Connection* conn, CordbType* type) : CordbBaseMono(conn)
+CordbTypeEnum::CordbTypeEnum(Connection* conn, ArrayList* typeList) : CordbBaseMono(conn)
 {
-    this->m_pType = type;
-    if (type)
-        type->InternalAddRef();
+    this->m_pTypeList = typeList;
 }
 
 CordbTypeEnum::~CordbTypeEnum()
 {
-    if (m_pType)
-        m_pType->InternalRelease();
 }
 
 HRESULT STDMETHODCALLTYPE CordbTypeEnum::Next(ULONG celt, ICorDebugType* values[], ULONG* pceltFetched)
 {
-    if (m_pType != NULL) {
-        m_pType->QueryInterface(IID_ICorDebugType, (void**)&values[0]);
-        *pceltFetched = celt;
+    if (m_pTypeList != NULL)
+    {
+        for (DWORD i = 0; i < m_pTypeList->GetCount(); i++)
+        {
+            CordbType* m_pTypeParameter = (CordbType*)m_pTypeList->Get(i);
+            if (m_pTypeParameter)
+                m_pTypeParameter->QueryInterface(IID_ICorDebugType, (void**)&values[i]);
+        }
+        *pceltFetched = m_pTypeList->GetCount();
     }
-    LOG((LF_CORDB, LL_INFO1000000, "CordbTypeEnum - Next - IMPLEMENTED\n"));
     return S_OK;
 }
 
@@ -163,11 +232,7 @@ HRESULT STDMETHODCALLTYPE CordbTypeEnum::Clone(ICorDebugEnum** ppEnum)
 
 HRESULT STDMETHODCALLTYPE CordbTypeEnum::GetCount(ULONG* pcelt)
 {
-    if (m_pType != NULL)
-        *pcelt = 1;
-    else
-        *pcelt = 0;
-    LOG((LF_CORDB, LL_INFO1000000, "CordbTypeEnum - GetCount - IMPLEMENTED\n"));
+    *pcelt = m_pTypeList ? m_pTypeList->GetCount() : 0;
     return S_OK;
 }
 

@@ -16,11 +16,11 @@
 
 using namespace std;
 
-CordbClass::CordbClass(Connection* conn, mdToken token, int module_id) : CordbBaseMono(conn)
+CordbClass::CordbClass(Connection* conn, mdToken token, int module_id, int debugger_id) : CordbBaseMono(conn)
 {
     this->m_metadataToken = token;
     this->m_debuggerModuleId    = module_id;
-    m_debuggerId = -1;
+    m_debuggerId = debugger_id;
 }
 
 int CordbClass::GetDebuggerId() {
@@ -125,11 +125,13 @@ HRESULT STDMETHODCALLTYPE CordbClass::GetParameterizedType(CorElementType  eleme
                                                            ICorDebugType*  ppTypeArgs[],
                                                            ICorDebugType** ppType)
 {
+    int debuggerId = GetDebuggerId();
+    CordbClass* klass = this;
     if (nTypeArgs > 0)
     {
         MdbgProtBuffer localbuf;
         m_dbgprot_buffer_init(&localbuf, 128);
-        m_dbgprot_buffer_add_int(&localbuf, GetDebuggerId());
+        m_dbgprot_buffer_add_int(&localbuf, debuggerId);
         m_dbgprot_buffer_add_int(&localbuf, nTypeArgs);
         for (ULONG32 i = 0; i < nTypeArgs; i++)
         {
@@ -144,9 +146,14 @@ HRESULT STDMETHODCALLTYPE CordbClass::GetParameterizedType(CorElementType  eleme
         ReceivedReplyPacket* received_reply_packet = conn->GetReplyWithError(cmdId);
         CHECK_ERROR_RETURN_FALSE(received_reply_packet);
         MdbgProtBuffer* pReply = received_reply_packet->Buffer();
-        m_debuggerId = m_dbgprot_decode_int(pReply->p, &pReply->p, pReply->end);
+        debuggerId = m_dbgprot_decode_int(pReply->p, &pReply->p, pReply->end);
     }
-    CordbType *ret = conn->GetProcess()->FindOrAddClassType(elementType, this);
+    if (debuggerId != m_debuggerId)
+    {
+        klass = new CordbClass(conn, m_metadataToken, m_debuggerModuleId, debuggerId);
+    }
+    
+    CordbType *ret = conn->GetProcess()->FindOrAddClassType(elementType, klass);
     ret->QueryInterface(IID_ICorDebugType, (void**)ppType);
     return S_OK;
 }

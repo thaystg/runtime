@@ -646,13 +646,13 @@ void CordbProcess::AddStepper(CordbStepper* step)
     dbg_unlock();
 }
 
-CordbClass* CordbProcess::FindOrAddClass(mdToken token, int module_id)
+CordbClass* CordbProcess::FindOrAddClass(mdToken token, int type_id, int module_id)
 {
     CordbClass *ret = NULL;
     dbg_lock();
-    if (!m_classMap.Lookup(token, &ret)) {
-        ret = new CordbClass(conn, token, module_id);
-        m_classMap.Add(token, ret);
+    if (!m_classMap.Lookup(type_id, &ret)) {
+        ret = new CordbClass(conn, token, module_id, type_id);
+        m_classMap.Add(type_id, ret);
         ret->InternalAddRef();
     }
     dbg_unlock();    
@@ -676,15 +676,14 @@ CordbType* CordbProcess::FindOrAddPrimitiveType(CorElementType type)
 CordbType* CordbProcess::FindOrAddClassType(CorElementType type, CordbClass *klass)
 {
     CordbType* ret = NULL;
-    mdToken token;
     if (klass == NULL)
         return FindOrAddPrimitiveType(type);
     MapSHashWithRemove<long, CordbType*>* typeMap = (MapSHashWithRemove<long, CordbType*>*) m_pTypeMapArray->Get(CordbTypeKindClassType);
     dbg_lock();
-    klass->GetToken(&token);
-    if (!typeMap->Lookup(token, &ret)) {
+    int debuggerId = klass->GetDebuggerId();
+    if (!typeMap->Lookup(debuggerId, &ret)) {
         ret = new CordbType(type, conn, klass);
-        typeMap->Add(token, ret);
+        typeMap->Add(debuggerId, ret);
         ret->InternalAddRef();
     }
     dbg_unlock();
@@ -708,7 +707,7 @@ CordbType* CordbProcess::FindOrAddArrayType(CorElementType type, CordbType* arra
     }
     hash = (long)(pow(2, eleToken & 0xffffff) * pow(3, type) * pow(5, eleType)); //TODO: define a better hash
     if (!typeMap->Lookup(hash, &ret)) {
-        ret = new CordbType(type, conn, NULL, arrayType);
+        ret = new CordbType(type, conn);
         typeMap->Add(hash, ret);
         ret->InternalAddRef();
     }

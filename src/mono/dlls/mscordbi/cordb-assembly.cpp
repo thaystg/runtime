@@ -343,7 +343,26 @@ HRESULT CordbModule::GetFunctionFromRVA(CORDB_ADDRESS rva, ICorDebugFunction** p
 
 HRESULT CordbModule::GetClassFromToken(mdTypeDef typeDef, ICorDebugClass** ppClass)
 {
-    CordbClass* pClass = conn->GetProcess()->FindOrAddClass(typeDef, GetDebuggerId());
+    HRESULT hr = S_OK;
+    int typeId = -1;
+    EX_TRY
+    {
+        MdbgProtBuffer localbuf;
+        m_dbgprot_buffer_init(&localbuf, 128);
+        m_dbgprot_buffer_add_id(&localbuf, m_debuggerId);
+        m_dbgprot_buffer_add_int(&localbuf, typeDef);
+        int cmdId = conn->SendEvent(MDBGPROT_CMD_SET_ASSEMBLY, MDBGPROT_CMD_ASSEMBLY_GET_TYPE_FROM_TOKEN, &localbuf);
+        m_dbgprot_buffer_free(&localbuf);
+
+        ReceivedReplyPacket* received_reply_packet = conn->GetReplyWithError(cmdId);
+        if (received_reply_packet->Error() == 0 && received_reply_packet->Error2() == 0)
+        {
+            MdbgProtBuffer* pReply = received_reply_packet->Buffer();
+            typeId = m_dbgprot_decode_id(pReply->p, &pReply->p, pReply->end);
+        }
+    }
+    EX_CATCH_HRESULT(hr);
+    CordbClass* pClass = conn->GetProcess()->FindOrAddClass(typeDef, typeId, GetDebuggerId());
     pClass->QueryInterface(IID_ICorDebugClass, (void**)ppClass);
     return S_OK;
 }

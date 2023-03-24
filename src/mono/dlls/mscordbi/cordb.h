@@ -75,6 +75,8 @@ class CordbEval;
 class CordbType;
 class CordbStackWalk;
 
+#define MONO_TYPE_NAME_FORMAT_FULL_NAME 2
+
 enum CordbTypeKind {
     CordbTypeKindSimpleType,
     CordbTypeKindClassType,

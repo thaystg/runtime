@@ -125,7 +125,7 @@ public:
     void                     AddBreakpoint(CordbFunctionBreakpoint* bp);
     void                     AddPendingEval(CordbEval* eval);
     void                     AddStepper(CordbStepper* step);
-    CordbClass*              FindOrAddClass(mdToken token, int module_id);
+    CordbClass*              FindOrAddClass(mdToken token, int type_id, int module_id);
     CordbType*               FindOrAddPrimitiveType(CorElementType type);
     CordbType*               FindOrAddClassType(CorElementType type, CordbClass *klass); 
     CordbType*               FindOrAddArrayType(CorElementType type, CordbType* elementType);

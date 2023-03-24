@@ -7265,7 +7265,7 @@ vm_commands (int command, int id, guint8 *p, guint8 *end, Buffer *buf)
 	}
 	case MDBGPROT_CMD_VM_GET_OBJECT_ID_BY_ADDRESS: {
 		MonoObject* obj = (MonoObject*)GINT_TO_POINTER (decode_long (p, &p, end));
-		PRINT_DEBUG_MSG (1, "MDBGPROT_CMD_VM_GET_OBJECT_ID_BY_ADDRESS - [%p] - [%p]\n", obj);
+		PRINT_DEBUG_MSG (1, "MDBGPROT_CMD_VM_GET_OBJECT_ID_BY_ADDRESS - [%p]\n", obj);
 		buffer_add_objid (buf, obj);
 		break;
 	}

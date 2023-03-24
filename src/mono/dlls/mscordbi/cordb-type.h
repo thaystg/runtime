@@ -13,11 +13,11 @@ class CordbType : public CordbBaseMono, public ICorDebugType, public ICorDebugTy
 {
     CorElementType m_type;
     CordbClass*    m_pClass;
-    CordbType*     m_pTypeParameter;
+    ArrayList*     m_pTypeParameterList;
     CordbTypeEnum* m_pTypeEnum;
 
 public:
-    CordbType(CorElementType type, Connection* conn, CordbClass* klass = NULL, CordbType* typeParameter = NULL);
+    CordbType(CorElementType type, Connection* conn, CordbClass* klass = NULL);
     ULONG STDMETHODCALLTYPE AddRef(void)
     {
         return (BaseAddRef());
@@ -45,10 +45,9 @@ public:
 
 class CordbTypeEnum : public CordbBaseMono, public ICorDebugTypeEnum
 {
-    CordbType* m_pType;
-
+    ArrayList* m_pTypeList;
 public:
-    CordbTypeEnum(Connection* conn, CordbType* type);
+    CordbTypeEnum(Connection* conn, ArrayList* m_pTypeList);
     ULONG STDMETHODCALLTYPE AddRef(void)
     {
         return (BaseAddRef());
