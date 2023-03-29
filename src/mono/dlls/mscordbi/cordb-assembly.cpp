@@ -29,6 +29,7 @@ using namespace std;
 CordbAssembly::CordbAssembly(Connection* conn, CordbProcess* process, CordbAppDomain* appDomain, int id_assembly)
     : CordbBaseMono(conn)
 {
+    LOG_METHOD_ENTRY;
     m_pProcess   = process;
     m_pAppDomain = appDomain;
     m_pAppDomain->InternalAddRef();
@@ -38,6 +39,7 @@ CordbAssembly::CordbAssembly(Connection* conn, CordbProcess* process, CordbAppDo
 
 CordbAssembly::~CordbAssembly()
 {
+    LOG_METHOD_ENTRY;
     m_pAppDomain->InternalRelease();
     if (m_pAssemblyName)
         free(m_pAssemblyName);
@@ -45,6 +47,7 @@ CordbAssembly::~CordbAssembly()
 
 HRESULT CordbAssembly::IsFullyTrusted(BOOL* pbFullyTrusted)
 {
+    LOG_METHOD_ENTRY;
     *pbFullyTrusted = true;
     LOG((LF_CORDB, LL_INFO100000, "CorDebugAssembly - IsFullyTrusted - NOT IMPLEMENTED\n"));
     return S_OK;
@@ -52,6 +55,7 @@ HRESULT CordbAssembly::IsFullyTrusted(BOOL* pbFullyTrusted)
 
 HRESULT CordbAssembly::GetAppDomain(ICorDebugAppDomain** ppAppDomain)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO1000000, "CorDebugAssembly - GetAppDomain - IMPLEMENTED\n"));
     m_pAppDomain->QueryInterface(IID_ICorDebugAppDomain, (void**)ppAppDomain);
     return S_OK;
@@ -59,18 +63,21 @@ HRESULT CordbAssembly::GetAppDomain(ICorDebugAppDomain** ppAppDomain)
 
 HRESULT CordbAssembly::EnumerateModules(ICorDebugModuleEnum** ppModules)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CorDebugAssembly - EnumerateModules - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbAssembly::GetCodeBase(ULONG32 cchName, ULONG32* pcchName, WCHAR szName[])
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CorDebugAssembly - GetCodeBase - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbAssembly::GetName(ULONG32 cchName, ULONG32* pcchName, WCHAR szName[])
 {
+    LOG_METHOD_ENTRY;
     HRESULT hr = S_OK;
     EX_TRY
     {
@@ -124,6 +131,7 @@ HRESULT CordbAssembly::GetName(ULONG32 cchName, ULONG32* pcchName, WCHAR szName[
 
 HRESULT CordbAssembly::QueryInterface(REFIID id, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppInterface)
 {
+    LOG_METHOD_ENTRY;
     if (id == IID_ICorDebugAssembly)
         *ppInterface = static_cast<ICorDebugAssembly*>(this);
     else if (id == IID_ICorDebugAssembly2)
@@ -141,6 +149,7 @@ HRESULT CordbAssembly::QueryInterface(REFIID id, _COM_Outptr_ void __RPC_FAR* __
 
 HRESULT CordbAssembly::GetProcess(ICorDebugProcess** ppProcess)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO1000000, "CorDebugAssembly - GetProcess - IMPLEMENTED\n"));
     conn->GetProcess()->QueryInterface(IID_ICorDebugProcess, (void**)ppProcess);
     return S_OK;
@@ -149,6 +158,7 @@ HRESULT CordbAssembly::GetProcess(ICorDebugProcess** ppProcess)
 CordbModule::CordbModule(Connection* conn, CordbProcess* process, CordbAssembly* assembly, int id_assembly)
     : CordbBaseMono(conn)
 {
+    LOG_METHOD_ENTRY;
     m_pProcess   = process;
     m_pRegMeta   = NULL;
     m_pAssembly  = assembly;
@@ -158,10 +168,12 @@ CordbModule::CordbModule(Connection* conn, CordbProcess* process, CordbAssembly*
     conn->GetProcess()->AddModule(this);
     m_pPeImage = NULL;
     m_pAssemblyName = NULL;
+    m_bIsDynamic = -1;
 }
 
 CordbModule::~CordbModule()
 {
+    LOG_METHOD_ENTRY;
     if (m_pAssembly)
         m_pAssembly->InternalRelease();
     /*if (m_pPeImage)
@@ -172,6 +184,7 @@ CordbModule::~CordbModule()
 
 HRESULT CordbModule::QueryInterface(REFIID id, void** pInterface)
 {
+    LOG_METHOD_ENTRY;
     if (id == IID_ICorDebugModule)
     {
         *pInterface = static_cast<ICorDebugModule*>(this);
@@ -203,6 +216,7 @@ HRESULT CordbModule::QueryInterface(REFIID id, void** pInterface)
 
 HRESULT CordbModule::IsMappedLayout(BOOL* pIsMapped)
 {
+    LOG_METHOD_ENTRY;
     *pIsMapped = FALSE;
     LOG((LF_CORDB, LL_INFO1000000, "CordbModule - IsMappedLayout - IMPLEMENTED\n"));
     return S_OK;
@@ -210,12 +224,14 @@ HRESULT CordbModule::IsMappedLayout(BOOL* pIsMapped)
 
 HRESULT CordbModule::CreateReaderForInMemorySymbols(REFIID riid, void** ppObj)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbModule - CreateReaderForInMemorySymbols - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbModule::SetJMCStatus(BOOL bIsJustMyCode, ULONG32 cOthers, mdToken pTokens[])
 {
+    LOG_METHOD_ENTRY;
     if (cOthers != 0)
     {
         _ASSERTE(!"not yet impl for cOthers != 0");
@@ -229,12 +245,14 @@ HRESULT CordbModule::SetJMCStatus(BOOL bIsJustMyCode, ULONG32 cOthers, mdToken p
 
 HRESULT CordbModule::ApplyChanges(ULONG cbMetadata, BYTE pbMetadata[], ULONG cbIL, BYTE pbIL[])
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbModule - ApplyChanges - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbModule::SetJITCompilerFlags(DWORD dwFlags)
 {
+    LOG_METHOD_ENTRY;
     this->dwFlags = dwFlags;
     LOG((LF_CORDB, LL_INFO100000, "CordbModule - SetJITCompilerFlags - NOT IMPLEMENTED\n"));
     return S_OK;
@@ -242,6 +260,7 @@ HRESULT CordbModule::SetJITCompilerFlags(DWORD dwFlags)
 
 HRESULT CordbModule::GetJITCompilerFlags(DWORD* pdwFlags)
 {
+    LOG_METHOD_ENTRY;
     *pdwFlags = dwFlags;
     LOG((LF_CORDB, LL_INFO100000, "CordbModule - GetJITCompilerFlags - NOT IMPLEMENTED\n"));
     return S_OK;
@@ -249,12 +268,14 @@ HRESULT CordbModule::GetJITCompilerFlags(DWORD* pdwFlags)
 
 HRESULT CordbModule::ResolveAssembly(mdToken tkAssemblyRef, ICorDebugAssembly** ppAssembly)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbModule - ResolveAssembly - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbModule::GetProcess(ICorDebugProcess** ppProcess)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbModule - GetProcess - IMPLEMENTED\n"));
     conn->GetProcess()->QueryInterface(IID_ICorDebugProcess, (void**)ppProcess);
     return S_OK;
@@ -262,6 +283,7 @@ HRESULT CordbModule::GetProcess(ICorDebugProcess** ppProcess)
 
 HRESULT CordbModule::GetBaseAddress(CORDB_ADDRESS* pAddress)
 {
+    LOG_METHOD_ENTRY;
     HRESULT hr = S_OK;
     EX_TRY
     {
@@ -288,48 +310,38 @@ HRESULT CordbModule::GetBaseAddress(CORDB_ADDRESS* pAddress)
 
 HRESULT CordbModule::GetName(ULONG32 cchName, ULONG32* pcchName, WCHAR szName[])
 {
+    LOG_METHOD_ENTRY;
     return m_pAssembly->GetName(cchName, pcchName, szName);
 }
 
 HRESULT CordbModule::EnableJITDebugging(BOOL bTrackJITInfo, BOOL bAllowJitOpts)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbModule - EnableJITDebugging - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbModule::EnableClassLoadCallbacks(BOOL bClassLoadCallbacks)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbModule - EnableClassLoadCallbacks - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbModule::GetFunctionFromToken(mdMethodDef methodDef, ICorDebugFunction** ppFunction)
 {
+    LOG_METHOD_ENTRY;
     HRESULT hr = S_OK;
     EX_TRY
     {
         LOG((LF_CORDB, LL_INFO1000000, "CordbModule - GetFunctionFromToken - IMPLEMENTED\n"));
-        MdbgProtBuffer localbuf;
-        m_dbgprot_buffer_init(&localbuf, 128);
-        m_dbgprot_buffer_add_id(&localbuf, m_debuggerId);
-        m_dbgprot_buffer_add_int(&localbuf, methodDef);
-        int cmdId = conn->SendEvent(MDBGPROT_CMD_SET_ASSEMBLY, MDBGPROT_CMD_ASSEMBLY_GET_METHOD_FROM_TOKEN, &localbuf);
-        m_dbgprot_buffer_free(&localbuf);
-
-        ReceivedReplyPacket* received_reply_packet = conn->GetReplyWithError(cmdId);
-        if (received_reply_packet->Error() == 0 && received_reply_packet->Error2() == 0)
+        CordbFunction* func = NULL;
+        func = m_pProcess->FindFunctionByToken(methodDef, m_debuggerId);
+        if (func == NULL)
         {
-            MdbgProtBuffer* pReply = received_reply_packet->Buffer();
-
-            int            id = m_dbgprot_decode_id(pReply->p, &pReply->p, pReply->end);
-            CordbFunction* func = NULL;
-            func = m_pProcess->FindFunction(id);
-            if (func == NULL)
-            {
-                func = new CordbFunction(conn, methodDef, id, this);
-            }
-            func->QueryInterface(IID_ICorDebugFunction, (void**)ppFunction);
+            func = new CordbFunction(conn, methodDef, -1, this);
         }
+        func->QueryInterface(IID_ICorDebugFunction, (void**)ppFunction);
     }
     EX_CATCH_HRESULT(hr);
     return hr;
@@ -337,12 +349,14 @@ HRESULT CordbModule::GetFunctionFromToken(mdMethodDef methodDef, ICorDebugFuncti
 
 HRESULT CordbModule::GetFunctionFromRVA(CORDB_ADDRESS rva, ICorDebugFunction** ppFunction)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbModule - GetFunctionFromRVA - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbModule::GetClassFromToken(mdTypeDef typeDef, ICorDebugClass** ppClass)
 {
+    LOG_METHOD_ENTRY;
     HRESULT hr = S_OK;
     int typeId = -1;
     EX_TRY
@@ -370,18 +384,21 @@ HRESULT CordbModule::GetClassFromToken(mdTypeDef typeDef, ICorDebugClass** ppCla
 HRESULT
 CordbModule::CreateBreakpoint(ICorDebugModuleBreakpoint** ppBreakpoint)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbModule - CreateBreakpoint - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbModule::GetEditAndContinueSnapshot(ICorDebugEditAndContinueSnapshot** ppEditAndContinueSnapshot)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbModule - GetEditAndContinueSnapshot - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbModule::GetMetaDataInterface(REFIID riid, IUnknown** ppObj)
 {
+    LOG_METHOD_ENTRY;
     if (m_pRegMeta == NULL)
     {
         OptionValue optionForNewScope;
@@ -420,12 +437,19 @@ HRESULT CordbModule::GetMetaDataInterface(REFIID riid, IUnknown** ppObj)
 
 HRESULT CordbModule::GetToken(mdModule* pToken)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbModule - GetToken - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbModule::IsDynamic(BOOL* pDynamic)
 {
+    LOG_METHOD_ENTRY;
+    if (m_bIsDynamic != -1)
+    {
+        *pDynamic = m_bIsDynamic;
+        return S_OK;
+    }
     LOG((LF_CORDB, LL_INFO1000000, "CordbModule - IsDynamic - IMPLEMENTED\n"));
     HRESULT hr = S_OK;
     EX_TRY
@@ -440,7 +464,7 @@ HRESULT CordbModule::IsDynamic(BOOL* pDynamic)
         CHECK_ERROR_RETURN_FALSE(received_reply_packet);
         MdbgProtBuffer* pReply = received_reply_packet->Buffer();
 
-        int m_bIsDynamic = m_dbgprot_decode_byte(pReply->p, &pReply->p, pReply->end);
+        m_bIsDynamic = m_dbgprot_decode_byte(pReply->p, &pReply->p, pReply->end);
         *pDynamic = m_bIsDynamic;
     }
     EX_CATCH_HRESULT(hr);
@@ -449,12 +473,14 @@ HRESULT CordbModule::IsDynamic(BOOL* pDynamic)
 
 HRESULT CordbModule::GetGlobalVariableValue(mdFieldDef fieldDef, ICorDebugValue** ppValue)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbModule - GetGlobalVariableValue - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbModule::GetSize(ULONG32* pcBytes)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbModule - GetSize -IMPLEMENTED\n"));
     *pcBytes = m_nPeImageSize;
     return S_OK;
@@ -462,6 +488,7 @@ HRESULT CordbModule::GetSize(ULONG32* pcBytes)
 
 HRESULT CordbModule::IsInMemory(BOOL* pInMemory)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO1000000, "CordbModule - IsInMemory - IMPLEMENTED\n"));
     *pInMemory = FALSE;
     return S_OK;
@@ -469,6 +496,7 @@ HRESULT CordbModule::IsInMemory(BOOL* pInMemory)
 
 HRESULT CordbModule::GetAssembly(ICorDebugAssembly** ppAssembly)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO1000000, "CordbModule - GetAssembly - IMPLEMENTED\n"));
     m_pAssembly->QueryInterface(IID_ICorDebugAssembly, (void**)ppAssembly);
     return S_OK;

@@ -45,18 +45,21 @@ static void debugger_thread(void* m_pProcess)
 
 HRESULT Cordb::Initialize(void)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "Cordb - Initialize - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT Cordb::Terminate(void)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "Cordb - Terminate - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT Cordb::SetManagedHandler(ICorDebugManagedCallback* pCallback)
 {
+    LOG_METHOD_ENTRY;
     this->m_pCallback = pCallback;
     this->GetCallback()->AddRef();
     return S_OK;
@@ -64,6 +67,7 @@ HRESULT Cordb::SetManagedHandler(ICorDebugManagedCallback* pCallback)
 
 HRESULT Cordb::SetUnmanagedHandler(ICorDebugUnmanagedCallback* pCallback)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "Cordb - SetUnmanagedHandler - NOT IMPLEMENTED\n"));
     return S_OK;
 }
@@ -81,12 +85,14 @@ HRESULT Cordb::CreateProcess(LPCWSTR                    lpApplicationName,
                              CorDebugCreateProcessFlags debuggingFlags,
                              ICorDebugProcess**         ppProcess)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "Cordb - CreateProcess - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT Cordb::DebugActiveProcess(DWORD id, BOOL win32Attach, ICorDebugProcess** ppProcess)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO1000000, "Cordb - DebugActiveProcess - IMPLEMENTED\n"));
     m_pProcess = new CordbProcess(this);
     m_pProcess->InternalAddRef();
@@ -99,18 +105,21 @@ HRESULT Cordb::DebugActiveProcess(DWORD id, BOOL win32Attach, ICorDebugProcess**
 
 HRESULT Cordb::EnumerateProcesses(ICorDebugProcessEnum** ppProcess)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "Cordb - EnumerateProcesses - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT Cordb::GetProcess(DWORD dwProcessId, ICorDebugProcess** ppProcess)
 {
+    LOG_METHOD_ENTRY;
     m_pProcess->QueryInterface(IID_ICorDebugProcess, (void**)ppProcess);
     return S_OK;
 }
 
 HRESULT Cordb::CanLaunchOrAttach(DWORD dwProcessId, BOOL win32DebuggingEnabled)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "Cordb - CanLaunchOrAttach - NOT IMPLEMENTED\n"));
     return S_OK;
 }
@@ -118,7 +127,6 @@ HRESULT Cordb::CanLaunchOrAttach(DWORD dwProcessId, BOOL win32DebuggingEnabled)
 Cordb::Cordb(DWORD port) : CordbBaseMono(NULL)
 {
     m_pCallback     = NULL;
-    m_pSemReadWrite = new UTSemReadWrite();
     m_nPort = port;
     m_pProcess = NULL;
 
@@ -134,12 +142,11 @@ Cordb::Cordb(DWORD port) : CordbBaseMono(NULL)
 
 Cordb::~Cordb()
 {
+    LOG_METHOD_ENTRY;
     if (this->GetCallback())
         this->GetCallback()->Release();
     if (m_pProcess)
         m_pProcess->InternalRelease();
-    if (m_pSemReadWrite)
-        delete m_pSemReadWrite;
 #ifdef LOGGING
     ShutdownLogging();
 #endif
@@ -148,6 +155,7 @@ Cordb::~Cordb()
 HRESULT
 Cordb::QueryInterface(REFIID id, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface)
 {
+    LOG_METHOD_ENTRY;
     if (id == IID_ICorDebug)
         *pInterface = static_cast<ICorDebug*>(this);
     else if (id == IID_IUnknown)
@@ -176,6 +184,7 @@ HRESULT Cordb::CreateProcessEx(ICorDebugRemoteTarget*     pRemoteTarget,
                                CorDebugCreateProcessFlags debuggingFlags,
                                ICorDebugProcess**         ppProcess)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "Cordb - CreateProcessEx - NOT IMPLEMENTED\n"));
     return S_OK;
 }
@@ -185,6 +194,7 @@ HRESULT Cordb::DebugActiveProcessEx(ICorDebugRemoteTarget* pRemoteTarget,
                                     BOOL                   fWin32Attach,
                                     ICorDebugProcess**     ppProcess)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "Cordb - DebugActiveProcessEx - NOT IMPLEMENTED\n"));
     return S_OK;
 }
@@ -210,23 +220,20 @@ Connection::Connection(CordbProcess* proc, Cordb* cordb)
 {
     m_pProcess                 = proc;
     m_pCordb                   = cordb;
-    m_pReceiveReplies           = new ArrayList();
-    m_pReceivedPacketsToProcess = new ArrayList();
+    m_pReceivedPacketsToProcess = new ArrayListThreadSafe();
+#ifdef _DEV_LOG_
+    fptr = fopen("dev_log.txt", "w");
+#endif
 }
 
 Connection::~Connection()
 {
     DWORD i = 0;
-    while (i < m_pReceiveReplies->GetCount())
+    for (MapSHashWithRemove<int, ReceivedReplyPacket*>::Iterator iter = m_pReceiveReplies.Begin(), end = m_pReceiveReplies.End(); iter != end; iter++)
     {
-        ReceivedReplyPacket* rrp = (ReceivedReplyPacket*)m_pReceiveReplies->Get(i);
-        if (rrp)
-        {
-            delete rrp;
-        }
-        i++;
+        delete iter->Value();
     }
-    i = 0;
+
     while (i < m_pReceivedPacketsToProcess->GetCount())
     {
         MdbgProtBuffer* buf = (MdbgProtBuffer*)m_pReceivedPacketsToProcess->Get(i);
@@ -238,8 +245,10 @@ Connection::~Connection()
         i++;
     }
     delete m_socket;
-    delete m_pReceiveReplies;
     delete m_pReceivedPacketsToProcess;
+#ifdef _DEV_LOG_    
+    fclose(fptr);
+#endif
 }
 
 void Connection::Receive()
@@ -260,10 +269,9 @@ void Connection::Receive()
         }
         while (iResult == 0)
         {
-          LOG((LF_CORDB, LL_INFO100000, "transport_recv () sleep returned %d, expected %d.\n", iResult,
+            LOG((LF_CORDB, LL_INFO100000, "transport_recv () sleep returned %d, expected %d.\n", iResult,
                  HEADER_LENGTH));
             iResult = m_socket->Receive((char*)recvbuf_header.buf, HEADER_LENGTH);
-            Sleep(1000);
         }
 
         MdbgProtHeader  header;
@@ -287,34 +295,38 @@ void Connection::Receive()
             }
         }
 
-        dbg_lock();
+        
         if (header.flags == REPLY_PACKET)
         {
-            ReceivedReplyPacket* rp = new ReceivedReplyPacket(header.error, header.error_2, header.id, recvbuf);
-            m_pReceiveReplies->Append(rp);
+            if (!GetProcess()->CheckPendingEval(header.id, recvbuf))
+            {
+                ReceivedReplyPacket* rp = new ReceivedReplyPacket(header.error, header.error_2, header.id, recvbuf);
+                m_pReceiveReplies.Add(header.id, rp);
+            }
         }
         else
         {
             m_pReceivedPacketsToProcess->Append(recvbuf);
         }
-        dbg_unlock();
+        
     }
 }
 
 ReceivedReplyPacket* Connection::GetReplyWithError(int cmdId)
 {
     ReceivedReplyPacket* rrp = NULL;
-    while (rrp == NULL || rrp->Id() != cmdId)
+    //struct timespec start, finish;
+    //double elapsed;
+
+    //clock_gettime(&start);
+    while (true)
     {
-        dbg_lock();
-        for (int i = m_pReceiveReplies->GetCount() - 1; i >= 0; i--)
+        if (m_pReceiveReplies.Lookup(cmdId, &rrp))
         {
-            rrp = (ReceivedReplyPacket*)m_pReceiveReplies->Get(i);
-            if (rrp->Id() == cmdId)
-                break;
+            break;
         }
-        dbg_unlock();
     }
+    m_pReceiveReplies.Remove(cmdId);
     return rrp;
 }
 
@@ -338,9 +350,9 @@ void Connection::ProcessPacketInternal(MdbgProtBuffer* recvbuf)
 
         long thread_id = m_dbgprot_decode_id(recvbuf->p, &recvbuf->p, recvbuf->end);
 
-      LOG((LF_CORDB, LL_INFO100000, "Received %d %d events %s, suspend=%d\n", i, nevents,
+        LOG((LF_CORDB, LL_INFO100000, "Received %d %d events %s, suspend=%d\n", i, nevents,
              m_dbgprot_event_to_string(etype), spolicy));
-
+        GetProcess()->SetPaused();
         switch (etype)
         {
             case MDBGPROT_EVENT_KIND_VM_START:
@@ -442,15 +454,15 @@ void Connection::ProcessPacketFromQueue()
         if (req)
         {
             ProcessPacketInternal(req);
-            dbg_lock();
+            //dbg_lock();
             m_pReceivedPacketsToProcess->Set(i, NULL);
-            dbg_unlock();
+            //dbg_unlock();
             m_dbgprot_buffer_free(req);
             delete req;
         }
         i++;
     }
-    GetProcess()->CheckPendingEval();
+    GetProcess()->CheckCompletedEval();
 }
 
 void Connection::LoopSendReceive()
@@ -495,7 +507,6 @@ void Connection::LoopSendReceive()
     do
     {
         iResult = ProcessPacket();
-        Sleep(100);
     } while (iResult >= 0);
 }
 

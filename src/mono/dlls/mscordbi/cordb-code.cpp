@@ -15,30 +15,35 @@ using namespace std;
 
 CordbCode::CordbCode(Connection* conn, CordbFunction* func) : CordbBaseMono(conn)
 {
+    LOG_METHOD_ENTRY;
     this->m_pFunction = func;
     m_nSize = 0;
 }
 
 HRESULT CordbCode::IsIL(BOOL* pbIL)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbCode - IsIL - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbCode::GetFunction(ICorDebugFunction** ppFunction)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbCode - GetFunction - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbCode::GetAddress(CORDB_ADDRESS* pStart)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbCode - GetAddress - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 ULONG32 CordbCode::GetSize()
 {
+    LOG_METHOD_ENTRY;
     if (m_nSize != 0)
         return m_nSize;
 
@@ -60,6 +65,7 @@ ULONG32 CordbCode::GetSize()
 
 HRESULT CordbCode::GetSize(ULONG32* pcBytes)
 {
+    LOG_METHOD_ENTRY;
     *pcBytes      = GetSize();
     LOG((LF_CORDB, LL_INFO1000000, "CordbCode - GetSize - IMPLEMENTED\n"));
     return S_OK;
@@ -67,6 +73,7 @@ HRESULT CordbCode::GetSize(ULONG32* pcBytes)
 
 HRESULT CordbCode::CreateBreakpoint(ULONG32 offset, ICorDebugFunctionBreakpoint** ppBreakpoint)
 {
+    LOG_METHOD_ENTRY;
     // add it in a list to not recreate a already created breakpoint
     CordbFunctionBreakpoint* bp = new CordbFunctionBreakpoint(conn, this, offset);
     bp->QueryInterface(IID_ICorDebugFunctionBreakpoint, (void**)ppBreakpoint);
@@ -77,6 +84,7 @@ HRESULT CordbCode::CreateBreakpoint(ULONG32 offset, ICorDebugFunctionBreakpoint*
 HRESULT CordbCode::GetCode(
     ULONG32 startOffset, ULONG32 endOffset, ULONG32 cBufferAlloc, BYTE buffer[], ULONG32* pcBufferSize)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO1000000, "CordbCode - GetCode - IMPLEMENTED\n"));
     HRESULT hr = S_OK;
     EX_TRY
@@ -115,6 +123,7 @@ HRESULT CordbCode::GetCode(
 
 HRESULT CordbCode::GetVersionNumber(ULONG32* nVersion)
 {
+    LOG_METHOD_ENTRY;
     *nVersion = 1;
     LOG((LF_CORDB, LL_INFO100000, "CordbCode - GetVersionNumber - NOT IMPLEMENTED\n"));
     return S_OK;
@@ -122,18 +131,21 @@ HRESULT CordbCode::GetVersionNumber(ULONG32* nVersion)
 
 HRESULT CordbCode::GetILToNativeMapping(ULONG32 cMap, ULONG32* pcMap, COR_DEBUG_IL_TO_NATIVE_MAP map[])
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbCode - GetILToNativeMapping - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbCode::GetEnCRemapSequencePoints(ULONG32 cMap, ULONG32* pcMap, ULONG32 offsets[])
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbCode - GetEnCRemapSequencePoints - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbCode::QueryInterface(REFIID id, void** pInterface)
 {
+    LOG_METHOD_ENTRY;
     if (id == IID_ICorDebugCode)
     {
         *pInterface = static_cast<ICorDebugCode*>(this);

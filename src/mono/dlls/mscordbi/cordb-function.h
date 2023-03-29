@@ -40,6 +40,12 @@ public:
     {
         return m_debuggerId;
     }
+    int GetModuleId()
+    {
+        return m_pModule->GetDebuggerId();
+    }
+    void SetDebuggerId();
+    mdToken GetToken();
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID id, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface);
 
     HRESULT STDMETHODCALLTYPE GetModule(ICorDebugModule** ppModule);

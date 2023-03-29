@@ -5145,27 +5145,6 @@ buffer_add_value_full (Buffer *buf, MonoType *t, void *addr, MonoDomain *domain,
 		return;
 	}
 
-	if (CHECK_ICORDBG (TRUE)) {
-		switch (t->type) {
-		case MONO_TYPE_BOOLEAN:
-		case MONO_TYPE_I1:
-		case MONO_TYPE_U1:
-		case MONO_TYPE_CHAR:
-		case MONO_TYPE_I2:
-		case MONO_TYPE_U2:
-		case MONO_TYPE_I4:
-		case MONO_TYPE_U4:
-		case MONO_TYPE_R4:
-		case MONO_TYPE_I8:
-		case MONO_TYPE_U8:
-		case MONO_TYPE_R8:
-		case MONO_TYPE_PTR:
-			buffer_add_byte (buf, t->type);
-			buffer_add_long (buf, (gssize) addr);
-			return;
-		}
-	}
-
 	switch (t->type) {
 	case MONO_TYPE_VOID:
 		buffer_add_byte (buf, t->type);
@@ -5276,6 +5255,8 @@ buffer_add_value_full (Buffer *buf, MonoType *t, void *addr, MonoDomain *domain,
 
 		if (CHECK_PROTOCOL_VERSION(2, 61))
 			buffer_add_byte(buf, !!boxed_vtype);
+		if (CHECK_ICORDBG (TRUE))
+			buffer_add_long (buf, (gssize) addr);
 		buffer_add_typeid (buf, domain, klass);
 
 		nfields = 0;
@@ -5295,7 +5276,8 @@ buffer_add_value_full (Buffer *buf, MonoType *t, void *addr, MonoDomain *domain,
 				continue;
 			if (mono_field_is_deleted (f))
 				continue;
-
+			if (CHECK_ICORDBG (TRUE))
+				buffer_add_int (buf, mono_class_get_field_token (f));
 			if (mono_vtype_get_field_addr (addr, f) == addr && mono_class_from_mono_type_internal (t) == mono_class_from_mono_type_internal (f->type) && !boxed_vtype) //to avoid infinite recursion 
 			{
 				gssize val = *(gssize*)addr;
@@ -7265,7 +7247,6 @@ vm_commands (int command, int id, guint8 *p, guint8 *end, Buffer *buf)
 	}
 	case MDBGPROT_CMD_VM_GET_OBJECT_ID_BY_ADDRESS: {
 		MonoObject* obj = (MonoObject*)GINT_TO_POINTER (decode_long (p, &p, end));
-		PRINT_DEBUG_MSG (1, "MDBGPROT_CMD_VM_GET_OBJECT_ID_BY_ADDRESS - [%p]\n", obj);
 		buffer_add_objid (buf, obj);
 		break;
 	}
@@ -8529,6 +8510,11 @@ type_commands_internal (int command, MonoClass *klass, MonoDomain *domain, guint
 			goto invalid_object;
 		}
 		buffer_add_objid (buf, o);
+		if (CHECK_ICORDBG (TRUE))
+		{
+			MonoType *object_type =  m_class_get_byval_arg (m_class_get_element_class (klass));
+			buffer_add_value (buf, object_type, o, domain);
+		}
 		break;
 	}
 	case CMD_TYPE_GET_SOURCE_FILES:

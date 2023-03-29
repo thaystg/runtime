@@ -27,6 +27,7 @@ class CordbModule : public CordbBaseMono,
     unsigned long       dwFlags;
     char *              m_pAssemblyName;
     int                 m_nAssemblyNameLen;
+    int                 m_bIsDynamic;
 
 public:
     CordbModule(Connection* conn, CordbProcess* process, CordbAssembly* assembly, int id_assembly);

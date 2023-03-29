@@ -8,17 +8,28 @@
 #define __MONO_DEBUGGER_CORDB_EVAL_H__
 
 #include <cordb.h>
-
+enum CordbEvalStatus
+{
+    NONE,
+    CONTINUED,
+    COMPLETED,
+};
 class CordbEval : public CordbBaseMono, public ICorDebugEval, public ICorDebugEval2
 {
     CordbThread*    m_pThread;
     ICorDebugValue* m_pValue;
     int             m_commandId;
-
+    bool            isNoConstructor;
+    MdbgProtBuffer* m_pReply;
+    CordbEvalStatus m_evalStatus;
+    UTSemReadWrite*     m_pSemReadWrite;
 public:
     CordbEval(Connection* conn, CordbThread* thread);
     ~CordbEval();
-    void EvalComplete(MdbgProtBuffer* pReply);
+    void Cleanup();
+    void EvalComplete();
+    void SetContinued();
+    void SetResponse(MdbgProtBuffer* pReply);
     int GetMethodFromGenericTypeBound(ICorDebugFunction* pFunction,
                                         ULONG32            nTypeArgs,
                                         ICorDebugType*     ppTypeArgs[]);

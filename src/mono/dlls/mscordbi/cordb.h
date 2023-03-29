@@ -14,6 +14,7 @@
 
 #include <mono/component/debugger-protocol.h>
 #include <mono/utils/mono-publib.h>
+#include <shash.h>
 
 #include "arraylist.h"
 #include "utsem.h"
@@ -35,10 +36,13 @@
             return S_FALSE;                                                                                            \
     } while (0)
 
-static UTSemReadWrite* m_pSemReadWrite;
-
-#define dbg_lock() m_pSemReadWrite->LockRead();
-#define dbg_unlock() m_pSemReadWrite->UnlockRead();
+//#define _DEV_LOG_
+#ifdef _DEV_LOG_
+    #define LOG_METHOD_ENTRY if (conn) conn->logMethodEntry(__FUNCSIG__)
+    #define LOG_METHOD_ENTRY
+#else
+    #define LOG_METHOD_ENTRY
+#endif
 
 #ifdef _DEBUG
 #define LOGGING
@@ -74,6 +78,8 @@ class CordbFunctionBreakpoint;
 class CordbEval;
 class CordbType;
 class CordbStackWalk;
+class CordbChainEnum;
+class CordbFrameEnum;
 
 #define MONO_TYPE_NAME_FORMAT_FULL_NAME 2
 
@@ -111,15 +117,90 @@ public:
         return id;
     }
 };
+template <typename KEY, typename VALUE>
+class MapSHashWithRemoveThreadSafe : public MapSHashWithRemove<KEY, VALUE>
+{
+    UTSemReadWrite*     m_pSemReadWrite;
+public:
+    MapSHashWithRemoveThreadSafe()
+    {
+        m_pSemReadWrite  = new UTSemReadWrite();
+        m_pSemReadWrite->Init();
+    }
+    ~MapSHashWithRemoveThreadSafe()
+    {
+        delete m_pSemReadWrite;
+    }
+    void Add(KEY key, VALUE value)
+    {
+        m_pSemReadWrite->LockWrite();
+        MapSHashWithRemove::Add(key, value);
+        m_pSemReadWrite->UnlockWrite();
+    }
+    BOOL Lookup(KEY key, VALUE* pValue) const
+    {
+        m_pSemReadWrite->LockRead();
+        BOOL ret = MapSHashWithRemove::Lookup(key, pValue);
+        m_pSemReadWrite->UnlockRead();
+        return ret;
+    }
+    void Remove(KEY key)
+    {
+        m_pSemReadWrite->LockWrite();
+        MapSHashWithRemove::Remove(key);
+        m_pSemReadWrite->UnlockWrite();
+    }
+};
+class ArrayListThreadSafe : public ArrayList
+{
+    UTSemReadWrite*     m_pSemReadWrite;
+public:
+    ArrayListThreadSafe()
+    {
+        m_pSemReadWrite  = new UTSemReadWrite();
+        m_pSemReadWrite->Init();
+    }
+    ~ArrayListThreadSafe()
+    {
+        delete m_pSemReadWrite;
+    }
+    HRESULT Append(void *element)
+    {
+        m_pSemReadWrite->LockWrite();
+        HRESULT hr = ArrayList::Append(element);
+        m_pSemReadWrite->UnlockWrite();
+        return hr;
+    }
+
+    PTR_VOID Get(DWORD index) const
+    {
+        m_pSemReadWrite->LockRead();
+        PTR_VOID ptr = ArrayList::Get(index);
+        m_pSemReadWrite->UnlockRead();
+        return ptr;
+    }
+
+    void Set(DWORD index, PTR_VOID element)
+    {
+        m_pSemReadWrite->LockWrite();
+        ArrayList::Set(index, element);
+        m_pSemReadWrite->UnlockWrite();
+    }
+    /*void Clear()
+    {
+        m_pSemReadWrite->LockWrite();
+        ArrayList::Clear();
+        m_pSemReadWrite->UnlockWrite();
+    }*/
+};
 
 class Connection
 {
     Socket*       m_socket;
     CordbProcess* m_pProcess;
     Cordb*        m_pCordb;
-    ArrayList*    m_pReceiveReplies;           // TODO use hashmap
-    ArrayList*    m_pReceivedPacketsToProcess;
-
+    MapSHashWithRemoveThreadSafe<int, ReceivedReplyPacket*> m_pReceiveReplies;
+    ArrayListThreadSafe*    m_pReceivedPacketsToProcess;
     void          ProcessPacketInternal(MdbgProtBuffer* recvbuf);
     void          ProcessPacketFromQueue();
     void          EnableEvent(MdbgProtEventKind eventKind);
@@ -127,6 +208,14 @@ class Connection
     int           ProcessPacket(bool is_answer = false);
 
 public:
+#ifdef _DEV_LOG_
+    FILE *fptr; //mylog
+    void logMethodEntry(const char* methodName)
+    {
+        fprintf(fptr, "%s - %d\n", methodName, GetCurrentThreadId());
+        fflush(fptr);
+    }
+#endif    
     CordbProcess* GetProcess() const
     {
         return m_pProcess;
@@ -146,6 +235,7 @@ public:
 
     int                  SendEvent(int cmd_set, int cmd, MdbgProtBuffer* sendbuf);
     ReceivedReplyPacket* GetReplyWithError(int cmdId);
+    ReceivedReplyPacket* TryGetReplyWithError(int cmdId);
     CordbAppDomain*      GetCurrentAppDomain();
 };
 

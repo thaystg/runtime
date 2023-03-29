@@ -14,9 +14,13 @@ class CordbClass : public CordbBaseMono, public ICorDebugClass, public ICorDebug
     mdToken m_metadataToken;
     int     m_debuggerModuleId;
     int     m_debuggerId;
+    CordbType *m_pCordbType;
 public:
     CordbClass(Connection* conn, mdToken token, int module_id, int debugger_id = -1);
+    ~CordbClass();
     int GetDebuggerId();
+    CordbType* GetCordbType();
+    static CordbClass* CreateFromSDB(Connection* conn, int type_id);
     ULONG STDMETHODCALLTYPE AddRef(void)
     {
         return (BaseAddRef());

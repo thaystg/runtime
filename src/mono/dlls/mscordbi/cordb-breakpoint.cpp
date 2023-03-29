@@ -15,6 +15,7 @@ using namespace std;
 CordbFunctionBreakpoint::CordbFunctionBreakpoint(Connection* conn, CordbCode* code, ULONG32 offset)
     : CordbBaseMono(conn)
 {
+    LOG_METHOD_ENTRY;
     this->m_pCode  = code;
     this->m_offset = offset;
     conn->GetProcess()->AddBreakpoint(this);
@@ -22,10 +23,13 @@ CordbFunctionBreakpoint::CordbFunctionBreakpoint(Connection* conn, CordbCode* co
     m_bActive = false;
 }
 
-CordbFunctionBreakpoint::~CordbFunctionBreakpoint() {}
+CordbFunctionBreakpoint::~CordbFunctionBreakpoint() {
+    LOG_METHOD_ENTRY;
+}
 
 HRESULT CordbFunctionBreakpoint::GetFunction(ICorDebugFunction** ppFunction)
 {
+    LOG_METHOD_ENTRY;
     GetCode()->GetFunction()->QueryInterface(IID_ICorDebugFunction, (void**)ppFunction);
     LOG((LF_CORDB, LL_INFO1000000, "CordbFunctionBreakpoint - GetFunction - IMPLEMENTED\n"));
     return S_OK;
@@ -33,12 +37,14 @@ HRESULT CordbFunctionBreakpoint::GetFunction(ICorDebugFunction** ppFunction)
 
 HRESULT CordbFunctionBreakpoint::GetOffset(ULONG32* pnOffset)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbFunctionBreakpoint - GetOffset - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbFunctionBreakpoint::Activate(BOOL bActive)
 {
+    LOG_METHOD_ENTRY;
     m_bActive = bActive;
     if (bActive)
     {
@@ -70,6 +76,7 @@ HRESULT CordbFunctionBreakpoint::Activate(BOOL bActive)
 
 HRESULT CordbFunctionBreakpoint::IsActive(BOOL* pbActive)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbFunctionBreakpoint - IsActive - IMPLEMENTED\n"));
     *pbActive = m_bActive;
     return S_OK;
@@ -77,6 +84,7 @@ HRESULT CordbFunctionBreakpoint::IsActive(BOOL* pbActive)
 
 HRESULT CordbFunctionBreakpoint::QueryInterface(REFIID id, void** pInterface)
 {
+    LOG_METHOD_ENTRY;
     if (id == IID_ICorDebugFunctionBreakpoint)
     {
         *pInterface = static_cast<ICorDebugFunctionBreakpoint*>(this);

@@ -12,17 +12,20 @@ using namespace std;
 
 HRESULT CordbRegisterSet::GetRegistersAvailable(ULONG64* pAvailable)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbRegisterSet - GetRegistersAvailable - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 CordbRegisterSet::CordbRegisterSet(Connection* conn, int64_t sp) : CordbBaseMono(conn)
 {
+    LOG_METHOD_ENTRY;
     this->m_nSp   = sp;
 }
 
 HRESULT CordbRegisterSet::QueryInterface(REFIID id, void** pInterface)
 {
+    LOG_METHOD_ENTRY;
     if (id == IID_ICorDebugRegisterSet)
     {
         *pInterface = static_cast<ICorDebugRegisterSet*>(static_cast<ICorDebugRegisterSet*>(this));
@@ -42,18 +45,21 @@ HRESULT CordbRegisterSet::QueryInterface(REFIID id, void** pInterface)
 
 HRESULT CordbRegisterSet::GetRegisters(ULONG64 mask, ULONG32 regCount, CORDB_REGISTER regBuffer[])
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbRegisterSet - GetRegisters - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbRegisterSet::SetRegisters(ULONG64 mask, ULONG32 regCount, CORDB_REGISTER regBuffer[])
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbRegisterSet - SetRegisters - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbRegisterSet::GetThreadContext(ULONG32 contextSize, BYTE context[])
 {
+    LOG_METHOD_ENTRY;
     if (POS_RSP + sizeof(int64_t) < contextSize)
         memcpy(context+POS_RSP, &m_nSp, sizeof(int64_t));
     LOG((LF_CORDB, LL_INFO100000, "CordbRegisterSet - GetThreadContext - NOT IMPLEMENTED\n"));
@@ -62,6 +68,7 @@ HRESULT STDMETHODCALLTYPE CordbRegisterSet::GetThreadContext(ULONG32 contextSize
 
 HRESULT STDMETHODCALLTYPE CordbRegisterSet::SetThreadContext(ULONG32 contextSize, BYTE context[])
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbRegisterSet - SetThreadContext - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }

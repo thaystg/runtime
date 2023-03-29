@@ -21,25 +21,34 @@ using namespace std;
 
 CordbProcess::CordbProcess(Cordb* cordb) : CordbBaseMono(NULL)
 {
+    LOG_METHOD_ENTRY;
     m_pAppDomainEnum = NULL;
-    m_pBreakpoints   = new ArrayList();
-    m_pThreads       = new ArrayList();
-    m_pFunctions     = new ArrayList();
-    m_pModules       = new ArrayList();
-    m_pAddDomains    = new ArrayList();
-    m_pPendingEval   = new ArrayList();
-    m_pSteppers      = new ArrayList();
+    m_pBreakpoints   = new ArrayListThreadSafe();
+    m_pThreads       = new ArrayListThreadSafe();
+    m_pFunctions     = new ArrayListThreadSafe();
+    m_pModules       = new ArrayListThreadSafe();
+    m_pAddDomains    = new ArrayListThreadSafe();
+    m_pSteppers      = new ArrayListThreadSafe();
+    m_pCompletedEval = new ArrayListThreadSafe();
     this->m_pCordb   = cordb;
     m_bIsJustMyCode  = false;
-    m_pSemReadWrite  = new UTSemReadWrite();
-    m_pTypeMapArray  = new ArrayList();
+    m_pTypeMapArray  = new ArrayListThreadSafe();
     for (DWORD i = 0; i < CordbTypeKindTotal; i++)
     {
         m_pTypeMapArray->Append(new MapSHashWithRemove<long, CordbType*>());
     }
+    suspend_count = 0;
 }
+
+void CordbProcess::SetPaused()
+{
+    LOG_METHOD_ENTRY;
+    int id = dbg_rt_atomic_inc_int32_t ((volatile int32_t *)&suspend_count);
+}
+
 int CordbProcess::GetObjectIdByAddress(CORDB_ADDRESS address)
 {
+    LOG_METHOD_ENTRY;
     MdbgProtBuffer localbuf;
     m_dbgprot_buffer_init(&localbuf, 128);
     m_dbgprot_buffer_add_long(&localbuf, address);
@@ -54,7 +63,7 @@ int CordbProcess::GetObjectIdByAddress(CORDB_ADDRESS address)
 
 CordbProcess::~CordbProcess()
 {
-    delete m_pSemReadWrite;
+    LOG_METHOD_ENTRY;
     if (m_pAppDomainEnum)
         m_pAppDomainEnum->InternalRelease();
 
@@ -96,14 +105,18 @@ CordbProcess::~CordbProcess()
         module->InternalRelease();
     }
 
-    for (DWORD i = 0; i < m_pPendingEval->GetCount(); i++)
+    for (DWORD i = 0; i < m_pCompletedEval->GetCount(); i++)
     {
-        CordbEval* eval = (CordbEval*)m_pPendingEval->Get(i);
-        if (eval)
-            eval->InternalRelease();
+        CordbEval* eval = (CordbEval*)m_pCompletedEval->Get(i);
+        eval->InternalRelease();
     }
 
-    for (MapSHashWithRemove<mdToken, CordbClass*>::Iterator iter = m_classMap.Begin(), end = m_classMap.End(); iter != end; iter++)
+    for (MapSHashWithRemove<int, CordbEval*>::Iterator iter = m_pPendingEval.Begin(), end = m_pPendingEval.End(); iter != end; iter++)
+    {
+        iter->Value()->InternalRelease();
+    }
+
+    for (MapSHashWithRemove<int, CordbClass*>::Iterator iter = m_classMap.Begin(), end = m_classMap.End(); iter != end; iter++)
     {
         iter->Value()->InternalRelease();
     }
@@ -123,40 +136,43 @@ CordbProcess::~CordbProcess()
     delete m_pThreads;
     delete m_pFunctions;
     delete m_pModules;
+    delete m_pCompletedEval;
     delete m_pAddDomains;
-    delete m_pPendingEval;
     delete m_pTypeMapArray;
     delete conn;
 }
 
-void CordbProcess::CheckPendingEval()
+void CordbProcess::CheckCompletedEval()
 {
-    if (!m_pPendingEval)
-        return;
-    for (DWORD i = 0; i < m_pPendingEval->GetCount(); i++)
+    for (DWORD i = 0; i < m_pCompletedEval->GetCount(); i++)
     {
-        CordbEval* eval = (CordbEval*)m_pPendingEval->Get(i);
-        if (!eval)
-            continue;
-        ReceivedReplyPacket* recvbuf = conn->GetReplyWithError(eval->GetCommandId());
-        if (!recvbuf)
-            continue;
-        eval->EvalComplete(recvbuf->Buffer());
-        eval->InternalRelease();
-        dbg_lock();
-        m_pPendingEval->Set(i, NULL);
-        dbg_unlock();
+        CordbEval* eval = (CordbEval*)m_pCompletedEval->Get(i);
+        eval->EvalComplete();
     }
+}
+
+bool CordbProcess::CheckPendingEval(int commandId, MdbgProtBuffer* pReply)
+{
+    CordbEval *ret = NULL;
+    if (m_pPendingEval.Lookup(commandId, &ret)) {
+        LOG_METHOD_ENTRY;
+        ret->SetResponse(pReply);
+        m_pCompletedEval->Append(ret);
+        return true;
+    }
+    return false;
 }
 
 HRESULT CordbProcess::EnumerateLoaderHeapMemoryRegions(ICorDebugMemoryRangeEnum** ppRanges)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - EnumerateLoaderHeapMemoryRegions - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::EnableGCNotificationEvents(BOOL fEnable)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - EnableGCNotificationEvents - NOT IMPLEMENTED\n"));
 
     return S_OK;
@@ -164,6 +180,7 @@ HRESULT CordbProcess::EnableGCNotificationEvents(BOOL fEnable)
 
 HRESULT CordbProcess::EnableExceptionCallbacksOutsideOfMyCode(BOOL enableExceptionsOutsideOfJMC)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000,
          "CordbProcess - EnableExceptionCallbacksOutsideOfMyCode - "
          "NOT IMPLEMENTED\n"));
@@ -173,6 +190,7 @@ HRESULT CordbProcess::EnableExceptionCallbacksOutsideOfMyCode(BOOL enableExcepti
 
 HRESULT CordbProcess::SetWriteableMetadataUpdateMode(WriteableMetadataUpdateMode flags)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - SetWriteableMetadataUpdateMode - NOT IMPLEMENTED\n"));
 
     return S_OK;
@@ -180,6 +198,7 @@ HRESULT CordbProcess::SetWriteableMetadataUpdateMode(WriteableMetadataUpdateMode
 
 HRESULT CordbProcess::GetGCHeapInformation(COR_HEAPINFO* pHeapInfo)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - GetGCHeapInformation - NOT IMPLEMENTED\n"));
 
     return S_OK;
@@ -187,6 +206,7 @@ HRESULT CordbProcess::GetGCHeapInformation(COR_HEAPINFO* pHeapInfo)
 
 HRESULT CordbProcess::EnumerateHeap(ICorDebugHeapEnum** ppObjects)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - EnumerateHeap - NOT IMPLEMENTED\n"));
     return S_OK;
 }
@@ -194,60 +214,70 @@ HRESULT CordbProcess::EnumerateHeap(ICorDebugHeapEnum** ppObjects)
 HRESULT
 CordbProcess::EnumerateHeapRegions(ICorDebugHeapSegmentEnum** ppRegions)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - EnumerateHeapRegions - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::GetObject(CORDB_ADDRESS addr, ICorDebugObjectValue** pObject)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - GetObject - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::EnumerateGCReferences(BOOL enumerateWeakReferences, ICorDebugGCReferenceEnum** ppEnum)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - EnumerateGCReferences - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::EnumerateHandles(CorGCReferenceType types, ICorDebugGCReferenceEnum** ppEnum)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - EnumerateHandles - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::GetTypeID(CORDB_ADDRESS obj, COR_TYPEID* pId)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - GetTypeID - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::GetTypeForTypeID(COR_TYPEID id, ICorDebugType** ppType)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - GetTypeForTypeID - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::GetArrayLayout(COR_TYPEID id, COR_ARRAY_LAYOUT* pLayout)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - GetArrayLayout - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::GetTypeLayout(COR_TYPEID id, COR_TYPE_LAYOUT* pLayout)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - GetTypeLayout - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::GetTypeFields(COR_TYPEID id, ULONG32 celt, COR_FIELD fields[], ULONG32* pceltNeeded)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - GetTypeFields - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::EnableNGENPolicy(CorDebugNGENPolicy ePolicy)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - EnableNGENPolicy - NOT IMPLEMENTED\n"));
     return S_OK;
 }
@@ -261,72 +291,84 @@ CordbProcess::Filter(const BYTE                             pRecord[],
                      ICorDebugManagedCallback*              pCallback,
                      /* [out][in] */ CORDB_CONTINUE_STATUS* pContinueStatus)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - Filter - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::ProcessStateChanged(CorDebugStateChange eChange)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - ProcessStateChanged - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::SetEnableCustomNotification(ICorDebugClass* pClass, BOOL fEnable)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - SetEnableCustomNotification - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::GetID(DWORD* pdwProcessId)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - GetID - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::GetHandle(HPROCESS* phProcessHandle)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - GetHandle - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::GetThread(DWORD dwThreadId, ICorDebugThread** ppThread)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - GetThread - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::EnumerateObjects(ICorDebugObjectEnum** ppObjects)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - EnumerateObjects - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::IsTransitionStub(CORDB_ADDRESS address, BOOL* pbTransitionStub)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - IsTransitionStub - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::IsOSSuspended(DWORD threadID, BOOL* pbSuspended)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - IsOSSuspended - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::GetThreadContext(DWORD threadID, ULONG32 contextSize, BYTE context[])
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - GetThreadContext - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::SetThreadContext(DWORD threadID, ULONG32 contextSize, BYTE context[])
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - SetThreadContext - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::ReadMemory(CORDB_ADDRESS address, DWORD size, BYTE buffer[], SIZE_T* read)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO1000000, "CordbProcess - ReadMemory - IMPLEMENTED\n"));
     HRESULT hr = S_OK;
     EX_TRY
@@ -354,18 +396,21 @@ HRESULT CordbProcess::ReadMemory(CORDB_ADDRESS address, DWORD size, BYTE buffer[
 
 HRESULT CordbProcess::WriteMemory(CORDB_ADDRESS address, DWORD size, BYTE buffer[], SIZE_T* written)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - WriteMemory - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::ClearCurrentException(DWORD threadID)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - ClearCurrentException - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::EnableLogMessages(BOOL fOnOff)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - EnableLogMessages - NOT IMPLEMENTED\n"));
     return S_OK;
 }
@@ -375,6 +420,7 @@ HRESULT CordbProcess::ModifyLogSwitch(
     _In_ WCHAR* pLogSwitchName,
     LONG        lLevel)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - ModifyLogSwitch - NOT IMPLEMENTED\n"));
     return S_OK;
 }
@@ -382,6 +428,7 @@ HRESULT CordbProcess::ModifyLogSwitch(
 HRESULT
 CordbProcess::EnumerateAppDomains(ICorDebugAppDomainEnum** ppAppDomains)
 {
+    LOG_METHOD_ENTRY;
     if (!m_pAppDomainEnum)
     {
         m_pAppDomainEnum = new CordbAppDomainEnum(conn, this);
@@ -394,66 +441,77 @@ CordbProcess::EnumerateAppDomains(ICorDebugAppDomainEnum** ppAppDomains)
 
 HRESULT CordbProcess::GetObject(ICorDebugValue** ppObject)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - GetObject - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::ThreadForFiberCookie(DWORD fiberCookie, ICorDebugThread** ppThread)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - ThreadForFiberCookie - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::GetHelperThreadID(DWORD* pThreadID)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "GetHelperThreadID - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::GetThreadForTaskID(TASKID taskid, ICorDebugThread2** ppThread)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - GetHelperThreadID - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::GetVersion(COR_VERSION* version)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - GetVersion - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::SetUnmanagedBreakpoint(CORDB_ADDRESS address, ULONG32 bufsize, BYTE buffer[], ULONG32* bufLen)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - SetUnmanagedBreakpoint - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::ClearUnmanagedBreakpoint(CORDB_ADDRESS address)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - ClearUnmanagedBreakpoint - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::SetDesiredNGENCompilerFlags(DWORD pdwFlags)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - SetDesiredNGENCompilerFlags - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::GetDesiredNGENCompilerFlags(DWORD* pdwFlags)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - GetDesiredNGENCompilerFlags - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::GetReferenceValueFromGCHandle(UINT_PTR handle, ICorDebugReferenceValue** pOutValue)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - GetReferenceValueFromGCHandle - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::QueryInterface(REFIID id, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface)
 {
+    LOG_METHOD_ENTRY;
     if (id == IID_ICorDebugProcess)
     {
         *pInterface = static_cast<ICorDebugProcess*>(this);
@@ -509,6 +567,10 @@ HRESULT CordbProcess::QueryInterface(REFIID id, _COM_Outptr_ void __RPC_FAR* __R
 
 HRESULT CordbProcess::Stop(DWORD dwTimeoutIgnored)
 {
+    LOG_METHOD_ENTRY;
+    int id = dbg_rt_atomic_inc_int32_t ((volatile int32_t *)&suspend_count);
+    if (id != 1)
+        return S_OK;
     LOG((LF_CORDB, LL_INFO1000000, "CordbProcess - Stop - IMPLEMENTED\n"));
     MdbgProtBuffer sendbuf;
     m_dbgprot_buffer_init(&sendbuf, 128);
@@ -519,6 +581,35 @@ HRESULT CordbProcess::Stop(DWORD dwTimeoutIgnored)
 
 HRESULT CordbProcess::Continue(BOOL fIsOutOfBand)
 {
+    LOG_METHOD_ENTRY;
+    int id = dbg_rt_atomic_dec_int32_t ((volatile int32_t *)&suspend_count);
+    if (id != 0)
+    {
+        for (MapSHashWithRemove<int, CordbEval*>::Iterator iter = m_pPendingEval.Begin(), end = m_pPendingEval.End(); iter != end; iter++)
+        {
+            iter->Value()->SetContinued();
+        }
+        return S_OK;
+    }
+
+    CordbThread* ret = NULL;
+    for (DWORD i = 0; i < m_pThreads->GetCount(); i++)
+    {
+        CordbThread* thread = (CordbThread*)m_pThreads->Get(i);
+        thread->Reset();
+    }
+    for (DWORD i = 0; i < m_pCompletedEval->GetCount(); i++)
+    {
+        CordbEval* eval = (CordbEval*)m_pCompletedEval->Get(i);
+        eval->InternalRelease();
+    }
+    m_pCompletedEval->Clear();
+    for (MapSHashWithRemove<int, CordbEval*>::Iterator iter = m_pPendingEval.Begin(), end = m_pPendingEval.End(); iter != end; iter++)
+    {
+        iter->Value()->InternalRelease();
+    }
+    m_pPendingEval.RemoveAll();
+
     LOG((LF_CORDB, LL_INFO1000000, "CordbProcess - Continue - IMPLEMENTED\n"));
     MdbgProtBuffer sendbuf;
     m_dbgprot_buffer_init(&sendbuf, 128);
@@ -529,6 +620,7 @@ HRESULT CordbProcess::Continue(BOOL fIsOutOfBand)
 
 HRESULT CordbProcess::IsRunning(BOOL* pbRunning)
 {
+    LOG_METHOD_ENTRY;
     *pbRunning = true;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - IsRunning - NOT IMPLEMENTED\n"));
     return S_OK;
@@ -536,6 +628,7 @@ HRESULT CordbProcess::IsRunning(BOOL* pbRunning)
 
 HRESULT CordbProcess::HasQueuedCallbacks(ICorDebugThread* pThread, BOOL* pbQueued)
 {
+    LOG_METHOD_ENTRY;
     // conn->process_packet_from_queue();
     *pbQueued = false;
     LOG((LF_CORDB, LL_INFO1000000, "CordbProcess - HasQueuedCallbacks - IMPLEMENTED\n"));
@@ -544,6 +637,7 @@ HRESULT CordbProcess::HasQueuedCallbacks(ICorDebugThread* pThread, BOOL* pbQueue
 
 HRESULT CordbProcess::EnumerateThreads(ICorDebugThreadEnum** ppThreads)
 {
+    LOG_METHOD_ENTRY;
     *ppThreads = new CordbThreadEnum(conn);
     (*ppThreads)->AddRef();
     return S_OK;
@@ -552,18 +646,21 @@ HRESULT CordbProcess::EnumerateThreads(ICorDebugThreadEnum** ppThreads)
 HRESULT
 CordbProcess::SetAllThreadsDebugState(CorDebugThreadState state, ICorDebugThread* pExceptThisThread)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - SetAllThreadsDebugState - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::Detach(void)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - Detach - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbProcess::Terminate(UINT exitCode)
 {
+    LOG_METHOD_ENTRY;
     MdbgProtBuffer sendbuf;
     m_dbgprot_buffer_init(&sendbuf, 128);
     m_dbgprot_buffer_add_int(&sendbuf, -1);
@@ -577,6 +674,7 @@ CordbProcess::CanCommitChanges(ULONG                             cSnapshots,
                                ICorDebugEditAndContinueSnapshot* pSnapshots[],
                                ICorDebugErrorInfoEnum**          pError)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - CanCommitChanges - NOT IMPLEMENTED\n"));
     return S_OK;
 }
@@ -586,116 +684,117 @@ CordbProcess::CommitChanges(ULONG                             cSnapshots,
                             ICorDebugEditAndContinueSnapshot* pSnapshots[],
                             ICorDebugErrorInfoEnum**          pError)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbProcess - CommitChanges - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 void CordbProcess::AddThread(CordbThread* thread)
 {
-    dbg_lock();
+    LOG_METHOD_ENTRY;
+    //dbg_write_lock();
     m_pThreads->Append(thread);
     thread->InternalAddRef();
-    dbg_unlock();
+    //dbg_write_unlock();
 }
 
 void CordbProcess::AddFunction(CordbFunction* function)
 {
-    dbg_lock();
+    LOG_METHOD_ENTRY;
+    //dbg_write_lock();
     m_pFunctions->Append(function);
     function->InternalAddRef();
-    dbg_unlock();
+    //dbg_write_unlock();
 }
 
 void CordbProcess::AddModule(CordbModule* module)
 {
-    dbg_lock();
+    LOG_METHOD_ENTRY;
+    //dbg_write_lock();
     m_pModules->Append(module);
     module->InternalAddRef();
-    dbg_unlock();
+    //dbg_write_unlock();
 }
 
 void CordbProcess::AddAppDomain(CordbAppDomain* appDomain)
 {
-    dbg_lock();
+    LOG_METHOD_ENTRY;
     m_pAddDomains->Append(appDomain);
     appDomain->InternalAddRef();
-    dbg_unlock();    
 }
 
-void CordbProcess::AddPendingEval(CordbEval* eval)
+void CordbProcess::AddPendingEval(int cmdId, CordbEval* eval)
 {
-    dbg_lock();
-    m_pPendingEval->Append(eval);
+    LOG_METHOD_ENTRY;
+    m_pPendingEval.Add(cmdId, eval);
     eval->InternalAddRef();
-    dbg_unlock();
 }
 
 void CordbProcess::AddBreakpoint(CordbFunctionBreakpoint* bp)
 {
-    dbg_lock();
+    LOG_METHOD_ENTRY;
     m_pBreakpoints->Append(bp);
     bp->InternalAddRef();
-    dbg_unlock();
 }
 
 void CordbProcess::AddStepper(CordbStepper* step)
 {
-    dbg_lock();
+    LOG_METHOD_ENTRY;
     m_pSteppers->Append(step);
     step->InternalAddRef();
-    dbg_unlock();
 }
 
 CordbClass* CordbProcess::FindOrAddClass(mdToken token, int type_id, int module_id)
 {
+    LOG_METHOD_ENTRY;
     CordbClass *ret = NULL;
-    dbg_lock();
     if (!m_classMap.Lookup(type_id, &ret)) {
         ret = new CordbClass(conn, token, module_id, type_id);
         m_classMap.Add(type_id, ret);
         ret->InternalAddRef();
     }
-    dbg_unlock();    
+    return ret;
+}
+
+CordbClass* CordbProcess::FindOrAddClass(int type_id)
+{
+    LOG_METHOD_ENTRY;
+    CordbClass *ret = NULL;
+    if (!m_classMap.Lookup(type_id, &ret)) {
+        ret = CordbClass::CreateFromSDB(conn, type_id);
+        m_classMap.Add(type_id, ret);
+        ret->InternalAddRef();
+    }
     return ret;
 }
 
 CordbType* CordbProcess::FindOrAddPrimitiveType(CorElementType type)
 {
+    LOG_METHOD_ENTRY;
     CordbType* ret = NULL;
     MapSHashWithRemove<long, CordbType*>* typeMap = (MapSHashWithRemove<long, CordbType*>*) m_pTypeMapArray->Get(CordbTypeKindSimpleType);
-    dbg_lock();
     if (!typeMap->Lookup(type, &ret)) {
         ret = new CordbType(type, conn);
         typeMap->Add(type, ret);
         ret->InternalAddRef();
     }
-    dbg_unlock();
     return ret;
 }
 
 CordbType* CordbProcess::FindOrAddClassType(CorElementType type, CordbClass *klass)
 {
-    CordbType* ret = NULL;
+    LOG_METHOD_ENTRY;
     if (klass == NULL)
         return FindOrAddPrimitiveType(type);
-    MapSHashWithRemove<long, CordbType*>* typeMap = (MapSHashWithRemove<long, CordbType*>*) m_pTypeMapArray->Get(CordbTypeKindClassType);
-    dbg_lock();
-    int debuggerId = klass->GetDebuggerId();
-    if (!typeMap->Lookup(debuggerId, &ret)) {
-        ret = new CordbType(type, conn, klass);
-        typeMap->Add(debuggerId, ret);
-        ret->InternalAddRef();
-    }
-    dbg_unlock();
-    return ret;
+    return klass->GetCordbType();
 }
 
-CordbType* CordbProcess::FindOrAddArrayType(CorElementType type, CordbType* arrayType)
+CordbType* CordbProcess::FindOrAddArrayType(CorElementType type, int arrayDebuggerId, CordbType* arrayType)
 {
+    LOG_METHOD_ENTRY;
     CordbType* ret = NULL;
     long hash = 0;
     MapSHashWithRemove<long, CordbType*>* typeMap = (MapSHashWithRemove<long, CordbType*>*) m_pTypeMapArray->Get(CordbTypeKindArrayType);
-    dbg_lock();
     CorElementType eleType;
     ICorDebugClass *eleClass = 0;
     mdTypeDef eleToken = 0;
@@ -705,20 +804,34 @@ CordbType* CordbProcess::FindOrAddArrayType(CorElementType type, CordbType* arra
         arrayType->GetClass(&eleClass);
         eleClass->GetToken(&eleToken);
     }
-    hash = (long)(pow(2, eleToken & 0xffffff) * pow(3, type) * pow(5, eleType)); //TODO: define a better hash
-    if (!typeMap->Lookup(hash, &ret)) {
-        ret = new CordbType(type, conn);
-        typeMap->Add(hash, ret);
+    if (!typeMap->Lookup(arrayDebuggerId, &ret)) {
+        ret = CordbType::CreateArrayType(type, conn, arrayType);
+        typeMap->Add(arrayDebuggerId, ret);
         ret->InternalAddRef();
     }
-    dbg_unlock();
+    return ret;
+}
+
+CordbFunction* CordbProcess::FindFunctionByToken(mdToken token, int module_id)
+{
+    LOG_METHOD_ENTRY;
+    CordbFunction* ret = NULL;
+    for (DWORD i = 0; i < m_pFunctions->GetCount(); i++)
+    {
+        CordbFunction* function = (CordbFunction*)m_pFunctions->Get(i);
+        if (function->GetToken() == token && function->GetModuleId() == module_id)
+        {
+            ret = function;
+            break;
+        }
+    }
     return ret;
 }
 
 CordbFunction* CordbProcess::FindFunction(int id)
 {
+    LOG_METHOD_ENTRY;
     CordbFunction* ret = NULL;
-    dbg_lock();
     for (DWORD i = 0; i < m_pFunctions->GetCount(); i++)
     {
         CordbFunction* function = (CordbFunction*)m_pFunctions->Get(i);
@@ -728,14 +841,13 @@ CordbFunction* CordbProcess::FindFunction(int id)
             break;
         }
     }
-    dbg_unlock();
     return ret;
 }
 
 CordbStepper* CordbProcess::GetStepper(int id)
 {
+    LOG_METHOD_ENTRY;
     CordbStepper *ret = NULL;
-    dbg_lock();
     for (DWORD i = 0; i < m_pSteppers->GetCount(); i++)
     {
         CordbStepper* stepper = (CordbStepper*)m_pSteppers->Get(i);
@@ -745,14 +857,13 @@ CordbStepper* CordbProcess::GetStepper(int id)
             break;
         }
     }
-    dbg_unlock();
     return ret;
 }
 
 CordbModule* CordbProcess::GetModule(int module_id)
 {
+    LOG_METHOD_ENTRY;
     CordbModule* ret = NULL;
-    dbg_lock();    
     for (DWORD i = 0; i < m_pModules->GetCount(); i++)
     {
         CordbModule* module = (CordbModule*)m_pModules->Get(i);
@@ -762,24 +873,22 @@ CordbModule* CordbProcess::GetModule(int module_id)
             break;
         }
     }
-    dbg_unlock();
     return ret;
 }
 
 CordbAppDomain* CordbProcess::GetCurrentAppDomain()
 {
+    LOG_METHOD_ENTRY;
     CordbAppDomain* ret = NULL;
-    dbg_lock();
     if (m_pAddDomains->GetCount() > 0)
         ret = (CordbAppDomain*)m_pAddDomains->Get(0);
-    dbg_unlock();
     return ret;
 }
 
 CordbThread* CordbProcess::FindThread(long thread_id)
 {
+    LOG_METHOD_ENTRY;
     CordbThread* ret = NULL;
-    dbg_lock();
     for (DWORD i = 0; i < m_pThreads->GetCount(); i++)
     {
         CordbThread* thread = (CordbThread*)m_pThreads->Get(i);
@@ -789,14 +898,13 @@ CordbThread* CordbProcess::FindThread(long thread_id)
             break;
         }
     }
-    dbg_unlock();
     return ret;
 }
 
 CordbFunctionBreakpoint* CordbProcess::GetBreakpoint(int id)
 {
+    LOG_METHOD_ENTRY;
     CordbFunctionBreakpoint* ret = NULL;
-    dbg_lock();
     for (DWORD i = 0; i < m_pBreakpoints->GetCount(); i++)
     {
         CordbFunctionBreakpoint* bp = (CordbFunctionBreakpoint*)m_pBreakpoints->Get(i);
@@ -806,17 +914,18 @@ CordbFunctionBreakpoint* CordbProcess::GetBreakpoint(int id)
             break;
         }
     }
-    dbg_unlock();
     return ret;
 }
 
 void CordbProcess::SetJMCStatus(BOOL bIsJustMyCode)
 {
+    LOG_METHOD_ENTRY;
     m_bIsJustMyCode = bIsJustMyCode;
 }
 
 BOOL CordbProcess::GetJMCStatus()
 {
+    LOG_METHOD_ENTRY;
     return m_bIsJustMyCode;
 }
 

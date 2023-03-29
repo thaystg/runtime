@@ -14,16 +14,21 @@ using namespace std;
 
 CordbStepper::CordbStepper(Connection* conn, CordbThread* thread) : CordbBaseMono(conn)
 {
+    LOG_METHOD_ENTRY;
     m_pThread   = thread;
     m_debuggerId = -1;
     conn->GetProcess()->AddStepper(this);
     m_bIsActive = false;
 }
 
-CordbStepper::~CordbStepper() {}
+CordbStepper::~CordbStepper()
+{
+    LOG_METHOD_ENTRY;
+}
 
 HRESULT STDMETHODCALLTYPE CordbStepper::IsActive(BOOL* pbActive)
 {
+    LOG_METHOD_ENTRY;
     *pbActive = m_bIsActive;
     LOG((LF_CORDB, LL_INFO100000, "CordbStepper - IsActive - IMPLEMENTED\n"));
     return S_OK;
@@ -31,6 +36,7 @@ HRESULT STDMETHODCALLTYPE CordbStepper::IsActive(BOOL* pbActive)
 
 HRESULT STDMETHODCALLTYPE CordbStepper::Deactivate(void)
 {
+    LOG_METHOD_ENTRY;
     if (!m_bIsActive)
         return S_OK;
     m_bIsActive = false;
@@ -47,24 +53,28 @@ HRESULT STDMETHODCALLTYPE CordbStepper::Deactivate(void)
 
 HRESULT STDMETHODCALLTYPE CordbStepper::SetInterceptMask(CorDebugIntercept mask)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbStepper - SetInterceptMask - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbStepper::SetUnmappedStopMask(CorDebugUnmappedStop mask)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbStepper - SetUnmappedStopMask - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbStepper::Step(BOOL bStepIn)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbStepper - Step - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbStepper::StepRange(BOOL bStepIn, COR_DEBUG_STEP_RANGE ranges[], ULONG32 cRangeCount)
 {
+    LOG_METHOD_ENTRY;
     m_bIsActive = true;
     LOG((LF_CORDB, LL_INFO1000000, "CordbStepper - StepRange - IMPLEMENTED\n"));
     HRESULT hr = S_OK;
@@ -98,6 +108,7 @@ HRESULT STDMETHODCALLTYPE CordbStepper::StepRange(BOOL bStepIn, COR_DEBUG_STEP_R
 
 HRESULT STDMETHODCALLTYPE CordbStepper::StepOut(void)
 {
+    LOG_METHOD_ENTRY;
     m_bIsActive = true;
     LOG((LF_CORDB, LL_INFO1000000, "CordbStepper - StepOut - IMPLEMENTED\n"));
     HRESULT hr = S_OK;
@@ -130,12 +141,14 @@ HRESULT STDMETHODCALLTYPE CordbStepper::StepOut(void)
 
 HRESULT STDMETHODCALLTYPE CordbStepper::SetRangeIL(BOOL bIL)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbStepper - SetRangeIL - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE CordbStepper::QueryInterface(REFIID id, void** pInterface)
 {
+    LOG_METHOD_ENTRY;
     if (id == IID_ICorDebugStepper)
         *pInterface = static_cast<ICorDebugStepper*>(this);
     else if (id == IID_ICorDebugStepper2)
@@ -151,6 +164,7 @@ HRESULT STDMETHODCALLTYPE CordbStepper::QueryInterface(REFIID id, void** pInterf
 
 HRESULT STDMETHODCALLTYPE CordbStepper::SetJMC(BOOL fIsJMCStepper)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbStepper - SetJMC - NOT IMPLEMENTED\n"));
     return S_OK;
 }

@@ -18,6 +18,8 @@ class CordbType : public CordbBaseMono, public ICorDebugType, public ICorDebugTy
 
 public:
     CordbType(CorElementType type, Connection* conn, CordbClass* klass = NULL);
+    static CordbType* CreateArrayType(CorElementType type, Connection* conn, CordbType* arrayType);
+    void SetTypeParameterList(ArrayList* pTypeParameterList);
     ULONG STDMETHODCALLTYPE AddRef(void)
     {
         return (BaseAddRef());

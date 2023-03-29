@@ -9,6 +9,9 @@
 
 #include <cordb-type.h>
 #include <cordb.h>
+#include <shash.h>
+
+static REFIID IID_ICorDebugValueMono = {0xC14C320E,0x5F40,0x4DA0,0x98,0xD9,0x54,0x88,0xC6,0xF3,0x86,0xE8};
 
 union CordbContent
 {
@@ -19,9 +22,24 @@ union CordbContent
     CORDB_ADDRESS   pointerValue;
 };
 
-class CordbValue : public CordbBaseMono, public ICorDebugValue2, public ICorDebugValue3, public ICorDebugGenericValue
+class CordbValueMono
 {
+protected:
     CorElementType m_type;
+public:
+    virtual void WriteToBuffer(MdbgProtBuffer* buf) = 0;
+    CordbValueMono (CorElementType type)
+    {
+        m_type = type;
+    }
+};
+
+class CordbValue :  public CordbBaseMono,
+                    public CordbValueMono,
+                    public ICorDebugValue2,
+                    public ICorDebugValue3,
+                    public ICorDebugGenericValue
+{
     CordbContent   m_value;
     int            m_size;
     CordbType*     m_pType;
@@ -52,21 +70,24 @@ public:
     HRESULT STDMETHODCALLTYPE GetValue(void* pTo);
     HRESULT STDMETHODCALLTYPE SetValue(void* pFrom);
     CordbContent* GetValue() {return &m_value;}
+    virtual void WriteToBuffer(MdbgProtBuffer* buf);
 };
 
-class CordbValueTypeValue : public CordbBaseMono,
-                            public ICorDebugReferenceValue,
+class CordbValueType : public CordbBaseMono,
+                            public CordbValueMono,
+                            public ICorDebugObjectValue,
+                            public ICorDebugObjectValue2,
                             public ICorDebugValue2,
                             public ICorDebugValue3,
                             public ICorDebugGenericValue
 {
-    CorElementType m_type;
     int            m_debuggerId;
     CordbClass*    m_pClass;
-    CordbType*     m_pCordbType;
     CORDB_ADDRESS  m_pAddress;
+    MapSHashWithRemove<int, ICorDebugValue*> m_fieldMap;
+    ArrayList m_fields;
 public:
-    CordbValueTypeValue(Connection* conn, CorElementType type, CordbClass* klass = NULL, CordbType* cordbType = NULL, CORDB_ADDRESS cordbAddress = NULL);
+    CordbValueType(Connection* conn, CorElementType type, CordbClass* klass = NULL, CORDB_ADDRESS cordbAddress = NULL);
     ULONG STDMETHODCALLTYPE AddRef(void)
     {
         return (BaseAddRef());
@@ -77,9 +98,11 @@ public:
     }
     const char* GetClassName()
     {
-        return "CordbValueTypeValue";
+        return "CordbValueType";
     }
-    ~CordbValueTypeValue();
+    void AddField(int token, ICorDebugValue* value);
+    void WriteToBuffer(MdbgProtBuffer* buf);
+    ~CordbValueType();
     HRESULT STDMETHODCALLTYPE GetType(CorElementType* pType);
     HRESULT STDMETHODCALLTYPE GetSize(ULONG32* pSize);
     HRESULT STDMETHODCALLTYPE GetAddress(CORDB_ADDRESS* pAddress);
@@ -93,17 +116,23 @@ public:
     HRESULT STDMETHODCALLTYPE IsNull(BOOL* pbNull);
     HRESULT STDMETHODCALLTYPE GetValue(CORDB_ADDRESS* pValue);
     HRESULT STDMETHODCALLTYPE SetValue(CORDB_ADDRESS value);
-    HRESULT STDMETHODCALLTYPE Dereference(ICorDebugValue** ppValue);
-    HRESULT STDMETHODCALLTYPE DereferenceStrong(ICorDebugValue** ppValue);
+    HRESULT STDMETHODCALLTYPE GetClass(ICorDebugClass** ppClass);
+    HRESULT STDMETHODCALLTYPE GetFieldValue(ICorDebugClass* pClass, mdFieldDef fieldDef, ICorDebugValue** ppValue);
+    HRESULT STDMETHODCALLTYPE GetVirtualMethod(mdMemberRef memberRef, ICorDebugFunction** ppFunction);
+    HRESULT STDMETHODCALLTYPE GetContext(ICorDebugContext** ppContext);
+    HRESULT STDMETHODCALLTYPE IsValueClass(BOOL* pbIsValueClass);
+    HRESULT STDMETHODCALLTYPE GetManagedCopy(IUnknown** ppObject);
+    HRESULT STDMETHODCALLTYPE SetFromManagedCopy(IUnknown* pObject);
+    HRESULT STDMETHODCALLTYPE GetVirtualMethodAndType(mdMemberRef memberRef, ICorDebugFunction** ppFunction, ICorDebugType** ppType);
 };
 
 class CordbReferenceValue : public CordbBaseMono,
+                            public CordbValueMono,
                             public ICorDebugReferenceValue,
                             public ICorDebugValue2,
                             public ICorDebugValue3,
                             public ICorDebugGenericValue
 {
-    CorElementType m_type;
     int            m_debuggerId;
     CordbClass*    m_pClass;
     CordbType*     m_pCordbType;
@@ -122,6 +151,7 @@ public:
     {
         return "CordbReferenceValue";
     }
+    virtual void WriteToBuffer(MdbgProtBuffer* buf);
     ~CordbReferenceValue();
     HRESULT STDMETHODCALLTYPE GetType(CorElementType* pType);
     HRESULT STDMETHODCALLTYPE GetSize(ULONG32* pSize);
@@ -143,6 +173,7 @@ public:
 };
 
 class CordbObjectValue : public CordbBaseMono,
+                         public CordbValueMono,
                          public ICorDebugObjectValue,
                          public ICorDebugObjectValue2,
                          public ICorDebugGenericValue,
@@ -155,7 +186,6 @@ class CordbObjectValue : public CordbBaseMono,
                          public ICorDebugComObjectValue,
                          public ICorDebugDelegateObjectValue
 {
-    CorElementType m_type;
     int            m_debuggerId;
     CordbClass*    m_pClass;
     CordbType*     m_pCordbType;
@@ -175,11 +205,13 @@ public:
     {
         return "CordbObjectValue";
     }
+    virtual void WriteToBuffer(MdbgProtBuffer* buf);
     ~CordbObjectValue();
-    HRESULT STDMETHODCALLTYPE        GetClass(ICorDebugClass** ppClass);
-    HRESULT STDMETHODCALLTYPE        GetFieldValue(ICorDebugClass* pClass, mdFieldDef fieldDef, ICorDebugValue** ppValue);
     static HRESULT CreateCordbValue(Connection* conn, MdbgProtBuffer* pReply, ICorDebugValue** ppValue);
     static int GetTypeSize(int type);
+    
+    HRESULT STDMETHODCALLTYPE        GetClass(ICorDebugClass** ppClass);
+    HRESULT STDMETHODCALLTYPE        GetFieldValue(ICorDebugClass* pClass, mdFieldDef fieldDef, ICorDebugValue** ppValue);
     HRESULT STDMETHODCALLTYPE        GetVirtualMethod(mdMemberRef memberRef, ICorDebugFunction** ppFunction);
     HRESULT STDMETHODCALLTYPE        GetContext(ICorDebugContext** ppContext);
     HRESULT STDMETHODCALLTYPE        IsValueClass(BOOL* pbIsValueClass);
@@ -214,17 +246,12 @@ public:
 };
 
 class CordbArrayValue : public CordbBaseMono,
+                        public CordbValueMono,
                         public ICorDebugObjectValue,
                         public ICorDebugObjectValue2,
                         public ICorDebugGenericValue,
-                        public ICorDebugStringValue,
                         public ICorDebugValue2,
                         public ICorDebugValue3,
-                        public ICorDebugHeapValue2,
-                        public ICorDebugHeapValue3,
-                        public ICorDebugExceptionObjectValue,
-                        public ICorDebugComObjectValue,
-                        public ICorDebugDelegateObjectValue,
                         public ICorDebugArrayValue
 {
     CordbType*  m_pCordbType;
@@ -233,7 +260,7 @@ class CordbArrayValue : public CordbBaseMono,
     int         m_nCount;
 
 public:
-    CordbArrayValue(Connection* conn, CordbType* type, int object_id, CordbClass* klass);
+    CordbArrayValue(Connection* conn, CorElementType element_type, CordbType* type, int object_id, CordbClass* klass);
     ULONG STDMETHODCALLTYPE AddRef(void)
     {
         return (BaseAddRef());
@@ -246,6 +273,7 @@ public:
     {
         return "CordbArrayValue";
     }
+    virtual void WriteToBuffer(MdbgProtBuffer* buf) {__debugbreak();};
     ~CordbArrayValue();
     HRESULT STDMETHODCALLTYPE GetClass(ICorDebugClass** ppClass);
     HRESULT STDMETHODCALLTYPE GetFieldValue(ICorDebugClass* pClass, mdFieldDef fieldDef, ICorDebugValue** ppValue);
@@ -292,6 +320,7 @@ public:
 };
 
 class CordbValueEnum : public CordbBaseMono,
+                       public CordbValueMono,
                        public ICorDebugValueEnum
 {
     long m_nThreadDebuggerId;
@@ -314,7 +343,7 @@ public:
     {
         return "CordbValueEnum";
     }
-
+    virtual void WriteToBuffer(MdbgProtBuffer* buf) {__debugbreak();};
     CordbValueEnum(Connection* conn, long nThreadDebuggerId, long nFrameDebuggerId, bool bIsArgument, ILCodeKind m_nFlags = ILCODE_ORIGINAL_IL);
     HRESULT STDMETHODCALLTYPE Next(ULONG celt, ICorDebugValue* values[], ULONG* pceltFetched);
     HRESULT STDMETHODCALLTYPE Skip(ULONG celt);

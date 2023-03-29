@@ -20,6 +20,7 @@
 
 CordbStackWalk::CordbStackWalk(Connection* conn, CordbThread* ppThread): CordbBaseMono(conn)
 {
+    LOG_METHOD_ENTRY;
     m_pThread = ppThread;
     m_pThread->InternalAddRef();
     m_nCurrentFrame = 0;
@@ -29,6 +30,7 @@ CordbStackWalk::CordbStackWalk(Connection* conn, CordbThread* ppThread): CordbBa
 
 CordbStackWalk::~CordbStackWalk()
 {
+    LOG_METHOD_ENTRY;
     if (m_pThread)
         m_pThread->InternalRelease();
     if (m_ppFrames != NULL)
@@ -44,12 +46,14 @@ CordbStackWalk::~CordbStackWalk()
 
 void CordbStackWalk::Reset()
 {
+    LOG_METHOD_ENTRY;
     m_nFrames = 0;
     m_nCurrentFrame = 0;
 }
 
 HRESULT STDMETHODCALLTYPE CordbStackWalk::GetContext(ULONG32 contextFlags, ULONG32 contextBufSize, ULONG32 *contextSize, BYTE contextBuf[  ])
 {
+    LOG_METHOD_ENTRY;
     if (m_nFrames != 0 && m_nCurrentFrame >= m_nFrames)
         return S_OK;
     HRESULT hr = S_OK;
@@ -79,6 +83,7 @@ HRESULT STDMETHODCALLTYPE CordbStackWalk::GetContext(ULONG32 contextFlags, ULONG
 
 HRESULT STDMETHODCALLTYPE CordbStackWalk::SetContext(CorDebugSetContextFlag flag, ULONG32 contextSize, BYTE context[  ])
 {
+    LOG_METHOD_ENTRY;
     HRESULT hr = S_OK;
     EX_TRY
     {
@@ -106,6 +111,7 @@ HRESULT STDMETHODCALLTYPE CordbStackWalk::SetContext(CorDebugSetContextFlag flag
 
 HRESULT STDMETHODCALLTYPE CordbStackWalk::Next(void)
 {
+    LOG_METHOD_ENTRY;
     PopulateStackWalk();
     if (m_nCurrentFrame + 1 >= m_nFrames)
         return CORDBG_S_AT_END_OF_STACK;
@@ -113,7 +119,9 @@ HRESULT STDMETHODCALLTYPE CordbStackWalk::Next(void)
     return S_OK;
 }
 
-HRESULT CordbStackWalk::PopulateStackWalk() {
+HRESULT CordbStackWalk::PopulateStackWalk()
+{
+    LOG_METHOD_ENTRY;
     HRESULT hr = S_OK;
     if (m_nFrames != 0)
         return hr;
@@ -153,6 +161,7 @@ HRESULT CordbStackWalk::PopulateStackWalk() {
 
 HRESULT STDMETHODCALLTYPE CordbStackWalk::GetFrame(ICorDebugFrame **pFrame)
 {
+    LOG_METHOD_ENTRY;
     PopulateStackWalk();
     if (m_nCurrentFrame >= m_nFrames)
         return CORDBG_E_PAST_END_OF_STACK;
@@ -162,6 +171,7 @@ HRESULT STDMETHODCALLTYPE CordbStackWalk::GetFrame(ICorDebugFrame **pFrame)
 // standard QI function
 HRESULT CordbStackWalk::QueryInterface(REFIID id, void **pInterface)
 {
+    LOG_METHOD_ENTRY;
     if (id == IID_ICorDebugStackWalk)
     {
         *pInterface = static_cast<ICorDebugStackWalk*>(this);

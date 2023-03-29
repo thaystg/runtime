@@ -7,11 +7,9 @@
 #ifndef __MONO_DEBUGGER_CORDB_PROCESS_H__
 #define __MONO_DEBUGGER_CORDB_PROCESS_H__
 
-#include <arraylist.h>
 #include <shash.h>
 #include <cordb.h>
-
-
+#include <debugger-coreclr-compat.h>
 
 class CordbProcess : public CordbBaseMono,
                      public ICorDebugProcess,
@@ -24,20 +22,23 @@ class CordbProcess : public CordbBaseMono,
                      public ICorDebugProcess10,
                      public ICorDebugProcess11
 {
-    ArrayList*          m_pBreakpoints;
-    ArrayList*          m_pThreads;
-    ArrayList*          m_pFunctions;
-    ArrayList*          m_pModules;
-    ArrayList*          m_pPendingEval;
-    ArrayList*          m_pSteppers;
+    ArrayListThreadSafe*          m_pBreakpoints;
+    ArrayListThreadSafe*          m_pThreads;
+    ArrayListThreadSafe*          m_pFunctions;
+    ArrayListThreadSafe*          m_pModules;
+    ArrayListThreadSafe*          m_pCompletedEval;
+    MapSHashWithRemoveThreadSafe<int, CordbEval*>    m_pPendingEval;
+    ArrayListThreadSafe*          m_pSteppers;
     CordbAppDomainEnum* m_pAppDomainEnum;
     Cordb*              m_pCordb;
     BOOL                m_bIsJustMyCode;
-    ArrayList*          m_pTypeMapArray; //TODO: define a better data structure to find CordbType
-    MapSHashWithRemove<mdToken, CordbClass*>    m_classMap;
+    ArrayListThreadSafe*          m_pTypeMapArray; //TODO: define a better data structure to find CordbType
+    MapSHashWithRemoveThreadSafe<int, CordbClass*>    m_classMap;
 public:
-    ArrayList* m_pAddDomains;
+    int32_t suspend_count = 0;
+    ArrayListThreadSafe* m_pAddDomains;
     CordbProcess(Cordb* cordb);
+    void SetPaused();
     ULONG STDMETHODCALLTYPE AddRef(void)
     {
         return (BaseAddRef());
@@ -123,20 +124,22 @@ public:
     void                     AddModule(CordbModule* module);
     void                     AddAppDomain(CordbAppDomain* appDomain);
     void                     AddBreakpoint(CordbFunctionBreakpoint* bp);
-    void                     AddPendingEval(CordbEval* eval);
+    void                     AddPendingEval(int cmdId, CordbEval* eval);
     void                     AddStepper(CordbStepper* step);
     CordbClass*              FindOrAddClass(mdToken token, int type_id, int module_id);
+    CordbClass*              FindOrAddClass(int type_id);
     CordbType*               FindOrAddPrimitiveType(CorElementType type);
     CordbType*               FindOrAddClassType(CorElementType type, CordbClass *klass); 
-    CordbType*               FindOrAddArrayType(CorElementType type, CordbType* elementType);
-    //CordbType*             FindOrAddGenericInstanceType(CorElementType type, std::initializer_list<CordbType*> arrayType); //use std::initializer_list for generic instances
+    CordbType*               FindOrAddArrayType(CorElementType type, int arrayDebuggerId, CordbType* elementType);
     CordbFunction*           FindFunction(int id);
+    CordbFunction*           FindFunctionByToken(mdToken token, int module_id);
     CordbModule*             GetModule(int module_id);
     CordbStepper*            GetStepper(int id);
     CordbAppDomain*          GetCurrentAppDomain();
     CordbThread*             FindThread(long thread_id);
     CordbFunctionBreakpoint* GetBreakpoint(int id);
-    void                     CheckPendingEval();
+    bool                     CheckPendingEval(int commandId, MdbgProtBuffer* pReply);
+    void                     CheckCompletedEval();
     void                     SetJMCStatus(BOOL bIsJustMyCode);
     BOOL                     GetJMCStatus();
 };

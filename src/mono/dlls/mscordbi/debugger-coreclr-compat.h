@@ -19,4 +19,9 @@ static inline int32_t dbg_rt_atomic_inc_int32_t(volatile int32_t* value)
     return static_cast<int32_t>(InterlockedIncrement((volatile LONG*)(value)));
 }
 
+static inline int32_t dbg_rt_atomic_dec_int32_t(volatile int32_t* value)
+{
+    STATIC_CONTRACT_NOTHROW;
+    return static_cast<int32_t>(InterlockedDecrement((volatile LONG*)(value)));
+}
 #endif

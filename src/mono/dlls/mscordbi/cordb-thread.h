@@ -21,6 +21,7 @@ class CordbThread : public CordbBaseMono,
     CordbRegisterSet*        m_pRegisterSet;
     CordbNativeFrame*        m_pCurrentFrame;
     CordbBlockingObjectEnum* m_pBlockingObject;
+    CordbChainEnum*          m_pChains;
 
 public:
     CordbThread(Connection* conn, CordbProcess* ppProcess, long thread_id);
@@ -38,6 +39,7 @@ public:
     }
     ~CordbThread();
     void    SetRegisterSet(CordbRegisterSet* rs);
+    void    Reset();
     HRESULT STDMETHODCALLTYPE HasUnhandledException(void);
     HRESULT STDMETHODCALLTYPE GetBlockingObjects(ICorDebugBlockingObjectEnum** ppBlockingObjectEnum);
     HRESULT STDMETHODCALLTYPE GetCurrentCustomDebuggerNotification(ICorDebugValue** ppNotificationObject);

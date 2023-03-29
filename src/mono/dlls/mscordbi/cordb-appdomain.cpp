@@ -12,30 +12,36 @@ using namespace std;
 
 CordbAppDomain::CordbAppDomain(Connection* conn, CordbProcess* ppProcess) : CordbBaseMono(conn)
 {
+    LOG_METHOD_ENTRY;
     pProcess = ppProcess;
     pProcess->AddAppDomain(this);
 }
 
 HRESULT CordbAppDomain::Stop(DWORD dwTimeoutIgnored)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - Stop - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbAppDomain::Continue(BOOL fIsOutOfBand)
 {
+    LOG_METHOD_ENTRY;
     pProcess->Continue(fIsOutOfBand);
     return S_OK;
 }
 
 HRESULT CordbAppDomain::IsRunning(BOOL* pbRunning)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - IsRunning - NOT IMPLEMENTED\n"));
-    return E_NOTIMPL;
+    pProcess->IsRunning(pbRunning);
+    return S_OK;
 }
 
 HRESULT CordbAppDomain::HasQueuedCallbacks(ICorDebugThread* pThread, BOOL* pbQueued)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - HasQueuedCallbacks - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
@@ -43,6 +49,7 @@ HRESULT CordbAppDomain::HasQueuedCallbacks(ICorDebugThread* pThread, BOOL* pbQue
 HRESULT
 CordbAppDomain::EnumerateThreads(ICorDebugThreadEnum** ppThreads)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - EnumerateThreads - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
@@ -50,18 +57,21 @@ CordbAppDomain::EnumerateThreads(ICorDebugThreadEnum** ppThreads)
 HRESULT
 CordbAppDomain::SetAllThreadsDebugState(CorDebugThreadState state, ICorDebugThread* pExceptThisThread)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - SetAllThreadsDebugState - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbAppDomain::Detach(void)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - Detach - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbAppDomain::Terminate(UINT exitCode)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - Terminate - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
@@ -71,6 +81,7 @@ CordbAppDomain::CanCommitChanges(ULONG                             cSnapshots,
                                  ICorDebugEditAndContinueSnapshot* pSnapshots[],
                                  ICorDebugErrorInfoEnum**          pError)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - CanCommitChanges - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
@@ -80,12 +91,14 @@ CordbAppDomain::CommitChanges(ULONG                             cSnapshots,
                               ICorDebugEditAndContinueSnapshot* pSnapshots[],
                               ICorDebugErrorInfoEnum**          pError)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - CommitChanges - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbAppDomain::QueryInterface(REFIID id, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppInterface)
 {
+    LOG_METHOD_ENTRY;
     if (id == IID_ICorDebugAppDomain)
     {
         *ppInterface = (ICorDebugAppDomain*)this;
@@ -117,6 +130,7 @@ HRESULT CordbAppDomain::QueryInterface(REFIID id, _COM_Outptr_ void __RPC_FAR* _
 
 HRESULT CordbAppDomain::GetProcess(ICorDebugProcess** ppProcess)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - GetProcess - IMPLEMENTED\n"));
     pProcess->QueryInterface(IID_ICorDebugProcess, (void**)ppProcess);
     return S_OK;
@@ -125,6 +139,7 @@ HRESULT CordbAppDomain::GetProcess(ICorDebugProcess** ppProcess)
 HRESULT
 CordbAppDomain::EnumerateAssemblies(ICorDebugAssemblyEnum** ppAssemblies)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - EnumerateAssemblies - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
@@ -132,6 +147,7 @@ CordbAppDomain::EnumerateAssemblies(ICorDebugAssemblyEnum** ppAssemblies)
 HRESULT
 CordbAppDomain::GetModuleFromMetaDataInterface(IUnknown* pIMetaData, ICorDebugModule** ppModule)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - GetModuleFromMetaDataInterface - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
@@ -139,18 +155,21 @@ CordbAppDomain::GetModuleFromMetaDataInterface(IUnknown* pIMetaData, ICorDebugMo
 HRESULT
 CordbAppDomain::EnumerateBreakpoints(ICorDebugBreakpointEnum** ppBreakpoints)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - EnumerateBreakpoints - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbAppDomain::EnumerateSteppers(ICorDebugStepperEnum** ppSteppers)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - EnumerateSteppers - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbAppDomain::IsAttached(BOOL* pbAttached)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - IsAttached - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
@@ -158,6 +177,7 @@ HRESULT CordbAppDomain::IsAttached(BOOL* pbAttached)
 HRESULT
 CordbAppDomain::GetName(ULONG32 cchName, ULONG32* pcchName, WCHAR szName[])
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO1000000, "CordbAppDomain - GetName - IMPLEMENTED\n"));
     if (cchName < strlen("DefaultDomain"))
     {
@@ -171,18 +191,21 @@ CordbAppDomain::GetName(ULONG32 cchName, ULONG32* pcchName, WCHAR szName[])
 
 HRESULT CordbAppDomain::GetObject(ICorDebugValue** ppObject)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - GetObject - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbAppDomain::Attach(void)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - Attach - NOT IMPLEMENTED\n"));
     return S_OK;
 }
 
 HRESULT CordbAppDomain::GetID(ULONG32* pId)
 {
+    LOG_METHOD_ENTRY;
     *pId = 0;
     LOG((LF_CORDB, LL_INFO1000000, "CordbAppDomain - GetID - IMPLEMENTED\n"));
     return S_OK;
@@ -194,12 +217,14 @@ HRESULT CordbAppDomain::GetArrayOrPointerType(CorElementType elementType,
                                               ICorDebugType*  pTypeArg,
                                               ICorDebugType** ppType)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - GetArrayOrPointerType - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbAppDomain::GetFunctionPointerType(ULONG32 nTypeArgs, ICorDebugType* ppTypeArgs[], ICorDebugType** ppType)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - GetFunctionPointerType - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
@@ -208,12 +233,14 @@ HRESULT CordbAppDomain::GetCachedWinRTTypesForIIDs(ULONG32             cReqTypes
                                                    GUID*               iidsToResolve,
                                                    ICorDebugTypeEnum** ppTypesEnum)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - GetCachedWinRTTypesForIIDs - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT CordbAppDomain::GetCachedWinRTTypes(ICorDebugGuidToTypeEnum** ppGuidToTypeEnum)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - GetCachedWinRTTypes - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
@@ -221,12 +248,14 @@ HRESULT CordbAppDomain::GetCachedWinRTTypes(ICorDebugGuidToTypeEnum** ppGuidToTy
 HRESULT
 CordbAppDomain::GetObjectForCCW(CORDB_ADDRESS ccwPointer, ICorDebugValue** ppManagedObject)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomain - GetObjectForCCW - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::Next(ULONG celt, ICorDebugAppDomain* values[], ULONG* pceltFetched)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomainEnum - Next - NOT IMPLEMENTED\n"));
     *pceltFetched = celt;
     for (ULONG i = 0; i < celt; i++)
@@ -245,12 +274,14 @@ HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::Next(ULONG celt, ICorDebugAppDomai
 
 HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::Skip(ULONG celt)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomainEnum - Skip - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::Reset(void)
 {
+    LOG_METHOD_ENTRY;
     current_pos = 0;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomainEnum - Reset - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
@@ -258,12 +289,14 @@ HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::Reset(void)
 
 HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::Clone(ICorDebugEnum** ppEnum)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO100000, "CordbAppDomainEnum - Clone - NOT IMPLEMENTED\n"));
     return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::GetCount(ULONG* pcelt)
 {
+    LOG_METHOD_ENTRY;
     LOG((LF_CORDB, LL_INFO1000000, "CordbAppDomainEnum - GetCount - IMPLEMENTED\n"));
     *pcelt = pProcess->m_pAddDomains->GetCount();
     return S_OK;
@@ -271,6 +304,7 @@ HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::GetCount(ULONG* pcelt)
 
 HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::QueryInterface(REFIID id, void** pInterface)
 {
+    LOG_METHOD_ENTRY;
     if (id == IID_IUnknown)
         *pInterface = static_cast<IUnknown*>(static_cast<ICorDebugAppDomainEnum*>(this));
     else if (id == IID_ICorDebugAppDomainEnum)
@@ -287,6 +321,7 @@ HRESULT STDMETHODCALLTYPE CordbAppDomainEnum::QueryInterface(REFIID id, void** p
 
 CordbAppDomainEnum::CordbAppDomainEnum(Connection* conn, CordbProcess* ppProcess) : CordbBaseMono(conn)
 {
+    LOG_METHOD_ENTRY;
     current_pos    = 0;
     this->pProcess = ppProcess;
 }

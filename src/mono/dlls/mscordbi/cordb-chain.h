@@ -9,41 +9,17 @@
 
 #include <cordb.h>
 
-class CordbChainEnum : public CordbBaseMono, public ICorDebugChainEnum
-{
-    CordbThread* m_pThread;
-
-public:
-    CordbChainEnum(Connection* conn, CordbThread* thread);
-    ULONG STDMETHODCALLTYPE AddRef(void)
-    {
-        return (BaseAddRef());
-    }
-    ULONG STDMETHODCALLTYPE Release(void)
-    {
-        return (BaseRelease());
-    }
-    const char* GetClassName()
-    {
-        return "CordbChainEnum";
-    }
-    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID id, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface);
-
-    HRESULT STDMETHODCALLTYPE Skip(ULONG celt);
-    HRESULT STDMETHODCALLTYPE Reset(void);
-    HRESULT STDMETHODCALLTYPE Clone(ICorDebugEnum** ppEnum);
-    HRESULT STDMETHODCALLTYPE GetCount(ULONG* pcelt);
-    HRESULT STDMETHODCALLTYPE Next(ULONG celt, ICorDebugChain* chains[], ULONG* pceltFetched);
-};
 
 class CordbChain : public CordbBaseMono, public ICorDebugChain
 {
     CordbThread*        m_pThread;
     CorDebugChainReason m_chainReason;
+    CordbFrameEnum*     m_pFrameEnum;
     bool                m_isManaged;
 
 public:
     CordbChain(Connection* conn, CordbThread* thread, CorDebugChainReason chain_reason, bool is_managed);
+    ~CordbChain();
     ULONG STDMETHODCALLTYPE AddRef(void)
     {
         return (BaseAddRef());
@@ -71,4 +47,32 @@ public:
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID id, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface);
 };
 
+class CordbChainEnum : public CordbBaseMono, public ICorDebugChainEnum
+{
+    CordbThread* m_pThread;
+    CordbChain* m_pChains_0;
+    CordbChain* m_pChains_1;
+public:
+    CordbChainEnum(Connection* conn, CordbThread* thread);
+    ~CordbChainEnum();
+    ULONG STDMETHODCALLTYPE AddRef(void)
+    {
+        return (BaseAddRef());
+    }
+    ULONG STDMETHODCALLTYPE Release(void)
+    {
+        return (BaseRelease());
+    }
+    const char* GetClassName()
+    {
+        return "CordbChainEnum";
+    }
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID id, _COM_Outptr_ void __RPC_FAR* __RPC_FAR* pInterface);
+
+    HRESULT STDMETHODCALLTYPE Skip(ULONG celt);
+    HRESULT STDMETHODCALLTYPE Reset(void);
+    HRESULT STDMETHODCALLTYPE Clone(ICorDebugEnum** ppEnum);
+    HRESULT STDMETHODCALLTYPE GetCount(ULONG* pcelt);
+    HRESULT STDMETHODCALLTYPE Next(ULONG celt, ICorDebugChain* chains[], ULONG* pceltFetched);
+};
 #endif
