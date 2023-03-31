@@ -7,7 +7,8 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CLR_CMAKE_RUNTIME_MONO 1)
-set(CLR_DIR ${CLR_REPO_ROOT_DIR}/src/coreclr)
+set(SHARED_DIR ${PROJECT_SOURCE_DIR}/../shared)
+set(ENG_DIR ${CLR_REPO_ROOT_DIR}/src/coreclr)
 set(CMAKE_OSX_ARCHITECTURES ${CMAKE_SYSTEM_PROCESSOR})
 set(CMAKE_EXE_LINKER_FLAGS_CHECKED "")
 set(CMAKE_SHARED_LINKER_FLAGS_CHECKED "")
@@ -29,17 +30,16 @@ endif()
 add_definitions(-DDBI_COMPONENT_MONO)
 
 include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../..
-  ${PROJECT_SOURCE_DIR}/../../
   ${PROJECT_SOURCE_DIR}/../mscordbi
   ${PROJECT_SOURCE_DIR}/../mscordbi/socket-dbi
-  ${CLR_DIR}/md/enc
-  ${CLR_DIR}/inc
-  ${CLR_DIR}/pal/inc
-  ${CLR_DIR}/md/inc
-  ${CLR_DIR}/md/compiler
-  ${CLR_DIR}/pal/prebuilt/inc
-  ${CLR_DIR}/nativeresources)
+  ${SHARED_DIR}
+  ${SHARED_DIR}/md/enc
+  ${SHARED_DIR}/inc
+  ${SHARED_DIR}/pal/inc
+  ${SHARED_DIR}/md/inc
+  ${SHARED_DIR}/md/compiler
+  ${SHARED_DIR}/pal/prebuilt/inc
+  ${SHARED_DIR}/nativeresources)
 
 set(mscorbi_sources_base
     cordb.cpp
@@ -99,41 +99,40 @@ if (CLR_CMAKE_HOST_UNIX)
   # Add custom targets that the pal build expects.
   add_component(${CMAKE_INSTALL_DEFAULT_COMPONENT_NAME})
   add_component(paltests_install)
-  include_directories(${CLR_DIR}/pal/inc)
-  include_directories(${CLR_DIR}/pal/inc/rt)
-  include_directories(${CLR_DIR}/pal/src/safecrt)
+  include_directories(${SHARED_DIR}/pal/inc)
+  include_directories(${SHARED_DIR}/pal/inc/rt)
+  include_directories(${SHARED_DIR}/pal/src/safecrt)
 
   append("-Wno-missing-prototypes  -Wno-pointer-arith -Wno-macro-redefined" CMAKE_C_FLAGS CMAKE_CXX_FLAGS)
-  add_subdirectory(${CLR_DIR}/pal pal)
+  add_subdirectory(${SHARED_DIR}/pal pal)
 
-  include_directories(${CLR_DIR}/pal/inc/rt/cpp)
+  include_directories(${SHARED_DIR}/pal/inc/rt/cpp)
   add_compile_options(-nostdinc)
 endif (CLR_CMAKE_HOST_UNIX)
 
 if (CLR_CMAKE_HOST_UNIX)
-    add_subdirectory(${CLR_DIR}/nativeresources nativeresources)
+    add_subdirectory(${SHARED_DIR}/nativeresources nativeresources)
 endif()
 
-add_subdirectory(${CLR_DIR}/md/runtime md/runtime)
-add_subdirectory(${CLR_DIR}/md/compiler md/compiler)
+add_subdirectory(${SHARED_DIR}/md/runtime md/runtime)
+add_subdirectory(${SHARED_DIR}/md/compiler md/compiler)
 
-include(${CLR_DIR}/clrdefinitions.cmake)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/../../)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/../../inc/)
-include_directories(${CLR_DIR}/minipal)
+include(${ENG_DIR}/clrdefinitions.cmake)
+include_directories(${SHARED_DIR}/inc)
+include_directories(${SHARED_DIR}/minipal)
 
-add_subdirectory(${CLR_DIR}/md/enc md/enc)
-add_subdirectory(${CLR_DIR}/utilcode utilcode)
+add_subdirectory(${SHARED_DIR}/md/enc md/enc)
+add_subdirectory(${SHARED_DIR}/utilcode utilcode)
 if (CLR_CMAKE_HOST_UNIX)
-    add_subdirectory(${CLR_DIR}/palrt palrt)
+    add_subdirectory(${SHARED_DIR}/palrt palrt)
     append("-Wno-strict-prototypes -Wno-deprecated -Wno-pointer-arith" CMAKE_C_FLAGS CMAKE_CXX_FLAGS)
 endif (CLR_CMAKE_HOST_UNIX)
 
-add_library(mscordbi SHARED "${mscorbi_sources};${PROJECT_SOURCE_DIR}/../../mono/component/debugger-protocol.c;${PROJECT_SOURCE_DIR}/../../../coreclr/pal/prebuilt/idl/xcordebug_i.cpp;${PROJECT_SOURCE_DIR}/../../../coreclr/pal/prebuilt/idl/cordebug_i.cpp")
+add_library(mscordbi SHARED "${mscorbi_sources};${SHARED_DIR}/mono/debugger-protocol.c;${SHARED_DIR}/pal/prebuilt/idl/xcordebug_i.cpp;${SHARED_DIR}/pal/prebuilt/idl/cordebug_i.cpp")
 
 #SET(CMAKE_C_COMPILER ${CMAKE_CXX_COMPILER})
 
-set_source_files_properties(${PROJECT_SOURCE_DIR}/../../mono/component/debugger-protocol.c PROPERTIES LANGUAGE CXX)
+set_source_files_properties(${SHARED_DIR}/mono/debugger-protocol.c PROPERTIES LANGUAGE CXX)
 
 set(COREDBI_LIBRARIES
     utilcodestaticnohost

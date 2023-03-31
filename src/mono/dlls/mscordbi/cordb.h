@@ -12,7 +12,7 @@
 #include "corhdr.h"
 #include "xcordebug.h"
 
-#include <mono/component/debugger-protocol.h>
+#include <mono/debugger-protocol.h>
 #include <mono/utils/mono-publib.h>
 #include <shash.h>
 
