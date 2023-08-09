@@ -20,6 +20,14 @@ enum var_types_classification
     VTF_VEC = 0x0080, // is a vector type
 };
 
+enum var_types_register
+{
+    VTR_UNKNOWN = 0,
+    VTR_INT     = 1,
+    VTR_FLOAT   = 2,
+    VTR_MASK    = 3,
+};
+
 #include "vartypesdef.h"
 
 /*****************************************************************************
@@ -45,6 +53,7 @@ enum var_types_classification
 /*****************************************************************************/
 
 const extern BYTE varTypeClassification[TYP_COUNT];
+const extern BYTE varTypeRegister[TYP_COUNT];
 
 // make any class with a TypeGet member also have a function TypeGet() that does the same thing
 template <class T>
@@ -298,12 +307,40 @@ inline bool varTypeIsStruct(T vt)
     return ((varTypeClassification[TypeGet(vt)] & VTF_S) != 0);
 }
 
+template <class T, class U>
+inline bool varTypeUsesSameRegType(T vt, U vu)
+{
+    return varTypeRegister[TypeGet(vt)] == varTypeRegister[TypeGet(vu)];
+}
+
+template <class T>
+inline bool varTypeUsesIntReg(T vt)
+{
+    return varTypeRegister[TypeGet(vt)] == VTR_INT;
+}
+
 template <class T>
 inline bool varTypeUsesFloatReg(T vt)
 {
-    // Note that not all targets support SIMD, but if they don't, varTypeIsSIMD will
-    // always return false.
-    return varTypeIsFloating(vt) || varTypeIsSIMD(vt);
+    return varTypeRegister[TypeGet(vt)] == VTR_FLOAT;
+}
+
+template <class T>
+inline bool varTypeUsesMaskReg(T vt)
+{
+// The technically correct check is:
+//     return varTypeRegister[TypeGet(vt)] == VTR_MASK;
+//
+// However, we only have one type that uses VTR_MASK today
+// and so its quite a bit cheaper to just check that directly
+
+#if defined(FEATURE_SIMD) && defined(TARGET_XARCH)
+    assert((TypeGet(vt) == TYP_MASK) || (varTypeRegister[TypeGet(vt)] != VTR_MASK));
+    return TypeGet(vt) == TYP_MASK;
+#else
+    assert(varTypeRegister[TypeGet(vt)] != VTR_MASK);
+    return false;
+#endif
 }
 
 template <class T>
