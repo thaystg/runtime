@@ -1054,7 +1054,7 @@ namespace DebuggerTests
         {
             var expression = $"{{ invoke_static_method('[debugger-test] InspectIntPtr:Run'); }}";
 
-            await EvaluateAndCheck(
+            var pause_location = await EvaluateAndCheck(
                 "window.setTimeout(function() {" + expression + "; }, 1);",
                 "dotnet://debugger-test.dll/debugger-test.cs", 1258, 8,
                 $"InspectIntPtr.Run",
@@ -1063,6 +1063,10 @@ namespace DebuggerTests
                     await CheckValueType(locals, "myInt", "System.IntPtr");
                     await CheckValueType(locals, "myInt2", "System.IntPtr");
                 }
+            );
+            var id = pause_location["callFrames"][0]["callFrameId"].Value<string>();
+            await EvaluateOnCallFrameAndCheck(id,
+                ("myInt.ToInt32()", TString("no"))
             );
         }
 
