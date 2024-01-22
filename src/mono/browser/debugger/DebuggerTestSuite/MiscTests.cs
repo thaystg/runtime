@@ -1066,8 +1066,8 @@ namespace DebuggerTests
             );
             var id = pause_location["callFrames"][0]["callFrameId"].Value<string>();
             await EvaluateOnCallFrameAndCheck(id,
-                ("myInt.ToInt32()", TString("no"))
-            );
+                ("myInt.ToInt32()", TNumber(0)),
+                ("myInt2.ToInt32()", TNumber(1)));
         }
 
         [ConditionalTheory(nameof(RunningOnChrome))]
