@@ -6470,6 +6470,7 @@ private:
     RSSmartPtr<CordbFrame> m_pCachedFrame;
     HRESULT m_cachedHR;
     bool m_fIsOneFrameAhead;
+    bool m_fParentFrameJustAfterILThrowWithoutAdjust;
 };
 
 

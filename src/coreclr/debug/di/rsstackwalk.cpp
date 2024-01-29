@@ -27,7 +27,8 @@ CordbStackWalk::CordbStackWalk(CordbThread * pCordbThread)
     m_pSFIHandle(NULL),
     m_cachedSetContextFlag(SET_CONTEXT_FLAG_ACTIVE_FRAME),
     m_cachedHR(S_OK),
-    m_fIsOneFrameAhead(false)
+    m_fIsOneFrameAhead(false),
+    m_fParentFrameJustAfterILThrowWithoutAdjust(false)
 {
     m_pCachedFrame.Clear();
 }
@@ -725,9 +726,12 @@ HRESULT CordbStackWalk::GetFrameWorker(ICorDebugFrame ** ppFrame)
             // By subtracting STACKWALK_CONTROLPC_ADJUST_OFFSET from nativeOffset you can get
             // an address somewhere inside CALL instruction.
             // This ensures more consistent placement of exception line highlighting in Visual Studio
-            DWORD nativeOffsetToMap = pJITFuncData->justAfterILThrow ?
+            DWORD nativeOffsetToMap = (pJITFuncData->justAfterILThrow || this->m_fParentFrameJustAfterILThrowWithoutAdjust) ?
                                (DWORD)pJITFuncData->nativeOffset - STACKWALK_CONTROLPC_ADJUST_OFFSET :
                                (DWORD)pJITFuncData->nativeOffset;
+
+            this->m_fParentFrameJustAfterILThrowWithoutAdjust = false;
+
             CorDebugMappingResult mappingType;
             ULONG uILOffset = pNativeCode->GetSequencePoints()->MapNativeOffsetToIL(
                     nativeOffsetToMap,
@@ -784,6 +788,10 @@ HRESULT CordbStackWalk::GetFrameWorker(ICorDebugFrame ** ppFrame)
 
             pNativeFrame->m_JITILFrame.Assign(pJITILFrame);
             pJITILFrame.ClearAndMarkDontNeuter();
+        }
+        else
+        {
+            this->m_fParentFrameJustAfterILThrowWithoutAdjust = pJITFuncData->justAfterILThrow;
         }
 
         STRESS_LOG3(LF_CORDB, LL_INFO1000, "CSW::GFW - managed stack frame (%p): CNF - 0x%p, CJILF - 0x%p",
