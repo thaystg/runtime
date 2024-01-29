@@ -2380,6 +2380,9 @@ public:
     CLR_DEBUGGING_PROCESS_FLAGS GetAttachStateFlags() = 0;
 
     virtual
+    void SetJustAfterILThrow(StackWalkHandle pSFIHandle) = 0;
+
+    virtual
     bool GetMetaDataFileInfoFromPEFile(VMPTR_PEAssembly vmPEAssembly,
                                        DWORD & dwTimeStamp,
                                        DWORD & dwImageSize,

@@ -936,6 +936,8 @@ public:
     // the jit attach.
     CLR_DEBUGGING_PROCESS_FLAGS GetAttachStateFlags();
 
+    void SetJustAfterILThrow(StackWalkHandle pSFIHandle);
+
 protected:
     // This class used to be stateless, but we are relaxing the requirements
     // slightly to gain perf. We should still be stateless in the sense that an API call

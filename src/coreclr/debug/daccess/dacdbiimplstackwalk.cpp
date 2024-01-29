@@ -436,6 +436,16 @@ IDacDbiInterface::FrameType DacDbiInterfaceImpl::GetStackWalkCurrentFrameInfo(St
     return ftResult;
 }
 
+void DacDbiInterfaceImpl::SetJustAfterILThrow(StackWalkHandle pSFIHandle)
+{
+    DD_ENTER_MAY_THROW;
+
+    _ASSERTE(pSFIHandle != NULL);
+
+    StackFrameIterator * pIter = GetIteratorFromHandle(pSFIHandle);
+    pIter->m_crawl.SetJustAfterILThrow();
+}
+
 //---------------------------------------------------------------------------------------
 //
 // Return the number of internal frames on the specified thread.
