@@ -533,6 +533,7 @@ HRESULT CordbStackWalk::GetFrame(ICorDebugFrame ** ppFrame)
             m_cachedHR = hr;
         }
     }
+
     return hr;
 }
 
@@ -790,11 +791,6 @@ HRESULT CordbStackWalk::GetFrameWorker(ICorDebugFrame ** ppFrame)
 
             pNativeFrame->m_JITILFrame.Assign(pJITILFrame);
             pJITILFrame.ClearAndMarkDontNeuter();
-        }
-        else
-        {
-            STRESS_LOG3(LF_CORDB, LL_INFO1000, "CSW::GFW - managed stack frame (%p): CNF - 0x%p, CJILF - 0x%p",
-                    this, pNativeFrame, pNativeFrame->m_JITILFrame.GetValue());
         }
 
         STRESS_LOG3(LF_CORDB, LL_INFO1000, "CSW::GFW - managed stack frame (%p): CNF - 0x%p, CJILF - 0x%p",
