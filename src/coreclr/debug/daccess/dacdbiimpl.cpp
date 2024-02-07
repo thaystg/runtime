@@ -5573,7 +5573,7 @@ BOOL DacDbiInterfaceImpl::IsThreadAtJustAfterILThrow(VMPTR_Thread vmThread, DT_C
     CrawlFrame * pCF = &(iter.m_crawl);
 
     return pCF->IsInterrupted() && !pCF->HasFaulted()
-           && iter.m_crawl.GetFunction() && iter.m_crawl.GetFunction()->IsNoMetadata() == TRUE
+           && pCF->GetFunction() && pCF->GetFunction()->IsNoMetadata() == TRUE
            && pCF->GetRelOffset() != 0;
 }
 //---------------------------------------------------------------------------------------
