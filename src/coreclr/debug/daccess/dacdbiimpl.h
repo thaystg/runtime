@@ -936,8 +936,6 @@ public:
     // the jit attach.
     CLR_DEBUGGING_PROCESS_FLAGS GetAttachStateFlags();
 
-    void SetJustAfterILThrow(StackWalkHandle pSFIHandle);
-
 protected:
     // This class used to be stateless, but we are relaxing the requirements
     // slightly to gain perf. We should still be stateless in the sense that an API call
@@ -1028,6 +1026,8 @@ protected:
 
     // Determines the app domain id for the object referred to by a given VMPTR_OBJECTHANDLE
     ULONG GetAppDomainIdFromVmObjectHandle(VMPTR_OBJECTHANDLE vmHandle);
+
+    BOOL IsThreadAtJustAfterILThrow(VMPTR_Thread vmThread, DT_CONTEXT *pContex);
 
 private:
     bool IsThreadMarkedDeadWorker(Thread * pThread);

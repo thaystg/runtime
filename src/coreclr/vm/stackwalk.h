@@ -445,13 +445,6 @@ public:
 
 #endif // FEATURE_EH_FUNCLETS
 
-    void SetJustAfterILThrow()
-    {
-        LIMITED_METHOD_CONTRACT;
-        isInterrupted = true;
-        hasFaulted = false;
-        isIPadjusted = false;
-    }
 protected:
     // CrawlFrames are temporarily created by the enumerator.
     // Do not create one from C++. This protected constructor polices this rule.

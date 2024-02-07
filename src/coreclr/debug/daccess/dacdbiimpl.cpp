@@ -5546,6 +5546,58 @@ BOOL DacDbiInterfaceImpl::IsThreadAtGCSafePlace(VMPTR_Thread vmThread)
     return fIsGCSafe;
 }
 
+static void
+GetFrameLocation(CONTEXT* pContext, uint64_t* ip, uint64_t* sp)
+{
+#if defined(__x86_64__)
+    *ip = pContext->Rip;
+    *sp = pContext->Rsp;
+#elif defined(__i386__)
+    *ip = pContext->Eip;
+    *sp = pContext->Esp;
+#elif defined(__aarch64__)
+    *ip = pContext->Pc;
+    *sp = pContext->Sp;
+#elif defined(__arm__)
+    *ip = pContext->Pc & ~THUMB_CODE;
+    *sp = pContext->Sp;
+#elif defined(__riscv)
+    *ip = pContext->Pc;
+    *sp = pContext->Sp;
+#endif
+}
+
+
+BOOL DacDbiInterfaceImpl::IsThreadAtJustAfterILThrow(VMPTR_Thread vmThread, DT_CONTEXT *pCurrentContext)
+{
+    DD_ENTER_MAY_THROW;
+
+    Thread * pThread = vmThread.GetDacPtr();
+
+    T_CONTEXT ctx;
+    REGDISPLAY rd;
+
+    SetUpRegdisplayForStackWalk(pThread, &ctx, &rd);
+
+    ULONG32 flags = LIGHTUNWIND;
+
+    StackFrameIterator iter;
+    iter.Init(pThread, pThread->GetFrame(), &rd, flags);
+    while (iter.IsValid())
+    {
+        if (iter.Next() != SWA_CONTINUE)
+        {
+            break;
+        }
+        if (CompareControlRegisters(pCurrentContext, (reinterpret_cast<DT_CONTEXT*>(iter.m_crawl.GetRegisterSet()->pCallerContext))))
+            break;
+    }
+    CrawlFrame * pCF = &(iter.m_crawl);
+
+    return pCF->IsInterrupted() && !pCF->HasFaulted()
+           && iter.m_crawl.GetFunction() && iter.m_crawl.GetFunction()->IsNoMetadata() == TRUE
+           && pCF->GetRelOffset() != 0;
+}
 //---------------------------------------------------------------------------------------
 //
 // Return a partial user state of the specified thread.  The returned user state doesn't contain

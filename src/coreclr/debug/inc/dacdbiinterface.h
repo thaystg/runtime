@@ -2380,9 +2380,6 @@ public:
     CLR_DEBUGGING_PROCESS_FLAGS GetAttachStateFlags() = 0;
 
     virtual
-    void SetJustAfterILThrow(StackWalkHandle pSFIHandle) = 0;
-
-    virtual
     bool GetMetaDataFileInfoFromPEFile(VMPTR_PEAssembly vmPEAssembly,
                                        DWORD & dwTimeStamp,
                                        DWORD & dwImageSize,
@@ -2772,6 +2769,8 @@ public:
     virtual
     bool MetadataUpdatesApplied() = 0;
 
+    virtual
+    BOOL IsThreadAtJustAfterILThrow(VMPTR_Thread vmThread, DT_CONTEXT *pContext) = 0;
     // The following tag tells the DD-marshalling tool to stop scanning.
     // END_MARSHAL
 

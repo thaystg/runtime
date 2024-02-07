@@ -471,7 +471,7 @@ HRESULT CordbStackWalk::Next()
                 ThrowHR(CORDBG_E_PAST_END_OF_STACK);
             }
 
-            // update the cahced flag to indicate that we have reached an unwind CONTEXT
+            // update the cached flag to indicate that we have reached an unwind CONTEXT
             m_cachedSetContextFlag = SET_CONTEXT_FLAG_UNWIND_FRAME;
 
             if (UnwindStackFrame())
@@ -533,7 +533,6 @@ HRESULT CordbStackWalk::GetFrame(ICorDebugFrame ** ppFrame)
             m_cachedHR = hr;
         }
     }
-
     return hr;
 }
 
@@ -725,6 +724,12 @@ HRESULT CordbStackWalk::GetFrameWorker(ICorDebugFrame ** ppFrame)
             // By subtracting STACKWALK_CONTROLPC_ADJUST_OFFSET from nativeOffset you can get
             // an address somewhere inside CALL instruction.
             // This ensures more consistent placement of exception line highlighting in Visual Studio
+            if (!m_pCordbThread->GetThreadExceptionRawObjectHandle().IsNull() && !pJITFuncData->justAfterILThrow)
+            {
+                //try to get parent frame to check if it's a justAfterILThrow without metadata and then adjust the nativeOffset
+                if (GetProcess()->GetDAC()->IsThreadAtJustAfterILThrow(m_pCordbThread->m_vmThreadToken, &(frameData.ctx)))
+                    pJITFuncData->justAfterILThrow = true;
+            }
             DWORD nativeOffsetToMap = pJITFuncData->justAfterILThrow ?
                                (DWORD)pJITFuncData->nativeOffset - STACKWALK_CONTROLPC_ADJUST_OFFSET :
                                (DWORD)pJITFuncData->nativeOffset;
@@ -786,10 +791,10 @@ HRESULT CordbStackWalk::GetFrameWorker(ICorDebugFrame ** ppFrame)
             pNativeFrame->m_JITILFrame.Assign(pJITILFrame);
             pJITILFrame.ClearAndMarkDontNeuter();
         }
-        else if (pJITFuncData->justAfterILThrow)
+        else
         {
-            //set JustAfterILThrow to true to the next frame
-            pDAC->SetJustAfterILThrow(m_pSFIHandle);
+            STRESS_LOG3(LF_CORDB, LL_INFO1000, "CSW::GFW - managed stack frame (%p): CNF - 0x%p, CJILF - 0x%p",
+                    this, pNativeFrame, pNativeFrame->m_JITILFrame.GetValue());
         }
 
         STRESS_LOG3(LF_CORDB, LL_INFO1000, "CSW::GFW - managed stack frame (%p): CNF - 0x%p, CJILF - 0x%p",
