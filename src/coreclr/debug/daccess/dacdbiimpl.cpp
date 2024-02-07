@@ -5546,28 +5546,6 @@ BOOL DacDbiInterfaceImpl::IsThreadAtGCSafePlace(VMPTR_Thread vmThread)
     return fIsGCSafe;
 }
 
-static void
-GetFrameLocation(CONTEXT* pContext, uint64_t* ip, uint64_t* sp)
-{
-#if defined(__x86_64__)
-    *ip = pContext->Rip;
-    *sp = pContext->Rsp;
-#elif defined(__i386__)
-    *ip = pContext->Eip;
-    *sp = pContext->Esp;
-#elif defined(__aarch64__)
-    *ip = pContext->Pc;
-    *sp = pContext->Sp;
-#elif defined(__arm__)
-    *ip = pContext->Pc & ~THUMB_CODE;
-    *sp = pContext->Sp;
-#elif defined(__riscv)
-    *ip = pContext->Pc;
-    *sp = pContext->Sp;
-#endif
-}
-
-
 BOOL DacDbiInterfaceImpl::IsThreadAtJustAfterILThrow(VMPTR_Thread vmThread, DT_CONTEXT *pCurrentContext)
 {
     DD_ENTER_MAY_THROW;
