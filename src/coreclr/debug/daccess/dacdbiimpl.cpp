@@ -5561,16 +5561,20 @@ BOOL DacDbiInterfaceImpl::IsThreadAtJustAfterILThrow(VMPTR_Thread vmThread, DT_C
 
     StackFrameIterator iter;
     iter.Init(pThread, pThread->GetFrame(), &rd, flags);
+    CrawlFrame * pCF = NULL;
     while (iter.IsValid())
     {
+        pCF = &(iter.m_crawl);
+        if (CompareControlRegisters(pCurrentContext, (reinterpret_cast<DT_CONTEXT*>(pCF->GetRegisterSet()->pCallerContext))))
+        {
+            break;
+        }        
         if (iter.Next() != SWA_CONTINUE)
         {
             break;
         }
-        if (CompareControlRegisters(pCurrentContext, (reinterpret_cast<DT_CONTEXT*>(iter.m_crawl.GetRegisterSet()->pCallerContext))))
-            break;
     }
-    CrawlFrame * pCF = &(iter.m_crawl);
+    
 
     return pCF->IsInterrupted() && !pCF->HasFaulted()
            && pCF->GetFunction() && pCF->GetFunction()->IsNoMetadata() == TRUE
