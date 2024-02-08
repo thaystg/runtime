@@ -725,7 +725,7 @@ HRESULT CordbStackWalk::GetFrameWorker(ICorDebugFrame ** ppFrame)
             // By subtracting STACKWALK_CONTROLPC_ADJUST_OFFSET from nativeOffset you can get
             // an address somewhere inside CALL instruction.
             // This ensures more consistent placement of exception line highlighting in Visual Studio
-            if (!m_pCordbThread->GetThreadExceptionRawObjectHandle().IsNull() && !pJITFuncData->justAfterILThrow)
+            if ((!GetProcess()->GetShim() || !m_pCordbThread->GetThreadExceptionRawObjectHandle().IsNull()) && !pJITFuncData->justAfterILThrow)
             {
                 //try to get parent frame to check if it's a justAfterILThrow without metadata and then adjust the nativeOffset
                 if (GetProcess()->GetDAC()->IsThreadAtJustAfterILThrow(m_pCordbThread->m_vmThreadToken, &(frameData.ctx)))
