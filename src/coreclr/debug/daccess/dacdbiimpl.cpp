@@ -5557,10 +5557,8 @@ BOOL DacDbiInterfaceImpl::IsThreadAtJustAfterILThrow(VMPTR_Thread vmThread, DT_C
 
     SetUpRegdisplayForStackWalk(pThread, &ctx, &rd);
 
-    ULONG32 flags = LIGHTUNWIND;
-
     StackFrameIterator iter;
-    iter.Init(pThread, pThread->GetFrame(), &rd, flags);
+    iter.Init(pThread, pThread->GetFrame(), &rd, LIGHTUNWIND);
     CrawlFrame * pCF = NULL;
     for (int i = 0 ; i < 2 && iter.IsValid(); i++)
     {
@@ -5576,7 +5574,6 @@ BOOL DacDbiInterfaceImpl::IsThreadAtJustAfterILThrow(VMPTR_Thread vmThread, DT_C
         }
     }
     
-
     return pCF->IsInterrupted() && !pCF->HasFaulted()
            && pCF->GetFunction() && pCF->GetFunction()->IsNoMetadata() == TRUE
            && pCF->GetRelOffset() != 0;
