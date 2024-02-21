@@ -6172,7 +6172,12 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                    the stmt list with the last offset. We just need to update
                    impCurStmtDI
                  */
-
+                //we need to add a no-op before going to the next instruction to report the correct IL offset if it throws an exception
+                if ((prevOpcode == CEE_STELEM_REF || prevOpcode == CEE_CALLVIRT || prevOpcode == CEE_CALL) && opts.compDbgCode) 
+                {
+                    GenTree* placeHolder = new (this, GT_NO_OP) GenTree(GT_NO_OP, TYP_VOID);
+                    impAppendTree(placeHolder, CHECK_SPILL_NONE, impCurStmtDI);
+                }
                 impCurStmtOffsSet(opcodeOffs);
             }
             else if ((info.compStmtOffsetsImplicit & ICorDebugInfo::CALL_SITE_BOUNDARIES) &&
