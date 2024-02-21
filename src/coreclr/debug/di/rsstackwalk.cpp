@@ -728,6 +728,10 @@ HRESULT CordbStackWalk::GetFrameWorker(ICorDebugFrame ** ppFrame)
             DWORD nativeOffsetToMap = pJITFuncData->justAfterILThrow ?
                                (DWORD)pJITFuncData->nativeOffset - STACKWALK_CONTROLPC_ADJUST_OFFSET :
                                (DWORD)pJITFuncData->nativeOffset;
+            
+            if ((!GetProcess()->GetShim() || !m_pCordbThread->GetThreadExceptionRawObjectHandle().IsNull()) && !pJITFuncData->justAfterILThrow)
+                nativeOffsetToMap--;
+
             CorDebugMappingResult mappingType;
             ULONG uILOffset = pNativeCode->GetSequencePoints()->MapNativeOffsetToIL(
                     nativeOffsetToMap,
