@@ -25,6 +25,7 @@ CordbRegisterSet::CordbRegisterSet(
     bool fTakeOwnershipOfDRD /*= false*/)
   : CordbBase(pThread->GetProcess(), 0, enumCordbRegisterSet)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE( pRegDisplay != NULL );
     _ASSERTE( pThread != NULL );
     m_rd          = pRegDisplay;
@@ -47,6 +48,7 @@ CordbRegisterSet::CordbRegisterSet(
 
 void CordbRegisterSet::Neuter()
 {
+    printFuncName(__FUNCTION__);
     m_thread = NULL;
     if (m_fTakeOwnershipOfDRD)
     {
@@ -59,12 +61,14 @@ void CordbRegisterSet::Neuter()
 
 CordbRegisterSet::~CordbRegisterSet()
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(this->IsNeutered());
 }
 
 
 HRESULT CordbRegisterSet::QueryInterface(REFIID riid, void **ppInterface)
 {
+    printFuncName(__FUNCTION__);
     // <NOTE>
     // This is an exception to the rule that a QI for a higher version API should fail if
     // the debugger does not support that version of the API.  The reasoning is that
@@ -109,6 +113,7 @@ HRESULT CordbRegisterSet::QueryInterface(REFIID riid, void **ppInterface)
 //-----------------------------------------------------------------------------
 HRESULT CordbRegisterSet::GetThreadContext(ULONG32 contextSize, BYTE context[])
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -179,6 +184,7 @@ HRESULT CordbRegisterSet::GetRegistersAvailableAdapter(
     ULONG32 regCount,
     BYTE    pAvailable[])
 {
+    printFuncName(__FUNCTION__);
     // Defer to call on v1.0 interface
     HRESULT hr = S_OK;
 
@@ -231,6 +237,7 @@ HRESULT CordbRegisterSet::GetRegistersAdapter(
     ULONG32 maskCount, BYTE mask[],
     ULONG32 regCount, CORDB_REGISTER regBuffer[])
 {
+    printFuncName(__FUNCTION__);
     // Convert input mask to orig mask.
     ULONG64 maskOrig = 0;
 

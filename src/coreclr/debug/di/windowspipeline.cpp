@@ -16,16 +16,19 @@
 
 DWORD GetProcessId(const DEBUG_EVENT * pEvent)
 {
+    printFuncName(__FUNCTION__);
     return pEvent->dwProcessId;
 }
 DWORD GetThreadId(const DEBUG_EVENT * pEvent)
 {
+    printFuncName(__FUNCTION__);
     return pEvent->dwThreadId;
 }
 
 // Get exception event
 BOOL IsExceptionEvent(const DEBUG_EVENT * pEvent, BOOL * pfFirstChance, const EXCEPTION_RECORD ** ppRecord)
 {
+    printFuncName(__FUNCTION__);
     if (pEvent->dwDebugEventCode != EXCEPTION_DEBUG_EVENT)
     {
         *pfFirstChance = FALSE;
@@ -101,12 +104,14 @@ protected:
 // Allocate and return a pipeline object for this platform
 INativeEventPipeline * NewPipelineForThisPlatform()
 {
+    printFuncName(__FUNCTION__);
     return new (nothrow) WindowsNativePipeline();
 }
 
 // Call to free up the pipeline.
 void WindowsNativePipeline::Delete()
 {
+    printFuncName(__FUNCTION__);
     delete this;
 }
 
@@ -114,6 +119,7 @@ void WindowsNativePipeline::Delete()
 // set whether to kill outstanding debuggees when the debugger exits.
 BOOL WindowsNativePipeline::DebugSetProcessKillOnExit(bool fKillOnExit)
 {
+    printFuncName(__FUNCTION__);
     // Can't call kernel32!DebugSetProcessKillOnExit until after the event thread
     // has spawned a debuggee. So cache the value now and call it later.
     m_fKillOnExit = fKillOnExit;
@@ -134,6 +140,7 @@ HRESULT WindowsNativePipeline::CreateProcessUnderDebugger(
     LPSTARTUPINFOW lpStartupInfo,
     LPPROCESS_INFORMATION lpProcessInformation)
 {
+    printFuncName(__FUNCTION__);
     // This is always doing Native-debugging at the OS-level.
     dwCreationFlags |= (DEBUG_PROCESS | DEBUG_ONLY_THIS_PROCESS);
 
@@ -160,6 +167,7 @@ HRESULT WindowsNativePipeline::CreateProcessUnderDebugger(
 // Attach the debugger to this process.
 HRESULT WindowsNativePipeline::DebugActiveProcess(MachineInfo machineInfo, const ProcessDescriptor& processDescriptor)
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = E_FAIL;
     BOOL ret = ::DebugActiveProcess(processDescriptor.m_Pid);
 
@@ -179,6 +187,7 @@ HRESULT WindowsNativePipeline::DebugActiveProcess(MachineInfo machineInfo, const
 // Detach
 HRESULT WindowsNativePipeline::DebugActiveProcessStop(DWORD processId)
 {
+    printFuncName(__FUNCTION__);
     if (!::DebugActiveProcessStop(processId))
     {
         // Detach itself failed
@@ -189,6 +198,7 @@ HRESULT WindowsNativePipeline::DebugActiveProcessStop(DWORD processId)
 
 BOOL WindowsNativePipeline::WaitForDebugEvent(DEBUG_EVENT * pEvent, DWORD dwTimeout, CordbProcess * pProcess)
 {
+    printFuncName(__FUNCTION__);
     return ::WaitForDebugEvent(pEvent, dwTimeout);
 }
 
@@ -198,12 +208,14 @@ BOOL WindowsNativePipeline::ContinueDebugEvent(
   DWORD dwContinueStatus
 )
 {
+    printFuncName(__FUNCTION__);
     return ::ContinueDebugEvent(dwProcessId, dwThreadId, dwContinueStatus);
 }
 
 // Return a handle for the debuggee process.
 HANDLE WindowsNativePipeline::GetProcessHandle()
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(m_dwProcessId != 0);
 
     return ::OpenProcess(PROCESS_DUP_HANDLE        |
@@ -220,6 +232,7 @@ HANDLE WindowsNativePipeline::GetProcessHandle()
 // Terminate the debuggee process.
 BOOL WindowsNativePipeline::TerminateProcess(UINT32 exitCode)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(m_dwProcessId != 0);
 
     // Get a process handle for the process ID.

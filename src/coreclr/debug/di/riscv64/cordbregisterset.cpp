@@ -12,6 +12,7 @@
 
 HRESULT CordbRegisterSet::GetRegistersAvailable(ULONG64* pAvailable)
 {
+    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pAvailable, ULONG64 *);
 
@@ -86,6 +87,7 @@ HRESULT CordbRegisterSet::GetRegistersAvailable(ULONG64* pAvailable)
 HRESULT CordbRegisterSet::GetRegisters(ULONG64 mask, ULONG32 regCount,
                                        CORDB_REGISTER regBuffer[])
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(!"RISCV64:NYI");
     return S_OK;
 }
@@ -94,6 +96,7 @@ HRESULT CordbRegisterSet::GetRegisters(ULONG64 mask, ULONG32 regCount,
 HRESULT CordbRegisterSet::GetRegistersAvailable(ULONG32 regCount,
                                                 BYTE    pAvailable[])
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(!"RISCV64:NYI");
     return S_OK;
 }
@@ -102,6 +105,7 @@ HRESULT CordbRegisterSet::GetRegistersAvailable(ULONG32 regCount,
 HRESULT CordbRegisterSet::GetRegisters(ULONG32 maskCount, BYTE mask[],
                                        ULONG32 regCount, CORDB_REGISTER regBuffer[])
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(!"RISCV64:NYI");
     return S_OK;
 }
@@ -112,5 +116,6 @@ HRESULT CordbRegisterSet::GetRegisters(ULONG32 maskCount, BYTE mask[],
 // and the context can't be fully accurate.
 void CordbRegisterSet::InternalCopyRDToContext(DT_CONTEXT *pInputContext)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(!"RISCV64:NYI");
 }

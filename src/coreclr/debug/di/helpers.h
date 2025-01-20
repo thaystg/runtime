@@ -18,6 +18,7 @@
 template <typename TYPE>
 inline void HolderRSRelease(TYPE *value)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(value != NULL);
     value->InternalRelease();
 }
@@ -25,6 +26,7 @@ inline void HolderRSRelease(TYPE *value)
 template <typename TYPE>
 inline void HolderRSAddRef(TYPE *value)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(value != NULL);
     value->InternalAddRef();
 }
@@ -34,6 +36,7 @@ inline void HolderRSAddRef(TYPE *value)
 template <typename TYPE>
 inline void HolderRSReleaseExternal(TYPE *value)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(value != NULL);
     value->Release();
 }
@@ -41,6 +44,7 @@ inline void HolderRSReleaseExternal(TYPE *value)
 template <typename TYPE>
 inline void HolderRSAddRefExternal(TYPE *value)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(value != NULL);
     value->AddRef();
 }
@@ -52,12 +56,14 @@ inline void HolderRSAddRefExternal(TYPE *value)
 template <typename TYPE>
 inline void HolderRSUnsafeExtRelease(TYPE *value)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(value != NULL);
     value->BaseRelease();
 }
 template <typename TYPE>
 inline void HolderRSUnsafeExtAddRef(TYPE *value)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(value != NULL);
     value->BaseAddRef();
 }

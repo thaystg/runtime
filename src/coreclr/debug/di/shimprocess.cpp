@@ -35,6 +35,7 @@ ShimProcess::ShimProcess() :
     m_fIsDisposed(false),
     m_loaderBPReceived(false)
 {
+    printFuncName(__FUNCTION__);
     m_ShimLock.Init("ShimLock", RSLock::cLockReentrant, RSLock::LL_SHIM_LOCK);
     m_ShimProcessDisposeLock.Init(
         "ShimProcessDisposeLock",
@@ -76,6 +77,7 @@ ShimProcess::ShimProcess() :
 //
 ShimProcess::~ShimProcess()
 {
+    printFuncName(__FUNCTION__);
     // Expected that this was either already disposed first, or not initialized.
     _ASSERTE(m_pWin32EventThread == NULL);
 
@@ -112,6 +114,7 @@ ShimProcess::~ShimProcess()
 //
 void ShimProcess::SetProcess(ICorDebugProcess * pProcess)
 {
+    printFuncName(__FUNCTION__);
     PRIVATE_SHIM_CALLBACK_IN_THIS_SCOPE0(NULL);
 
     // Data-target should already be setup before we try to connect to a process.
@@ -149,6 +152,7 @@ void ShimProcess::SetProcess(ICorDebugProcess * pProcess)
 //
 HRESULT ShimProcess::InitializeDataTarget(const ProcessDescriptor * pProcessDescriptor)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(m_pLiveDataTarget == NULL);
 
 
@@ -178,6 +182,7 @@ HRESULT ShimProcess::InitializeDataTarget(const ProcessDescriptor * pProcessDesc
 //
 bool ShimProcess::IsWin32EventThread()
 {
+    printFuncName(__FUNCTION__);
     return (m_pWin32EventThread != NULL) && m_pWin32EventThread->IsWin32EventThread();
 }
 
@@ -187,6 +192,7 @@ bool ShimProcess::IsWin32EventThread()
 //
 void ShimProcess::AddRef()
 {
+    printFuncName(__FUNCTION__);
     InterlockedIncrement(&m_ref);
 }
 
@@ -199,6 +205,7 @@ void ShimProcess::AddRef()
 //
 void ShimProcess::Release()
 {
+    printFuncName(__FUNCTION__);
     LONG ref = InterlockedDecrement(&m_ref);
     if (ref == 0)
     {
@@ -221,6 +228,7 @@ void ShimProcess::Release()
 //
 void ShimProcess::Dispose()
 {
+    printFuncName(__FUNCTION__);
     // Serialize Dispose with any other locked access to the shim.  This helps
     // protect against the debugger detaching while we're in the middle of
     // doing stuff on the ShimProcess
@@ -302,6 +310,7 @@ void ShimProcess::Dispose()
 //    That way, we don't need to remember any state.
 void ShimProcess::TrackFileHandleForDebugEvent(const DEBUG_EVENT * pEvent)
 {
+    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -350,6 +359,7 @@ void ShimProcess::TrackFileHandleForDebugEvent(const DEBUG_EVENT * pEvent)
 //---------------------------------------------------------------------------------------
 DWORD WINAPI CallStopGoThreadProc(LPVOID parameter)
 {
+    printFuncName(__FUNCTION__);
     ICorDebugProcess* pProc = reinterpret_cast<ICorDebugProcess *>(parameter);
 
     // We expect these operations to succeed; but if they do fail, there's nothing we can really do about it.
@@ -392,6 +402,7 @@ void ShimProcess::DefaultEventHandler(
     const DEBUG_EVENT * pEvent,
     DWORD * pdwContinueStatus)
 {
+    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -506,8 +517,7 @@ void ShimProcess::DefaultEventHandler(
 //
 bool ShimProcess::ContinueStatusChangedData::IsSet()
 {
-
-    return m_dwThreadId != 0;
+    printFuncName(__FUNCTION__);    return m_dwThreadId != 0;
 }
 
 //---------------------------------------------------------------------------------------
@@ -524,6 +534,7 @@ bool ShimProcess::ContinueStatusChangedData::IsSet()
 //
 void ShimProcess::ContinueStatusChangedData::Clear()
 {
+    printFuncName(__FUNCTION__);
     m_dwThreadId = 0;
 }
 
@@ -541,6 +552,7 @@ void ShimProcess::ContinueStatusChangedData::Clear()
 // Static
 HRESULT ShimProcess::ContinueStatusChanged(void * pUserData, DWORD dwThreadId, CORDB_CONTINUE_STATUS dwContinueStatus)
 {
+    printFuncName(__FUNCTION__);
     ShimProcess * pThis = reinterpret_cast<ShimProcess *>(pUserData);
     return pThis->ContinueStatusChangedWorker(dwThreadId, dwContinueStatus);
 }
@@ -572,6 +584,7 @@ HRESULT ShimProcess::ContinueStatusChanged(void * pUserData, DWORD dwThreadId, C
 
 HRESULT ShimProcess::ContinueStatusChangedWorker(DWORD dwThreadId, CORDB_CONTINUE_STATUS dwContinueStatus)
 {
+    printFuncName(__FUNCTION__);
     // Should only be set once. This is only called on the win32 event thread, which protects against races.
     _ASSERTE(IsWin32EventThread());
     _ASSERTE(!m_ContinueStatusChangedData.IsSet());
@@ -610,6 +623,7 @@ HRESULT ShimProcess::ContinueStatusChangedWorker(DWORD dwThreadId, CORDB_CONTINU
 
 void ShimProcess::AddDuplicateCreationEvent(void * pKey)
 {
+    printFuncName(__FUNCTION__);
     NewHolder<DuplicateCreationEventEntry> pEntry(new DuplicateCreationEventEntry(pKey));
     m_pDupeEventsHashTable->Add(pEntry);
     pEntry.SuppressRelease();
@@ -637,6 +651,7 @@ void ShimProcess::AddDuplicateCreationEvent(void * pKey)
 
 bool ShimProcess::RemoveDuplicateCreationEventIfPresent(void * pKey)
 {
+    printFuncName(__FUNCTION__);
     // We only worry about duplicate events in attach scenarios.
     if (GetAttached())
     {
@@ -698,6 +713,7 @@ CorDebugRecordFormat GetHostExceptionRecordFormat()
 //---------------------------------------------------------------------------------------
 HRESULT ShimProcess::HandleWin32DebugEvent(const DEBUG_EVENT * pEvent)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(IsWin32EventThread());
 
     //
@@ -885,6 +901,7 @@ HRESULT ShimProcess::HandleWin32DebugEvent(const DEBUG_EVENT * pEvent)
 // Trivial accessor to get the event queue.
 ManagedEventQueue * ShimProcess::GetManagedEventQueue()
 {
+    printFuncName(__FUNCTION__);
     return &m_eventQueue;
 }
 
@@ -892,6 +909,7 @@ ManagedEventQueue * ShimProcess::GetManagedEventQueue()
 // that holds m_ShimProcessDisposeLock for the duration
 ManagedEvent * ShimProcess::DequeueManagedEvent()
 {
+    printFuncName(__FUNCTION__);
     // Serialize this function with Dispoe()
     RSLockHolder lockHolder(&m_ShimProcessDisposeLock);
     if (m_fIsDisposed)
@@ -903,6 +921,7 @@ ManagedEvent * ShimProcess::DequeueManagedEvent()
 // Trivial accessor to get Shim's proxy callback object.
 ShimProxyCallback * ShimProcess::GetShimCallback()
 {
+    printFuncName(__FUNCTION__);
     return m_pShimCallback;
 }
 
@@ -911,6 +930,7 @@ ShimProxyCallback * ShimProcess::GetShimCallback()
 // exposed by the ICDProcess object.
 ICorDebugProcess * ShimProcess::GetProcess()
 {
+    printFuncName(__FUNCTION__);
     return m_pIProcess;
 }
 
@@ -918,6 +938,7 @@ ICorDebugProcess * ShimProcess::GetProcess()
 // The data-target lets us access the debuggee, especially reading debuggee memory.
 ICorDebugMutableDataTarget * ShimProcess::GetDataTarget()
 {
+    printFuncName(__FUNCTION__);
     return m_pLiveDataTarget;
 };
 
@@ -926,6 +947,7 @@ ICorDebugMutableDataTarget * ShimProcess::GetDataTarget()
 // In V3, ICorDebug no longer owns the event thread and it does not own the event pipeline either.
 INativeEventPipeline * ShimProcess::GetNativePipeline()
 {
+    printFuncName(__FUNCTION__);
     return m_pWin32EventThread->GetNativePipeline();
 }
 
@@ -935,6 +957,7 @@ INativeEventPipeline * ShimProcess::GetNativePipeline()
 // see code:ShimProcess::GetNativePipeline.
 CordbWin32EventThread * ShimProcess::GetWin32EventThread()
 {
+    printFuncName(__FUNCTION__);
     return m_pWin32EventThread;
 }
 
@@ -943,6 +966,7 @@ CordbWin32EventThread * ShimProcess::GetWin32EventThread()
 // Retrieved via code:ShimProcess::IsInteropDebugging
 void ShimProcess::SetIsInteropDebugging(bool fIsInteropDebugging)
 {
+    printFuncName(__FUNCTION__);
     m_fIsInteropDebugging = fIsInteropDebugging;
 }
 
@@ -951,6 +975,7 @@ void ShimProcess::SetIsInteropDebugging(bool fIsInteropDebugging)
 // The significant usage of this is in code:ShimProcess::HandleWin32DebugEvent
 bool ShimProcess::IsInteropDebugging()
 {
+    printFuncName(__FUNCTION__);
     return m_fIsInteropDebugging;
 }
 
@@ -966,6 +991,7 @@ bool ShimProcess::IsInteropDebugging()
 //    the rest of the fake attach events.
 void ShimProcess::BeginQueueFakeAttachEvents()
 {
+    printFuncName(__FUNCTION__);
     m_fNeedFakeAttachEvents = true;
 
     // Put a fake CreateProcess event in the queue.
@@ -985,6 +1011,7 @@ void ShimProcess::BeginQueueFakeAttachEvents()
 //    See code:ShimProcess::QueueFakeAttachEvents for details.
 void ShimProcess::QueueFakeAttachEventsIfNeeded(bool fRealCreateProcessEvent)
 {
+    printFuncName(__FUNCTION__);
     // This was set high in code:ShimProcess::BeginQueueFakeAttachEvents
     if (!m_fNeedFakeAttachEvents)
     {
@@ -1024,6 +1051,7 @@ void ShimProcess::QueueFakeAttachEventsIfNeeded(bool fRealCreateProcessEvent)
 //
 HRESULT ShimProcess::QueueFakeThreadAttachEventsNoOrder()
 {
+    printFuncName(__FUNCTION__);
     ICorDebugProcess * pProcess = GetProcess();
 
     RSExtSmartPtr<ICorDebugThreadEnum> pThreadEnum;
@@ -1072,6 +1100,7 @@ HRESULT ShimProcess::QueueFakeThreadAttachEventsNoOrder()
 //   assembly. Most assemblies only have 1 module.
 void ShimProcess::QueueFakeAssemblyAndModuleEvent(ICorDebugAssembly * pAssembly)
 {
+    printFuncName(__FUNCTION__);
     RSExtSmartPtr<ICorDebugAppDomain> pAppDomain;
 
     HRESULT hr = pAssembly->GetAppDomain(&pAppDomain);
@@ -1182,6 +1211,7 @@ void ShimProcess::QueueFakeAssemblyAndModuleEvent(ICorDebugAssembly * pAssembly)
 //
 HRESULT GetSortedAppDomains(ICorDebugProcess * pProcess, RSExtSmartPtr<ICorDebugAppDomain> **ppAppDomains, ULONG * pCount)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(ppAppDomains != NULL);
 
     HRESULT hr = S_OK;
@@ -1257,6 +1287,7 @@ HRESULT GetSortedAppDomains(ICorDebugProcess * pProcess, RSExtSmartPtr<ICorDebug
 //   This may be called on the Win32Event Thread from inside of Filter, or on another thread.
 void ShimProcess::QueueFakeAttachEvents()
 {
+    printFuncName(__FUNCTION__);
     // Serialize this function with Dispose()
     RSLockHolder lockHolder(&m_ShimProcessDisposeLock);
     if (m_fIsDisposed)
@@ -1368,6 +1399,7 @@ void ShimProcess::QueueFakeAttachEvents()
 // Accessor for m_attached.
 bool ShimProcess::GetAttached()
 {
+    printFuncName(__FUNCTION__);
     return m_attached;
 }
 // We need to know whether we are in the CreateProcess callback to be able to
@@ -1377,11 +1409,13 @@ bool ShimProcess::GetAttached()
 // Expose m_fInCreateProcess
 bool ShimProcess::GetInCreateProcess()
 {
+    printFuncName(__FUNCTION__);
     return m_fInCreateProcess;
 }
 
 void ShimProcess::SetInCreateProcess(bool value)
 {
+    printFuncName(__FUNCTION__);
     m_fInCreateProcess = value;
 }
 
@@ -1392,18 +1426,21 @@ void ShimProcess::SetInCreateProcess(bool value)
 // Expose m_fInLoadModule
 bool ShimProcess::GetInLoadModule()
 {
+    printFuncName(__FUNCTION__);
     return m_fInLoadModule;
 
 }
 
 void ShimProcess::SetInLoadModule(bool value)
 {
+    printFuncName(__FUNCTION__);
     m_fInLoadModule = value;
 }
 
 // When we get a continue, we need to clear the flags indicating we're still in a callback
 void ShimProcess::NotifyOnContinue ()
 {
+    printFuncName(__FUNCTION__);
     m_fInCreateProcess = false;
     m_fInLoadModule = false;
 }
@@ -1411,6 +1448,7 @@ void ShimProcess::NotifyOnContinue ()
 // The RS calls this function when the stack is about to be changed in any way, e.g. continue, SetIP, etc.
 void ShimProcess::NotifyOnStackInvalidate()
 {
+    printFuncName(__FUNCTION__);
     ClearAllShimStackWalk();
 }
 
@@ -1424,6 +1462,7 @@ void ShimProcess::NotifyOnStackInvalidate()
 //    hresult V2 would have returned in same situation.
 HRESULT ShimProcess::FilterSetNgenHresult(HRESULT hr)
 {
+    printFuncName(__FUNCTION__);
     if ((hr == CORDBG_E_MUST_BE_IN_CREATE_PROCESS) && !m_fInCreateProcess)
     {
         return hr;
@@ -1446,6 +1485,7 @@ HRESULT ShimProcess::FilterSetNgenHresult(HRESULT hr)
 //    hresult V2 would have returned in same situation.
 HRESULT ShimProcess::FilterSetJitFlagsHresult(HRESULT hr)
 {
+    printFuncName(__FUNCTION__);
     if ((hr == CORDBG_E_MUST_BE_IN_LOAD_MODULE) && !m_fInLoadModule)
     {
         return hr;
@@ -1484,6 +1524,7 @@ HRESULT ShimProcess::FilterSetJitFlagsHresult(HRESULT hr)
 
 ShimStackWalk * ShimProcess::LookupOrCreateShimStackWalk(ICorDebugThread * pThread)
 {
+    printFuncName(__FUNCTION__);
     ShimStackWalk * pSW = NULL;
 
     {
@@ -1532,6 +1573,7 @@ ShimStackWalk * ShimProcess::LookupOrCreateShimStackWalk(ICorDebugThread * pThre
 
 void ShimProcess::ClearAllShimStackWalk()
 {
+    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(&m_ShimLock);
 
     // loop through all the entries in the hash table, remove them, and delete them
@@ -1559,6 +1601,7 @@ void ShimProcess::ClearAllShimStackWalk()
 //    event has been queued.
 void ShimProcess::PreDispatchEvent(bool fRealCreateProcessEvent /*= false*/)
 {
+    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -1604,6 +1647,7 @@ void ShimProcess::PreDispatchEvent(bool fRealCreateProcessEvent /*= false*/)
 
 HMODULE ShimProcess::GetDacModule(PathString& dacModulePath)
 {
+    printFuncName(__FUNCTION__);
     HMODULE hDacDll;
     PathString wszAccessDllPath(dacModulePath);
 
@@ -1639,27 +1683,32 @@ HMODULE ShimProcess::GetDacModule(PathString& dacModulePath)
 
 MachineInfo ShimProcess::GetMachineInfo()
 {
+    printFuncName(__FUNCTION__);
     return m_machineInfo;
 }
 
 void ShimProcess::SetMarkAttachPendingEvent()
 {
+    printFuncName(__FUNCTION__);
     SetEvent(m_markAttachPendingEvent);
 }
 
 void ShimProcess::SetTerminatingEvent()
 {
+    printFuncName(__FUNCTION__);
     SetEvent(m_terminatingEvent);
 }
 
 RSLock * ShimProcess::GetShimLock()
 {
+    printFuncName(__FUNCTION__);
     return &m_ShimLock;
 }
 
 
 bool ShimProcess::IsThreadSuspendedOrHijacked(ICorDebugThread * pThread)
 {
+    printFuncName(__FUNCTION__);
     return m_pProcess->IsThreadSuspendedOrHijacked(pThread);
 }
 

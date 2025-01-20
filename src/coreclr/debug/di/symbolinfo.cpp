@@ -12,11 +12,13 @@
 
 SymbolInfo::SymbolInfo()
 {
+    printFuncName(__FUNCTION__);
     m_cRef=1;
 }
 
 SymbolInfo::~SymbolInfo()
 {
+    printFuncName(__FUNCTION__);
     for (COUNT_T i = 0;i < m_Documents.GetCount();i++)
     {
         if (m_Documents.Get(i) != NULL)
@@ -26,6 +28,7 @@ SymbolInfo::~SymbolInfo()
 
 HRESULT SymbolInfo::AddDocument(DWORD id, ISymUnmanagedDocumentWriter* pDocument)
 {
+    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         NOTHROW;
@@ -47,6 +50,7 @@ HRESULT SymbolInfo::AddDocument(DWORD id, ISymUnmanagedDocumentWriter* pDocument
 
 HRESULT SymbolInfo::MapDocument(DWORD id, ISymUnmanagedDocumentWriter** pDocument)
 {
+    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         NOTHROW;
@@ -67,6 +71,7 @@ HRESULT SymbolInfo::MapDocument(DWORD id, ISymUnmanagedDocumentWriter** pDocumen
 
 HRESULT SymbolInfo::SetClassProps(mdToken cls, DWORD flags, LPCWSTR wszName, mdToken parent)
 {
+    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         NOTHROW;
@@ -89,6 +94,7 @@ HRESULT SymbolInfo::SetClassProps(mdToken cls, DWORD flags, LPCWSTR wszName, mdT
 
 HRESULT SymbolInfo::AddSignature(SBuffer& sig, mdSignature token)
 {
+    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         NOTHROW;
@@ -112,18 +118,21 @@ HRESULT SymbolInfo::AddSignature(SBuffer& sig, mdSignature token)
 
 SymbolInfo::ClassProps* SymbolInfo::FindClass(mdToken cls)
 {
+    printFuncName(__FUNCTION__);
     WRAPPER_NO_CONTRACT;
     return m_Classes.Lookup(cls);
 }
 
 SymbolInfo::SignatureProps* SymbolInfo::FindSignature(SBuffer& sig)
 {
+    printFuncName(__FUNCTION__);
     WRAPPER_NO_CONTRACT;
     return m_Signatures.Lookup(sig);
 }
 
 HRESULT SymbolInfo::AddScope(ULONG32 left, ULONG32 right)
 {
+    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         NOTHROW;
@@ -147,6 +156,7 @@ HRESULT SymbolInfo::AddScope(ULONG32 left, ULONG32 right)
 
 HRESULT SymbolInfo::MapScope(ULONG32 left, ULONG32* pRight)
 {
+    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         NOTHROW;
@@ -167,6 +177,7 @@ HRESULT SymbolInfo::MapScope(ULONG32 left, ULONG32* pRight)
 
 HRESULT SymbolInfo::SetMethodProps(mdToken method, mdToken cls, LPCWSTR wszName)
 {
+    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         NOTHROW;
@@ -189,6 +200,7 @@ HRESULT SymbolInfo::SetMethodProps(mdToken method, mdToken cls, LPCWSTR wszName)
 // IUnknown methods
 STDMETHODIMP SymbolInfo::QueryInterface (REFIID riid, LPVOID * ppvObj)
 {
+    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         NOTHROW;
@@ -215,12 +227,14 @@ STDMETHODIMP SymbolInfo::QueryInterface (REFIID riid, LPVOID * ppvObj)
 
 STDMETHODIMP_(ULONG) SymbolInfo::AddRef ()
 {
+    printFuncName(__FUNCTION__);
     LIMITED_METHOD_CONTRACT;
     return InterlockedIncrement(&m_cRef);
 }
 
 STDMETHODIMP_(ULONG) SymbolInfo::Release ()
 {
+    printFuncName(__FUNCTION__);
     LIMITED_METHOD_CONTRACT;
     ULONG retval=InterlockedDecrement(&m_cRef);
     if(retval==0)
@@ -372,17 +386,20 @@ STDMETHODIMP SymbolInfo::GetTokenFromSig (             // S_OK or error.
 
 STDMETHODIMP_(void) SymbolInfo::CloseEnum (HCORENUM hEnum)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(!"NYI");
 }
 
 STDMETHODIMP SymbolInfo::CountEnum (HCORENUM hEnum, ULONG *pulCount)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(!"NYI");
     return E_NOTIMPL;
 }
 
 STDMETHODIMP SymbolInfo::ResetEnum (HCORENUM hEnum, ULONG ulPos)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(!"NYI");
     return E_NOTIMPL;
 }
@@ -390,6 +407,7 @@ STDMETHODIMP SymbolInfo::ResetEnum (HCORENUM hEnum, ULONG ulPos)
 STDMETHODIMP SymbolInfo::EnumTypeDefs (HCORENUM *phEnum, mdTypeDef rTypeDefs[],
                         ULONG cMax, ULONG *pcTypeDefs)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(!"NYI");
     return E_NOTIMPL;
 }
@@ -398,6 +416,7 @@ STDMETHODIMP SymbolInfo::EnumInterfaceImpls (HCORENUM *phEnum, mdTypeDef td,
                         mdInterfaceImpl rImpls[], ULONG cMax,
                         ULONG* pcImpls)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(!"NYI");
     return E_NOTIMPL;
 }
@@ -405,6 +424,7 @@ STDMETHODIMP SymbolInfo::EnumInterfaceImpls (HCORENUM *phEnum, mdTypeDef td,
 STDMETHODIMP SymbolInfo::EnumTypeRefs (HCORENUM *phEnum, mdTypeRef rTypeRefs[],
                         ULONG cMax, ULONG* pcTypeRefs)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(!"NYI");
     return E_NOTIMPL;
 }
@@ -460,6 +480,7 @@ STDMETHODIMP SymbolInfo::GetTypeRefProps (             // S_OK or error.
 
 STDMETHODIMP SymbolInfo::ResolveTypeRef (mdTypeRef tr, REFIID riid, IUnknown **ppIScope, mdTypeDef *ptd)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(!"NYI");
     return E_NOTIMPL;
 }
@@ -1470,6 +1491,7 @@ STDMETHODIMP SymbolInfo::SetMethodImplFlags (          // [IN] S_OK or error.
     mdMethodDef md,                     // [IN] Method for which to set ImplFlags
     DWORD       dwImplFlags)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(!"NYI");
     return E_NOTIMPL;
 }

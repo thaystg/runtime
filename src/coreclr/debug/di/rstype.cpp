@@ -29,6 +29,7 @@ HRESULT CordbType::GetStaticFieldValue(mdFieldDef fieldDef,
                                        ICorDebugFrame * pFrame,
                                        ICorDebugValue ** ppValue)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppValue, ICorDebugValue **);
@@ -128,6 +129,7 @@ CordbType::CordbType(CordbAppDomain *appdomain, CorElementType et, unsigned int 
   m_objectSize(0),
   m_fieldInfoNeedsInit(TRUE)
 {
+    printFuncName(__FUNCTION__);
     m_typeHandleExact = VMPTR_TypeHandle::NullPtr();
 
     _ASSERTE(m_elementType != ELEMENT_TYPE_VALUETYPE);
@@ -157,6 +159,7 @@ CordbType::CordbType(CordbAppDomain *appdomain, CorElementType et, CordbClass *c
   m_objectSize(0),
   m_fieldInfoNeedsInit(TRUE)
 {
+    printFuncName(__FUNCTION__);
     m_typeHandleExact = VMPTR_TypeHandle::NullPtr();
     _ASSERTE(m_elementType != ELEMENT_TYPE_VALUETYPE);
 
@@ -201,6 +204,7 @@ CordbType::CordbType(CordbType *tycon, CordbType *tyarg)
 
 ULONG STDMETHODCALLTYPE CordbType::AddRef()
 {
+    printFuncName(__FUNCTION__);
     // This AddRef/Release pair creates a weak ref-counted reference to the class for this
     // type.  This avoids a circularity in ref-counted references between
     // classes and types - if we had a circularity the objects would never get
@@ -211,6 +215,7 @@ ULONG STDMETHODCALLTYPE CordbType::AddRef()
 }
 ULONG STDMETHODCALLTYPE CordbType::Release()
 {
+    printFuncName(__FUNCTION__);
     //  if (m_class)
     //  m_class->Release();
     return (BaseRelease());
@@ -231,6 +236,7 @@ ULONG STDMETHODCALLTYPE CordbType::Release()
 //-----------------------------------------------------------------------------
 CordbType::~CordbType()
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(IsNeutered());
 }
 
@@ -240,6 +246,7 @@ CordbType::~CordbType()
 //-----------------------------------------------------------------------------
 void CordbType::Neuter()
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(GetProcess()->GetProcessLock()->HasLock());
 
     // We have some direct releases below. If we call Neuter twice, that could
@@ -273,6 +280,7 @@ void CordbType::Neuter()
 //-----------------------------------------------------------------------------
 HRESULT CordbType::QueryInterface(REFIID id, void **pInterface)
 {
+    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugType)
         *pInterface = static_cast<ICorDebugType*>(this);
     else if (id == IID_ICorDebugType2)
@@ -315,6 +323,7 @@ HRESULT CordbType::MkType(CordbAppDomain * pAppDomain,
                           CorElementType elementType,
                           CordbType ** ppResultType)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(pAppDomain != NULL);
     _ASSERTE(ppResultType != NULL);
 
@@ -417,6 +426,7 @@ HRESULT CordbType::MkType(CordbAppDomain *pAppDomain,
                           CordbType * pType,
                           CordbType ** ppResultType)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(pAppDomain != NULL);
     _ASSERTE(ppResultType != NULL);
 
@@ -496,6 +506,7 @@ HRESULT CordbType::MkTyAppType(CordbAppDomain * pAppDomain,
                                const Instantiation * pInst,
                                CordbType ** ppResultType)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(pAppDomain == pType->GetAppDomain());
 
     CordbType * pCordbType = pType;
@@ -576,6 +587,7 @@ HRESULT CordbType::MkType(CordbAppDomain * pAppDomain,
                           const Instantiation * pInst,
                           CordbType ** ppResultType)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(pAppDomain != NULL);
     _ASSERTE(ppResultType != NULL);
 
@@ -648,6 +660,7 @@ HRESULT CordbType::MkType(CordbAppDomain * pAppDomain,
                           const Instantiation * pInst,
                           CordbType ** ppResultType)
 {
+    printFuncName(__FUNCTION__);
     CordbType * pType;
 
     _ASSERTE(elementType == ELEMENT_TYPE_FNPTR);
@@ -673,6 +686,7 @@ HRESULT CordbType::MkType(CordbAppDomain * pAppDomain,
 //-----------------------------------------------------------------------------
 HRESULT CordbType::GetType(CorElementType *pType)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     // See if this E_T_CLASS is really a value type?
@@ -716,6 +730,7 @@ HRESULT CordbType::GetType(CorElementType *pType)
 //-----------------------------------------------------------------------------
 HRESULT CordbType::GetClass(ICorDebugClass **pClass)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
 
@@ -745,6 +760,7 @@ HRESULT CordbType::GetClass(ICorDebugClass **pClass)
 //-----------------------------------------------------------------------------
 HRESULT CordbType::GetRank(ULONG32 *pnRank)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(pnRank, ULONG32 *);
 
@@ -769,6 +785,7 @@ HRESULT CordbType::GetRank(ULONG32 *pnRank)
 //-----------------------------------------------------------------------------
 HRESULT CordbType::GetFirstTypeParameter(ICorDebugType **pType)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(pType, ICorDebugType **);
 
@@ -800,6 +817,7 @@ HRESULT CordbType::GetFirstTypeParameter(ICorDebugType **pType)
 //-----------------------------------------------------------------------------
 HRESULT CordbType::MkUnparameterizedType(CordbAppDomain *appdomain, CorElementType et, CordbClass *cl,CordbType **pRes)
 {
+    printFuncName(__FUNCTION__);
     // Pass in empty instantiation since CordbClass has no generic info.
     // We should make some assert between et and cl->GetType().
     Instantiation emptyInstantiation;
@@ -818,6 +836,7 @@ HRESULT CordbType::MkUnparameterizedType(CordbAppDomain *appdomain, CorElementTy
 void
 CordbType::DestUnaryType(CordbType **pRes)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(m_elementType == ELEMENT_TYPE_PTR
         || m_elementType == ELEMENT_TYPE_BYREF
         || m_elementType == ELEMENT_TYPE_ARRAY
@@ -835,6 +854,7 @@ CordbType::DestUnaryType(CordbType **pRes)
 void
 CordbType::DestConstructedType(CordbClass **cls, Instantiation *inst)
 {
+    printFuncName(__FUNCTION__);
     ASSERT(m_elementType == ELEMENT_TYPE_CLASS);
     *cls = m_pClass;
     *inst = m_inst;
@@ -846,6 +866,7 @@ CordbType::DestConstructedType(CordbClass **cls, Instantiation *inst)
 void
 CordbType::DestNaryType(Instantiation *inst)
 {
+    printFuncName(__FUNCTION__);
     ASSERT(m_elementType == ELEMENT_TYPE_FNPTR);
     *inst = m_inst;
 }
@@ -878,6 +899,7 @@ CordbType::SigToType(CordbModule * pModule,
                      const Instantiation * pInst,
                      CordbType ** ppResultType)
 {
+    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(pModule);
     INTERNAL_SYNC_API_ENTRY(pModule->GetProcess());
 
@@ -1140,6 +1162,7 @@ CordbType::SigToType(CordbModule * pModule,
 //-----------------------------------------------------------------------------
 HRESULT CordbType::TypeDataToType(CordbAppDomain *pAppDomain, DebuggerIPCE_BasicTypeData *data, CordbType **pRes)
 {
+    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(pAppDomain);
     INTERNAL_SYNC_API_ENTRY(pAppDomain->GetProcess()); //
 
@@ -1213,6 +1236,7 @@ HRESULT CordbType::TypeDataToType(CordbAppDomain *pAppDomain, DebuggerIPCE_Basic
 //-----------------------------------------------------------------------------
 HRESULT CordbType::TypeDataToType(CordbAppDomain *pAppDomain, DebuggerIPCE_ExpandedTypeData *data, CordbType **pRes)
 {
+    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(pAppDomain->GetProcess()); //
 
     CorElementType et = data->elementType;
@@ -1357,6 +1381,7 @@ HRESULT CordbType::InstantiateFromTypeHandle(CordbAppDomain * pAppDomain,
                                              CordbClass *     typeConstructor,
                                              CordbType **     pResultType)
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     // Should already by synced by caller.
@@ -1415,6 +1440,7 @@ HRESULT CordbType::InstantiateFromTypeHandle(CordbAppDomain * pAppDomain,
 //-----------------------------------------------------------------------------
 HRESULT CordbType::Init(BOOL fForceInit)
 {
+    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(GetProcess()); //
 
     HRESULT hr = S_OK;
@@ -1530,8 +1556,7 @@ HRESULT CordbType::Init(BOOL fForceInit)
 //-----------------------------------------------------------------------------
 HRESULT CordbType::InitInstantiationTypeHandle(BOOL fForceInit)
 {
-
-    // Check if we've already done this Init
+    printFuncName(__FUNCTION__);    // Check if we've already done this Init
     if (!fForceInit && !m_typeHandleExact.IsNull())
         return S_OK;
 
@@ -1593,6 +1618,7 @@ HRESULT CordbType::InitInstantiationTypeHandle(BOOL fForceInit)
 
 HRESULT CordbType::InitStringOrObjectClass(BOOL fForceInit)
 {
+    printFuncName(__FUNCTION__);
     // This CordbType is a non-generic class, either System.String or System.Object.
     // Need to find the CordbClass instance (in the proper AppDomain) that matches that type.
 
@@ -1653,6 +1679,7 @@ HRESULT CordbType::InitStringOrObjectClass(BOOL fForceInit)
 //-----------------------------------------------------------------------------
 HRESULT CordbType::InitInstantiationFieldInfo(BOOL fForceInit)
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     // Check if we've already done this Init
@@ -1718,6 +1745,7 @@ HRESULT CordbType::InitInstantiationFieldInfo(BOOL fForceInit)
 
 HRESULT CordbType::ReturnedByValue()
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     if (!IsValueType())
@@ -1825,6 +1853,7 @@ HRESULT CordbType::ReturnedByValue()
 HRESULT
 CordbType::GetUnboxedObjectSize(ULONG32 *pObjectSize)
 {
+    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(GetProcess()); //
 
     HRESULT hr = S_OK;
@@ -1878,6 +1907,7 @@ CordbType::GetUnboxedObjectSize(ULONG32 *pObjectSize)
 
 VMPTR_DomainAssembly CordbType::GetDomainAssembly()
 {
+    printFuncName(__FUNCTION__);
     if (m_pClass != NULL)
     {
         CordbModule * pModule = m_pClass->GetModule();
@@ -1899,6 +1929,7 @@ VMPTR_DomainAssembly CordbType::GetDomainAssembly()
 
 VMPTR_Module CordbType::GetModule()
 {
+    printFuncName(__FUNCTION__);
     if (m_pClass != NULL)
     {
         CordbModule * pModule = m_pClass->GetModule();
@@ -1929,6 +1960,7 @@ VMPTR_Module CordbType::GetModule()
 //-----------------------------------------------------------------------------
 HRESULT CordbType::TypeToBasicTypeData(DebuggerIPCE_BasicTypeData *data)
 {
+    printFuncName(__FUNCTION__);
     switch (m_elementType)
     {
     case ELEMENT_TYPE_ARRAY:
@@ -1980,8 +2012,7 @@ HRESULT CordbType::TypeToBasicTypeData(DebuggerIPCE_BasicTypeData *data)
 //-----------------------------------------------------------------------------
 void CordbType::TypeToExpandedTypeData(DebuggerIPCE_ExpandedTypeData *data)
 {
-
-    switch (m_elementType)
+    printFuncName(__FUNCTION__);    switch (m_elementType)
     {
     case ELEMENT_TYPE_ARRAY:
     case ELEMENT_TYPE_SZARRAY:
@@ -2054,6 +2085,7 @@ bool CordbType::IsValueType()
 //------------------------------------------------------------------------
 CordbType * CordbType::GetPointerElementType()
 {
+    printFuncName(__FUNCTION__);
     if ((m_elementType != ELEMENT_TYPE_PTR) && (m_elementType != ELEMENT_TYPE_BYREF))
     {
         return NULL;
@@ -2078,6 +2110,7 @@ CordbType * CordbType::GetPointerElementType()
 //------------------------------------------------------------------------
 static inline bool IsElementTypeNonGcRoot(CorElementType et)
 {
+    printFuncName(__FUNCTION__);
     // Functon ptrs are raw data, not GC-roots.
     if (et == ELEMENT_TYPE_FNPTR)
     {
@@ -2102,6 +2135,7 @@ static inline bool IsElementTypeNonGcRoot(CorElementType et)
 //------------------------------------------------------------------------
 static inline bool _IsNonGCRootHelper(CordbType * pType)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(pType != NULL);
 
     CorElementType et = pType->GetElementType();
@@ -2138,6 +2172,7 @@ static inline bool _IsNonGCRootHelper(CordbType * pType)
 //-----------------------------------------------------------------------------
 bool CordbType::IsGCRoot()
 {
+    printFuncName(__FUNCTION__);
     // If it's a E_T_PTR type, then check its pointer type.
     CordbType * pPtr = this->GetPointerElementType();
     if (pPtr == NULL)
@@ -2159,6 +2194,7 @@ bool CordbType::IsGCRoot()
 //------------------------------------------------------------------------
 HRESULT CordbType::EnumerateTypeParameters(ICorDebugTypeEnum **ppTypeParameterEnum)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(ppTypeParameterEnum, ICorDebugTypeEnum **);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -2189,6 +2225,7 @@ HRESULT CordbType::EnumerateTypeParameters(ICorDebugTypeEnum **ppTypeParameterEn
 //
 HRESULT CordbType::GetBase(ICorDebugType ** ppType)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     ATT_ALLOW_LIVE_DO_STOPGO(this->GetProcess()); // @todo - can this by RequiredStopped?
 
@@ -2298,6 +2335,7 @@ HRESULT CordbType::GetBase(ICorDebugType ** ppType)
 //
 HRESULT CordbType::GetTypeID(COR_TYPEID *pId)
 {
+    printFuncName(__FUNCTION__);
     LOG((LF_CORDB, LL_INFO1000, "GetTypeID\n"));
     if (pId == NULL)
         return E_POINTER;
@@ -2417,6 +2455,7 @@ HRESULT CordbType::GetTypeID(COR_TYPEID *pId)
 //-----------------------------------------------------------------------------
 HRESULT CordbType::GetFieldInfo(mdFieldDef fldToken, FieldData ** ppFieldData)
 {
+    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(GetProcess()); //
     HRESULT hr = S_OK;
 
@@ -2490,6 +2529,7 @@ HRESULT CordbType::GetFieldInfo(mdFieldDef fldToken, FieldData ** ppFieldData)
 //-----------------------------------------------------------------------------
 HRESULT CordbType::GetParentType(CordbClass *baseClass, CordbType **ppRes)
 {
+    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(GetProcess()); //
 
     // Ensure that we're not trying to match up against a neutered class.
@@ -2603,6 +2643,7 @@ void CordbType::CountTypeDataNodes(unsigned int *count)
 //-----------------------------------------------------------------------------
 void CordbType::CountTypeDataNodesForInstantiation(unsigned int genericArgsCount, ICorDebugType *genericArgs[], unsigned int *count)
 {
+    printFuncName(__FUNCTION__);
     for (unsigned int i = 0; i < genericArgsCount; i++)
     {
         (static_cast<CordbType *>(genericArgs[i]))->CountTypeDataNodes(count);
@@ -2646,6 +2687,7 @@ void CordbType::GatherTypeData(CordbType *type, DebuggerIPCE_TypeArgData **curr_
 //-----------------------------------------------------------------------------
 void CordbType::GatherTypeDataForInstantiation(unsigned int genericArgsCount, ICorDebugType *genericArgs[], DebuggerIPCE_TypeArgData **curr_tyargData)
 {
+    printFuncName(__FUNCTION__);
     for (unsigned int i = 0; i < genericArgsCount; i++)
     {
         GatherTypeData(static_cast<CordbType *> (genericArgs[i]), curr_tyargData);
@@ -2657,6 +2699,7 @@ void CordbType::GatherTypeDataForInstantiation(unsigned int genericArgsCount, IC
 // was adapted from AdjustArgPtrForAlignment() in bcltype/VarArgsNative.cpp
 HRESULT CordbType::RequiresAlign8(BOOL* isRequired)
 {
+    printFuncName(__FUNCTION__);
     if (isRequired == NULL)
         return E_INVALIDARG;
 
@@ -2703,11 +2746,13 @@ HRESULT CordbType::RequiresAlign8(BOOL* isRequired)
 // Factory methods
 CordbTypeEnum* CordbTypeEnum::Build(CordbAppDomain * pAppDomain, NeuterList * pNeuterList, unsigned int cTypars, CordbType **ppTypars)
 {
+    printFuncName(__FUNCTION__);
     return BuildImpl( pAppDomain, pNeuterList, cTypars, ppTypars );
 }
 
 CordbTypeEnum* CordbTypeEnum::Build(CordbAppDomain * pAppDomain, NeuterList * pNeuterList, unsigned int cTypars, RSSmartPtr<CordbType> *ppTypars)
 {
+    printFuncName(__FUNCTION__);
     return BuildImpl( pAppDomain, pNeuterList, cTypars, ppTypars );
 }
 
@@ -2720,6 +2765,7 @@ CordbTypeEnum* CordbTypeEnum::Build(CordbAppDomain * pAppDomain, NeuterList * pN
 //-----------------------------------------------------------------------------
 template<class T> CordbTypeEnum* CordbTypeEnum::BuildImpl(CordbAppDomain * pAppDomain, NeuterList * pNeuterList, unsigned int cTypars, T* ppTypars)
 {
+    printFuncName(__FUNCTION__);
     CordbTypeEnum* newEnum = new (nothrow) CordbTypeEnum( pAppDomain, pNeuterList );
     if( NULL == newEnum )
     {
@@ -2750,6 +2796,7 @@ CordbTypeEnum::CordbTypeEnum(CordbAppDomain * pAppDomain, NeuterList * pNeuterLi
     m_iCurrent(0),
     m_iMax(0)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(pAppDomain != NULL);
     _ASSERTE(pNeuterList != NULL);
 
@@ -2766,11 +2813,13 @@ CordbTypeEnum::CordbTypeEnum(CordbAppDomain * pAppDomain, NeuterList * pNeuterLi
 
 CordbTypeEnum::~CordbTypeEnum()
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(this->IsNeutered());
 }
 
 void CordbTypeEnum::Neuter()
 {
+    printFuncName(__FUNCTION__);
     delete [] m_ppTypars;
     m_ppTypars = NULL;
     m_pAppDomain = NULL;
@@ -2781,6 +2830,7 @@ void CordbTypeEnum::Neuter()
 
 HRESULT CordbTypeEnum::QueryInterface(REFIID id, void **pInterface)
 {
+    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugEnum)
         *pInterface = static_cast<ICorDebugEnum*>(this);
     else if (id == IID_ICorDebugTypeEnum)
@@ -2799,6 +2849,7 @@ HRESULT CordbTypeEnum::QueryInterface(REFIID id, void **pInterface)
 
 HRESULT CordbTypeEnum::Skip(ULONG celt)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -2816,6 +2867,7 @@ HRESULT CordbTypeEnum::Skip(ULONG celt)
 
 HRESULT CordbTypeEnum::Reset(void)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -2826,6 +2878,7 @@ HRESULT CordbTypeEnum::Reset(void)
 
 HRESULT CordbTypeEnum::Clone(ICorDebugEnum **ppEnum)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -2852,6 +2905,7 @@ LExit:
 
 HRESULT CordbTypeEnum::GetCount(ULONG *pcelt)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -2873,6 +2927,7 @@ HRESULT CordbTypeEnum::GetCount(ULONG *pcelt)
 // of individual failures.
 HRESULT CordbTypeEnum::Next(ULONG celt, ICorDebugType *values[], ULONG *pceltFetched)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());

@@ -16,16 +16,19 @@
 
 DWORD GetProcessId(const DEBUG_EVENT * pEvent)
 {
+    printFuncName(__FUNCTION__);
     return pEvent->dwProcessId;
 }
 DWORD GetThreadId(const DEBUG_EVENT * pEvent)
 {
+    printFuncName(__FUNCTION__);
     return pEvent->dwThreadId;
 }
 
 // Get exception event
 BOOL IsExceptionEvent(const DEBUG_EVENT * pEvent, BOOL * pfFirstChance, const EXCEPTION_RECORD ** ppRecord)
 {
+    printFuncName(__FUNCTION__);
     if (pEvent->dwDebugEventCode != EXCEPTION_DEBUG_EVENT)
     {
         *pfFirstChance = FALSE;
@@ -164,18 +167,21 @@ private:
 // Allocate and return a pipeline object for this platform
 INativeEventPipeline * NewPipelineForThisPlatform()
 {
+    printFuncName(__FUNCTION__);
     return new (nothrow) DbgTransportPipeline();
 }
 
 // Call to free up the lpProcessInformationpeline.
 void DbgTransportPipeline::Delete()
 {
+    printFuncName(__FUNCTION__);
     delete this;
 }
 
 // set whether to kill outstanding debuggees when the debugger exits.
 BOOL DbgTransportPipeline::DebugSetProcessKillOnExit(bool fKillOnExit)
 {
+    printFuncName(__FUNCTION__);
     // This is not supported or necessary for Mac debugging.  The only reason we need this on Windows is to
     // ask the OS not to terminate the debuggee when the debugger exits.  The Mac debugging pipeline doesn't
     // automatically kill the debuggee when the debugger exits.
@@ -196,6 +202,7 @@ HRESULT DbgTransportPipeline::CreateProcessUnderDebugger(
     LPSTARTUPINFOW lpStartupInfo,
     LPPROCESS_INFORMATION lpProcessInformation)
 {
+    printFuncName(__FUNCTION__);
     // INativeEventPipeline has a 1:1 relationship with CordbProcess.
     _ASSERTE(!IsTransportRunning());
 
@@ -286,6 +293,7 @@ HRESULT DbgTransportPipeline::CreateProcessUnderDebugger(
 // Attach the debugger to this process.
 HRESULT DbgTransportPipeline::DebugActiveProcess(MachineInfo machineInfo, const ProcessDescriptor& processDescriptor)
 {
+    printFuncName(__FUNCTION__);
     // INativeEventPipeline has a 1:1 relationship with CordbProcess.
     _ASSERTE(!IsTransportRunning());
 
@@ -328,6 +336,7 @@ HRESULT DbgTransportPipeline::DebugActiveProcess(MachineInfo machineInfo, const 
 // Detach
 HRESULT DbgTransportPipeline::DebugActiveProcessStop(DWORD processId)
 {
+    printFuncName(__FUNCTION__);
     // The only way to tell the transport to detach from a process is by shutting it down.
     // That will happen when we neuter the CordbProcess object.
     return E_NOTIMPL;
@@ -336,6 +345,7 @@ HRESULT DbgTransportPipeline::DebugActiveProcessStop(DWORD processId)
 // Block and wait for the next debug event from the debuggee process.
 BOOL DbgTransportPipeline::WaitForDebugEvent(DEBUG_EVENT * pEvent, DWORD dwTimeout, CordbProcess * pProcess)
 {
+    printFuncName(__FUNCTION__);
     if (!IsTransportRunning())
     {
         return FALSE;
@@ -400,6 +410,7 @@ BOOL DbgTransportPipeline::ContinueDebugEvent(
   DWORD dwContinueStatus
 )
 {
+    printFuncName(__FUNCTION__);
     if (!IsTransportRunning())
     {
         return FALSE;
@@ -412,6 +423,7 @@ BOOL DbgTransportPipeline::ContinueDebugEvent(
 // Return a handle which will be signaled when the debuggee process terminates.
 HANDLE DbgTransportPipeline::GetProcessHandle()
 {
+    printFuncName(__FUNCTION__);
     HANDLE hProcessTerminated;
 
     if (!DuplicateHandle(GetCurrentProcess(),
@@ -433,6 +445,7 @@ HANDLE DbgTransportPipeline::GetProcessHandle()
 // Terminate the debuggee process.
 BOOL DbgTransportPipeline::TerminateProcess(UINT32 exitCode)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(IsTransportRunning());
 
     // The transport will still be running until the process termination handle is signaled.

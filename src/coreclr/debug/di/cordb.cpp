@@ -84,6 +84,7 @@
 //*****************************************************************************
 STDAPI CreateCordbObject(int iDebuggerVersion, IUnknown ** ppCordb)
 {
+    printFuncName(__FUNCTION__);
     if (ppCordb == NULL)
     {
         return E_INVALIDARG;
@@ -116,6 +117,7 @@ STDAPI CreateCordbObject(int iDebuggerVersion, IUnknown ** ppCordb)
 //    Callers will need to call *ppCordb->DebugActiveProcess(pid).
 STDAPI DLLEXPORT CoreCLRCreateCordbObject3(int iDebuggerVersion, DWORD pid, LPCWSTR lpApplicationGroupId, LPCWSTR dacModulePath, HMODULE hmodTargetCLR, IUnknown** ppCordb)
 {
+    printFuncName(__FUNCTION__);
     if (ppCordb == NULL)
     {
         return E_INVALIDARG;
@@ -169,6 +171,7 @@ STDAPI DLLEXPORT CoreCLRCreateCordbObject3(int iDebuggerVersion, DWORD pid, LPCW
 //    Callers will need to call *ppCordb->DebugActiveProcess(pid).
 STDAPI DLLEXPORT CoreCLRCreateCordbObjectEx(int iDebuggerVersion, DWORD pid, LPCWSTR lpApplicationGroupId, HMODULE hmodTargetCLR, IUnknown ** ppCordb)
 {
+    printFuncName(__FUNCTION__);
     return CoreCLRCreateCordbObject3(iDebuggerVersion, pid, lpApplicationGroupId, NULL, hmodTargetCLR, ppCordb);
 }
 
@@ -188,6 +191,7 @@ STDAPI DLLEXPORT CoreCLRCreateCordbObjectEx(int iDebuggerVersion, DWORD pid, LPC
 //    Callers will need to call *ppCordb->DebugActiveProcess(pid).
 STDAPI DLLEXPORT CoreCLRCreateCordbObject(int iDebuggerVersion, DWORD pid, HMODULE hmodTargetCLR, IUnknown ** ppCordb)
 {
+    printFuncName(__FUNCTION__);
     return CoreCLRCreateCordbObjectEx(iDebuggerVersion, pid, NULL, hmodTargetCLR, ppCordb);
 }
 
@@ -198,6 +202,7 @@ STDAPI DLLEXPORT CoreCLRCreateCordbObject(int iDebuggerVersion, DWORD pid, HMODU
 //*****************************************************************************
 BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 {
+    printFuncName(__FUNCTION__);
     // Save off the instance handle for later use.
     switch (dwReason)
     {
@@ -383,6 +388,7 @@ HRESULT STDMETHODCALLTYPE CClassFactory::QueryInterface(
     REFIID      riid,
     void        **ppvObject)
 {
+    printFuncName(__FUNCTION__);
     HRESULT     hr;
 
     // Avoid confusion.
@@ -416,6 +422,7 @@ HRESULT STDMETHODCALLTYPE CClassFactory::CreateInstance(
     REFIID      riid,
     void        **ppvObject)
 {
+    printFuncName(__FUNCTION__);
     HRESULT     hr;
 
     // Avoid confusion.
@@ -459,6 +466,7 @@ STDAPI GetRequestedRuntimeInfo(LPCWSTR pExe,
                                DWORD cchBuffer,
                                DWORD* dwlength)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(!"GetRequestedRuntimeInfo not impl");
     return E_NOTIMPL;
 }
@@ -468,6 +476,7 @@ BOOL
 DbiGetThreadContext(HANDLE hThread,
     DT_CONTEXT *lpContext)
 {
+    printFuncName(__FUNCTION__);
     // if we aren't local debugging this isn't going to work
 #if !defined(HOST_ARM) || defined(FEATURE_DBGIPC_TRANSPORT_DI) || !SUPPORT_LOCAL_DEBUGGING
     _ASSERTE(!"Can't use local GetThreadContext remotely, this needed to go to datatarget");

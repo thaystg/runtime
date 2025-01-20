@@ -94,6 +94,7 @@ ShimRemoteDataTarget::ShimRemoteDataTarget(DWORD processId,
                                            DbgTransportTarget * pProxy,
                                            DbgTransportSession * pTransport)
 {
+    printFuncName(__FUNCTION__);
     m_ref = 0;
 
     m_processId = processId;
@@ -117,6 +118,7 @@ ShimRemoteDataTarget::ShimRemoteDataTarget(DWORD processId,
 
 ShimRemoteDataTarget::~ShimRemoteDataTarget()
 {
+    printFuncName(__FUNCTION__);
     Dispose();
 }
 
@@ -165,6 +167,7 @@ HRESULT BuildPlatformSpecificDataTarget(MachineInfo machineInfo,
                                         const ProcessDescriptor * pProcessDescriptor,
                                         ShimDataTarget ** ppDataTarget)
 {
+    printFuncName(__FUNCTION__);
     HandleHolder hDummy;
     HRESULT hr = E_FAIL;
 
@@ -264,6 +267,7 @@ ShimRemoteDataTarget::ReadVirtual(
     ULONG32 cbRequestSize,
     ULONG32 *pcbRead)
 {
+    printFuncName(__FUNCTION__);
     ReturnFailureIfStateNotOk();
 
     size_t read = cbRequestSize;
@@ -296,6 +300,7 @@ ShimRemoteDataTarget::WriteVirtual(
     const BYTE * pBuffer,
     ULONG32 cbRequestSize)
 {
+    printFuncName(__FUNCTION__);
     ReturnFailureIfStateNotOk();
 
     HRESULT hr = E_FAIL;
@@ -313,6 +318,7 @@ ShimRemoteDataTarget::GetThreadContext(
     ULONG32 contextSize,
     BYTE * pContext)
 {
+    printFuncName(__FUNCTION__);
     ReturnFailureIfStateNotOk();
 
     // GetThreadContext() is currently not implemented in ShimRemoteDataTarget, which is used with our pipe transport
@@ -336,6 +342,7 @@ ShimRemoteDataTarget::SetThreadContext(
     ULONG32 contextSize,
     const BYTE * pContext)
 {
+    printFuncName(__FUNCTION__);
     ReturnFailureIfStateNotOk();
 
     // ICorDebugDataTarget::GetThreadContext() and ICorDebugDataTarget::SetThreadContext() are currently only
@@ -351,6 +358,7 @@ ShimRemoteDataTarget::ContinueStatusChanged(
     DWORD dwThreadId,
     CORDB_CONTINUE_STATUS dwContinueStatus)
 {
+    printFuncName(__FUNCTION__);
     ReturnFailureIfStateNotOk();
 
     _ASSERTE(!"ShimRemoteDataTarget::ContinueStatusChanged() is called unexpectedly");
@@ -371,5 +379,6 @@ ShimRemoteDataTarget::ContinueStatusChanged(
 HRESULT STDMETHODCALLTYPE
 ShimRemoteDataTarget::VirtualUnwind(DWORD threadId, ULONG32 contextSize, PBYTE context)
 {
+    printFuncName(__FUNCTION__);
     return m_pTransport->VirtualUnwind(threadId, contextSize, context);
 }

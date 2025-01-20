@@ -576,6 +576,8 @@ protected:
     // Win32EvenThread, which is the thread that uses the native debug API.
     CordbWin32EventThread * m_pWin32EventThread;
 
+//    CordbRemoteEventThread * m_pRemoteEventThread;
+
     // Actual data-target. Since we're shimming V2 scenarios, and V3 is always
     // live-debugging, this is always a live data-target.
     RSExtSmartPtr<ShimDataTarget> m_pLiveDataTarget;

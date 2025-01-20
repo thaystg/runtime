@@ -21,6 +21,7 @@ DbgTransportTarget::DbgTransportTarget()
 // Initialization routine called only by the DbgTransportManager.
 HRESULT DbgTransportTarget::Init()
 {
+    printFuncName(__FUNCTION__);
     m_sLock.Init("DbgTransportTarget Lock", RSLock::cLockFlat, RSLock::LL_DBG_TRANSPORT_TARGET_LOCK);
 
     return S_OK;
@@ -29,6 +30,7 @@ HRESULT DbgTransportTarget::Init()
 // Shutdown routine called only by the DbgTransportManager.
 void DbgTransportTarget::Shutdown()
 {
+    printFuncName(__FUNCTION__);
     DbgTransportLog(LC_Always, "DbgTransportTarget shutting down");
 
     {
@@ -51,6 +53,7 @@ HRESULT DbgTransportTarget::GetTransportForProcess(const ProcessDescriptor  *pPr
                                                    DbgTransportSession     **ppTransport,
                                                    HANDLE                   *phProcessHandle)
 {
+    printFuncName(__FUNCTION__);
     RSLockHolder lock(&m_sLock);
     HRESULT hr = S_OK;
     DWORD dwPID = pProcessDescriptor->m_Pid;
@@ -125,6 +128,7 @@ HRESULT DbgTransportTarget::GetTransportForProcess(const ProcessDescriptor  *pPr
 // manager's own weak reference) clean up the transport and deallocate it.
 void DbgTransportTarget::ReleaseTransport(DbgTransportSession *pTransport)
 {
+    printFuncName(__FUNCTION__);
     RSLockHolder lock(&m_sLock);
 
     ProcessEntry *entry = m_pProcessList;
@@ -174,8 +178,7 @@ HRESULT DbgTransportTarget::CreateProcess(LPCWSTR lpApplicationName,
                           LPSTARTUPINFOW lpStartupInfo,
                           LPPROCESS_INFORMATION lpProcessInformation)
 {
-
-    BOOL result = WszCreateProcess(lpApplicationName,
+    printFuncName(__FUNCTION__);    BOOL result = WszCreateProcess(lpApplicationName,
                                    lpCommandLine,
                                    lpProcessAttributes,
                                    lpThreadAttributes,
@@ -197,6 +200,7 @@ HRESULT DbgTransportTarget::CreateProcess(LPCWSTR lpApplicationName,
 // Kill the process identified by PID.
 void DbgTransportTarget::KillProcess(DWORD dwPID)
 {
+    printFuncName(__FUNCTION__);
     HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, dwPID);
     if (hProcess != NULL)
     {
@@ -207,6 +211,7 @@ void DbgTransportTarget::KillProcess(DWORD dwPID)
 
 DbgTransportTarget::ProcessEntry::~ProcessEntry()
 {
+    printFuncName(__FUNCTION__);
     CloseHandle(m_hProcess);
     m_hProcess = NULL;
 
@@ -217,6 +222,7 @@ DbgTransportTarget::ProcessEntry::~ProcessEntry()
 // Locate a process entry by PID. Assumes the lock is already held.
 DbgTransportTarget::ProcessEntry *DbgTransportTarget::LocateProcessByPID(DWORD dwPID)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(m_sLock.HasLock());
 
     ProcessEntry *pProcess = m_pProcessList;

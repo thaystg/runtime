@@ -38,6 +38,7 @@
 template<typename T, typename U, REFGUID IID_U>
 U * QueryInterfaceConvert(T obj)
 {
+    printFuncName(__FUNCTION__);
     U* pPublic;
     obj->QueryInterface(IID_U, (void**) &pPublic);
     return pPublic;
@@ -47,6 +48,7 @@ U * QueryInterfaceConvert(T obj)
 template<typename T>
 T IdentityConvert(T obj)
 {
+    printFuncName(__FUNCTION__);
     return obj;
 }
 
@@ -72,6 +74,7 @@ CordbBase(pProcess, 0, enumCordbEnumerator),
 m_countItems(countItems),
 m_nextIndex(0)
 {
+    printFuncName(__FUNCTION__);
     m_items = new ElemType[countItems];
     for(UINT i = 0; i < countItems; i++)
     {
@@ -101,6 +104,7 @@ CordbBase(pProcess, 0, enumCordbEnumerator),
 m_countItems(countItems),
 m_nextIndex(0)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(items != NULL);
     m_items = *items;
     *items = NULL;
@@ -116,6 +120,7 @@ CordbEnumerator<ElemType,
                 EnumInterfaceType, IID_EnumInterfaceType,
                 GetPublicType>::~CordbEnumerator()
 {
+    printFuncName(__FUNCTION__);
     // for now at least all of these enumerators should be in neuter lists and get neutered prior to destruction
     _ASSERTE(IsNeutered());
 }
@@ -137,6 +142,7 @@ HRESULT CordbEnumerator<ElemType,
                         EnumInterfaceType, IID_EnumInterfaceType,
                         GetPublicType>::QueryInterface(REFIID riid, VOID** ppInterface)
 {
+    printFuncName(__FUNCTION__);
     if(riid == __uuidof(ICorDebugEnum))
     {
         *ppInterface = static_cast<ICorDebugEnum*>(this);
@@ -171,6 +177,7 @@ ULONG CordbEnumerator<ElemType,
                       EnumInterfaceType, IID_EnumInterfaceType,
                       GetPublicType>::AddRef()
 {
+    printFuncName(__FUNCTION__);
     return BaseAddRef();
 }
 
@@ -184,6 +191,7 @@ ULONG CordbEnumerator<ElemType,
                       EnumInterfaceType, IID_EnumInterfaceType,
                       GetPublicType>::Release()
 {
+    printFuncName(__FUNCTION__);
     return BaseRelease();
 }
 
@@ -205,6 +213,7 @@ HRESULT CordbEnumerator<ElemType,
                         EnumInterfaceType, IID_EnumInterfaceType,
                         GetPublicType>::Clone(ICorDebugEnum **ppEnum)
 {
+    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppEnum, ICorDebugEnum **);
     HRESULT hr = S_OK;
@@ -238,6 +247,7 @@ HRESULT CordbEnumerator<ElemType,
                         EnumInterfaceType, IID_EnumInterfaceType,
                         GetPublicType>::GetCount(ULONG *pcelt)
 {
+    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pcelt, ULONG *);
 
@@ -259,6 +269,7 @@ HRESULT CordbEnumerator<ElemType,
                         EnumInterfaceType, IID_EnumInterfaceType,
                         GetPublicType>::Reset()
 {
+    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
 
     m_nextIndex = 0;
@@ -283,6 +294,7 @@ HRESULT CordbEnumerator<ElemType,
                         EnumInterfaceType, IID_EnumInterfaceType,
                         GetPublicType>::Skip(ULONG celt)
 {
+    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
 
     m_nextIndex += celt;
@@ -317,6 +329,7 @@ HRESULT CordbEnumerator<ElemType,
                                              ElemPublicType items[],
                                              ULONG *pceltFetched)
 {
+    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(items, ElemInterfaceType *,
         celt, true, true);
@@ -352,6 +365,7 @@ VOID CordbEnumerator<ElemType,
                      EnumInterfaceType, IID_EnumInterfaceType,
                      GetPublicType>::Neuter()
 {
+    printFuncName(__FUNCTION__);
     delete [] m_items;
     m_items = NULL;
     m_countItems = 0;

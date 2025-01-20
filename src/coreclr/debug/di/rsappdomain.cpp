@@ -49,6 +49,7 @@ CordbAppDomain::CordbAppDomain(CordbProcess *  pProcess, VMPTR_AppDomain vmAppDo
     m_assemblies(9),
     m_vmAppDomain(vmAppDomain)
 {
+    printFuncName(__FUNCTION__);
     // This may throw out of the Ctor on error.
 
     // @dbgtodo  reliability: we should probably tolerate failures here and keep track
@@ -88,8 +89,7 @@ CordbAppDomain::CordbAppDomain(CordbProcess *  pProcess, VMPTR_AppDomain vmAppDo
 
 CordbAppDomain::~CordbAppDomain()
 {
-
-    // We expect to be Neutered before being released. Neutering will release our process ref
+    printFuncName(__FUNCTION__);    // We expect to be Neutered before being released. Neutering will release our process ref
     _ASSERTE(IsNeutered());
 }
 
@@ -98,6 +98,7 @@ CordbAppDomain::~CordbAppDomain()
 // thus can't do things like call GetProcess() or Continue().
 void CordbAppDomain::Neuter()
 {
+    printFuncName(__FUNCTION__);
     // This check prevents us from calling this twice and underflowing the internal ref count!
     if (IsNeutered())
     {
@@ -141,6 +142,7 @@ void CordbAppDomain::Neuter()
 
 HRESULT CordbAppDomain::QueryInterface(REFIID id, void **ppInterface)
 {
+    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugAppDomain)
     {
         *ppInterface = (ICorDebugAppDomain*)this;
@@ -189,6 +191,7 @@ HRESULT CordbAppDomain::QueryInterface(REFIID id, void **ppInterface)
 //---------------------------------------------------------------------------------------
 HRESULT CordbAppDomain::RefreshName()
 {
+    printFuncName(__FUNCTION__);
     if (m_strAppDomainName.IsSet())
     {
         // If we already have a valid name, we're done.
@@ -225,6 +228,7 @@ HRESULT CordbAppDomain::RefreshName()
 
 HRESULT CordbAppDomain::Stop(DWORD dwTimeout)
 {
+    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     PUBLIC_API_ENTRY(this);
     return (m_pProcess->StopInternal(dwTimeout, this->GetADToken()));
@@ -232,6 +236,7 @@ HRESULT CordbAppDomain::Stop(DWORD dwTimeout)
 
 HRESULT CordbAppDomain::Continue(BOOL fIsOutOfBand)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     return m_pProcess->ContinueInternal(fIsOutOfBand);
@@ -239,6 +244,7 @@ HRESULT CordbAppDomain::Continue(BOOL fIsOutOfBand)
 
 HRESULT CordbAppDomain::IsRunning(BOOL *pbRunning)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(pbRunning, BOOL *);
     FAIL_IF_NEUTERED(this);
@@ -250,6 +256,7 @@ HRESULT CordbAppDomain::IsRunning(BOOL *pbRunning)
 
 HRESULT CordbAppDomain::HasQueuedCallbacks(ICorDebugThread *pThread, BOOL *pbQueued)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
 
@@ -261,6 +268,7 @@ HRESULT CordbAppDomain::HasQueuedCallbacks(ICorDebugThread *pThread, BOOL *pbQue
 
 HRESULT CordbAppDomain::EnumerateThreads(ICorDebugThreadEnum **ppThreads)
 {
+    printFuncName(__FUNCTION__);
     // @TODO E_NOIMPL this
     //
     // (use Process::EnumerateThreads and let users filter their own data)
@@ -291,6 +299,7 @@ HRESULT CordbAppDomain::EnumerateThreads(ICorDebugThreadEnum **ppThreads)
 HRESULT CordbAppDomain::SetAllThreadsDebugState(CorDebugThreadState state,
                                    ICorDebugThread *pExceptThisThread)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -300,6 +309,7 @@ HRESULT CordbAppDomain::SetAllThreadsDebugState(CorDebugThreadState state,
 
 HRESULT CordbAppDomain::Detach()
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this); // may be called from IMDA::Detach
     FAIL_IF_NEUTERED(this);
 
@@ -308,6 +318,7 @@ HRESULT CordbAppDomain::Detach()
 
 HRESULT CordbAppDomain::Terminate(unsigned int exitCode)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     return E_NOTIMPL;
@@ -315,6 +326,7 @@ HRESULT CordbAppDomain::Terminate(unsigned int exitCode)
 
 void CordbAppDomain::AddToTypeList(CordbBase *pObject)
 {
+    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this);
     _ASSERTE(pObject != NULL);
     RSLockHolder lockHolder(GetProcess()->GetProcessLock());
@@ -327,6 +339,7 @@ HRESULT CordbAppDomain::CanCommitChanges(
     ICorDebugEditAndContinueSnapshot *pSnapshots[],
     ICorDebugErrorInfoEnum **pError)
 {
+    printFuncName(__FUNCTION__);
     return E_NOTIMPL;
 }
 
@@ -335,6 +348,7 @@ HRESULT CordbAppDomain::CommitChanges(
     ICorDebugEditAndContinueSnapshot *pSnapshots[],
     ICorDebugErrorInfoEnum **pError)
 {
+    printFuncName(__FUNCTION__);
     return E_NOTIMPL;
 }
 
@@ -344,6 +358,7 @@ HRESULT CordbAppDomain::CommitChanges(
  */
 HRESULT CordbAppDomain::GetProcess(ICorDebugProcess **ppProcess)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
 
@@ -375,6 +390,7 @@ HRESULT CordbAppDomain::GetProcess(ICorDebugProcess **ppProcess)
 // static
 void CordbAppDomain::AssemblyEnumerationCallback(VMPTR_DomainAssembly vmDomainAssembly, void * pThis)
 {
+    printFuncName(__FUNCTION__);
     CordbAppDomain * pAppDomain = static_cast<CordbAppDomain *> (pThis);
     INTERNAL_DAC_CALLBACK(pAppDomain->GetProcess());
 
@@ -402,6 +418,7 @@ void CordbAppDomain::AssemblyEnumerationCallback(VMPTR_DomainAssembly vmDomainAs
 //
 CordbAssembly * CordbAppDomain::CacheAssembly(VMPTR_DomainAssembly vmDomainAssembly)
 {
+    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(GetProcess());
 
     VMPTR_Assembly vmAssembly;
@@ -414,6 +431,7 @@ CordbAssembly * CordbAppDomain::CacheAssembly(VMPTR_DomainAssembly vmDomainAssem
 
 CordbAssembly * CordbAppDomain::CacheAssembly(VMPTR_Assembly vmAssembly)
 {
+    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(GetProcess());
 
     RSInitHolder<CordbAssembly> pAssembly(new CordbAssembly(this, vmAssembly, VMPTR_DomainAssembly()));
@@ -439,6 +457,7 @@ CordbAssembly * CordbAppDomain::CacheAssembly(VMPTR_Assembly vmAssembly)
 
 void CordbAppDomain::PrepopulateAssembliesOrThrow()
 {
+    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(GetProcess());
 
     RSLockHolder lockHolder(GetProcess()->GetProcessLock());
@@ -473,6 +492,7 @@ void CordbAppDomain::PrepopulateAssembliesOrThrow()
 
 HRESULT CordbAppDomain::EnumerateAssemblies(ICorDebugAssemblyEnum **ppAssemblies)
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this);
     {
@@ -500,6 +520,7 @@ HRESULT CordbAppDomain::GetModuleFromMetaDataInterface(
                                                   IUnknown *pIMetaData,
                                                   ICorDebugModule **ppModule)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pIMetaData, IUnknown *);
@@ -538,6 +559,7 @@ HRESULT CordbAppDomain::GetModuleFromMetaDataInterface(
 //
 CordbModule * CordbAppDomain::GetModuleFromMetaDataInterface(IUnknown *pIMetaData)
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     RSExtSmartPtr<IMetaDataImport> pImport;
@@ -583,6 +605,7 @@ CordbModule * CordbAppDomain::GetModuleFromMetaDataInterface(IUnknown *pIMetaDat
 
 HRESULT CordbAppDomain::EnumerateBreakpoints(ICorDebugBreakpointEnum **ppBreakpoints)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -607,6 +630,7 @@ HRESULT CordbAppDomain::EnumerateBreakpoints(ICorDebugBreakpointEnum **ppBreakpo
 
 HRESULT CordbAppDomain::EnumerateSteppers(ICorDebugStepperEnum **ppSteppers)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -656,6 +680,7 @@ HRESULT CordbAppDomain::EnumerateSteppers(ICorDebugStepperEnum **ppSteppers)
 
 HRESULT CordbAppDomain::IsAttached(BOOL *pfAttached)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pfAttached, BOOL *);
@@ -685,6 +710,7 @@ HRESULT CordbAppDomain::IsAttached(BOOL *pfAttached)
 
 HRESULT CordbAppDomain::Attach()
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(m_pProcess);
@@ -699,6 +725,7 @@ HRESULT CordbAppDomain::GetName(ULONG32 cchName,
                                 ULONG32 *pcchName,
                                 _Out_writes_to_opt_(cchName, *pcchName) WCHAR szName[])
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this)
     {
@@ -728,6 +755,7 @@ HRESULT CordbAppDomain::GetName(ULONG32 cchName,
  */
 HRESULT CordbAppDomain::GetObject(ICorDebugValue **ppObject)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppObject,ICorDebugObjectValue **);
@@ -763,6 +791,7 @@ HRESULT CordbAppDomain::GetObject(ICorDebugValue **ppObject)
  */
 HRESULT CordbAppDomain::GetID (ULONG32 *pId)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     OK_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pId, ULONG32 *);
@@ -783,6 +812,7 @@ HRESULT CordbAppDomain::GetID (ULONG32 *pId)
 //     This only need to be called at assembly unload events.
 void CordbAppDomain::RemoveAssemblyFromCache(VMPTR_DomainAssembly vmDomainAssembly)
 {
+    printFuncName(__FUNCTION__);
     // This will handle if the assembly is not in the hash.
     // This could happen if we attach right before an assembly-unload event.
     m_assemblies.RemoveBase(VmPtrToCookie(vmDomainAssembly));
@@ -801,6 +831,7 @@ void CordbAppDomain::RemoveAssemblyFromCache(VMPTR_DomainAssembly vmDomainAssemb
 //
 CordbAssembly * CordbAppDomain::LookupOrCreateAssembly(VMPTR_DomainAssembly vmDomainAssembly)
 {
+    printFuncName(__FUNCTION__);
     CordbAssembly * pAssembly = m_assemblies.GetBase(VmPtrToCookie(vmDomainAssembly));
     if (pAssembly != NULL)
     {
@@ -813,6 +844,7 @@ CordbAssembly * CordbAppDomain::LookupOrCreateAssembly(VMPTR_DomainAssembly vmDo
 //
 CordbAssembly * CordbAppDomain::LookupOrCreateAssembly(VMPTR_Assembly vmAssembly)
 {
+    printFuncName(__FUNCTION__);
     CordbAssembly * pAssembly = m_assemblies.GetBase(VmPtrToCookie(vmAssembly));
     if (pAssembly != NULL)
     {
@@ -838,6 +870,7 @@ CordbAssembly * CordbAppDomain::LookupOrCreateAssembly(VMPTR_Assembly vmAssembly
 //
 CordbModule* CordbAppDomain::LookupOrCreateModule(VMPTR_Module vmModule, VMPTR_DomainAssembly vmDomainAssembly)
 {
+    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this);
     CordbModule * pModule;
 
@@ -867,6 +900,7 @@ CordbModule* CordbAppDomain::LookupOrCreateModule(VMPTR_Module vmModule, VMPTR_D
 
 CordbModule* CordbAppDomain::LookupOrCreateModule(VMPTR_DomainAssembly vmDomainAssembly)
 {
+    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this);
 
     _ASSERTE(!vmDomainAssembly.IsNull());
@@ -889,6 +923,7 @@ CordbModule* CordbAppDomain::LookupOrCreateModule(VMPTR_DomainAssembly vmDomainA
 // static
 void CordbAppDomain::ModuleEnumerationCallback(VMPTR_DomainAssembly vmModule, void * pUserData)
 {
+    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -909,6 +944,7 @@ void CordbAppDomain::ModuleEnumerationCallback(VMPTR_DomainAssembly vmModule, vo
 //     This may pick up modules for which a load notification has not yet been dispatched.
 void CordbAppDomain::PrepopulateModules()
 {
+    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(GetProcess());
 
     if (!GetProcess()->IsDacInitialized())
@@ -959,6 +995,7 @@ HRESULT CordbAppDomain::GetArrayOrPointerType(CorElementType elementType,
                                               ICorDebugType * pTypeArg,
                                               ICorDebugType ** ppResultType)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppResultType, ICorDebugType **);
@@ -1012,6 +1049,7 @@ HRESULT CordbAppDomain::GetFunctionPointerType(ULONG32 cTypeArgs,
                                                ICorDebugType * rgpTypeArgs[],
                                                ICorDebugType ** ppResultType)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppResultType, ICorDebugType **);
@@ -1063,12 +1101,14 @@ HRESULT CordbAppDomain::GetCachedWinRTTypesForIIDs(
                         GUID                * iids,
                         ICorDebugTypeEnum * * ppTypesEnum)
 {
+    printFuncName(__FUNCTION__);
     return E_NOTIMPL;
 }
 
 HRESULT CordbAppDomain::GetCachedWinRTTypes(
                         ICorDebugGuidToTypeEnum * * ppTypesEnum)
 {
+    printFuncName(__FUNCTION__);
     return E_NOTIMPL;
 }
 

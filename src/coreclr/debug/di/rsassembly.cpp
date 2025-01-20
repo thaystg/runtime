@@ -35,6 +35,7 @@ CordbAssembly::CordbAssembly(CordbAppDomain *       pAppDomain,
       m_vmDomainAssembly(vmDomainAssembly),
       m_pAppDomain(pAppDomain)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(!vmAssembly.IsNull());
 }
 
@@ -51,6 +52,7 @@ CordbAssembly::~CordbAssembly()
 
 HRESULT CordbAssembly::QueryInterface(REFIID id, void **ppInterface)
 {
+    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugAssembly)
         *ppInterface = static_cast<ICorDebugAssembly*>(this);
     else if (id == IID_ICorDebugAssembly2)
@@ -70,6 +72,7 @@ HRESULT CordbAssembly::QueryInterface(REFIID id, void **ppInterface)
 // Neutered by AppDomain
 void CordbAssembly::Neuter()
 {
+    printFuncName(__FUNCTION__);
     m_pAppDomain = NULL;
     CordbBase::Neuter();
 }
@@ -87,6 +90,7 @@ void CordbAssembly::Neuter()
 // static
 void CordbAssembly::DbgAssertAssemblyDeletedCallback(VMPTR_DomainAssembly vmDomainAssembly, void * pUserData)
 {
+    printFuncName(__FUNCTION__);
     CordbAssembly * pThis = reinterpret_cast<CordbAssembly * >(pUserData);
     INTERNAL_DAC_CALLBACK(pThis->GetProcess());
 
@@ -107,6 +111,7 @@ void CordbAssembly::DbgAssertAssemblyDeletedCallback(VMPTR_DomainAssembly vmDoma
 //
 void CordbAssembly::DbgAssertAssemblyDeleted()
 {
+    printFuncName(__FUNCTION__);
     GetProcess()->GetDAC()->EnumerateAssembliesInAppDomain(
         GetAppDomain()->GetADToken(),
         CordbAssembly::DbgAssertAssemblyDeletedCallback,
@@ -119,6 +124,7 @@ void CordbAssembly::DbgAssertAssemblyDeleted()
  */
 HRESULT CordbAssembly::GetProcess(ICorDebugProcess **ppProcess)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppProcess, ICorDebugProcess **);
@@ -142,6 +148,7 @@ HRESULT CordbAssembly::GetProcess(ICorDebugProcess **ppProcess)
 //
 HRESULT CordbAssembly::GetAppDomain(ICorDebugAppDomain **ppAppDomain)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppAppDomain, ICorDebugAppDomain **);
@@ -161,6 +168,7 @@ HRESULT CordbAssembly::GetAppDomain(ICorDebugAppDomain **ppAppDomain)
  */
 HRESULT CordbAssembly::EnumerateModules(ICorDebugModuleEnum **ppModules)
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this);
     {
@@ -201,6 +209,7 @@ HRESULT CordbAssembly::GetCodeBase(ULONG32 cchName,
                     ULONG32 *pcchName,
                     _Out_writes_to_opt_(cchName, *pcchName) WCHAR szName[])
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(szName, WCHAR, cchName, true, true);
@@ -231,6 +240,7 @@ HRESULT CordbAssembly::GetName(ULONG32 cchName,
                                ULONG32 *pcchName,
                                _Out_writes_to_opt_(cchName, *pcchName) WCHAR szName[])
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY_OR_NULL(szName, WCHAR, cchName, true, true);
@@ -281,6 +291,7 @@ HRESULT CordbAssembly::GetName(ULONG32 cchName,
 
 HRESULT CordbAssembly::IsFullyTrusted( BOOL *pbFullyTrusted )
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());

@@ -44,6 +44,7 @@ forDbiWorker forDbi;
 // For logs, we can print the string name for the debug codes.
 const char * GetDebugCodeName(DWORD dwCode)
 {
+    printFuncName(__FUNCTION__);
     if (dwCode < 1 || dwCode > 9)
     {
         return "!Invalid Debug Event Code!";
@@ -81,6 +82,7 @@ LONG DbgRSThread::s_Total = 0;
 
 DbgRSThread::DbgRSThread()
 {
+    printFuncName(__FUNCTION__);
     m_cInsideRS         = 0;
     m_fIsInCallback     = false;
     m_fIsUnrecoverableErrorCallback = false;
@@ -100,6 +102,7 @@ DbgRSThread::DbgRSThread()
 // This will assert if the operation is unsafe (ie, violates lock order).
 void DbgRSThread::NotifyTakeLock(RSLock * pLock)
 {
+    printFuncName(__FUNCTION__);
     if (pLock->HasLock())
     {
         return;
@@ -130,6 +133,7 @@ void DbgRSThread::NotifyTakeLock(RSLock * pLock)
 
 void DbgRSThread::NotifyReleaseLock(RSLock * pLock)
 {
+    printFuncName(__FUNCTION__);
     if (pLock->HasLock())
     {
         return;
@@ -147,11 +151,13 @@ void DbgRSThread::NotifyReleaseLock(RSLock * pLock)
 
 void DbgRSThread::TakeVirtualLock(RSLock::ERSLockLevel level)
 {
+    printFuncName(__FUNCTION__);
     m_cLocks[level]++;
 }
 
 void DbgRSThread::ReleaseVirtualLock(RSLock::ERSLockLevel level)
 {
+    printFuncName(__FUNCTION__);
     m_cLocks[level]--;
     _ASSERTE(m_cLocks[level] >= 0);
 }
@@ -160,6 +166,7 @@ void DbgRSThread::ReleaseVirtualLock(RSLock::ERSLockLevel level)
 // Get a DbgRSThread for the current OS thread id; lazily create if needed.
 DbgRSThread * DbgRSThread::GetThread()
 {
+    printFuncName(__FUNCTION__);
     DbgRSThread * p = t_pCurrent;
     if (p == NULL)
     {
@@ -207,6 +214,7 @@ LONG Cordb::s_DbgMemOutstandingObjectMax = 0;
 // Default implementation for neutering left-side resources.
 void CordbBase::NeuterLeftSideResources()
 {
+    printFuncName(__FUNCTION__);
     LIMITED_METHOD_CONTRACT;
 
     RSLockHolder lockHolder(GetProcess()->GetProcessLock());
@@ -217,6 +225,7 @@ void CordbBase::NeuterLeftSideResources()
 // All derived objects should eventually chain to this.
 void CordbBase::Neuter()
 {
+    printFuncName(__FUNCTION__);
     // Neutering occurs under the process lock. Neuter can be called twice
     // and so locking protects against races in double-delete.
     // @dbgtodo - , some CordbBase objects (Cordb, CordbProcessEnum),
@@ -236,11 +245,13 @@ void CordbBase::Neuter()
 
 NeuterList::NeuterList()
 {
+    printFuncName(__FUNCTION__);
     m_pHead = NULL;
 }
 
 NeuterList::~NeuterList()
 {
+    printFuncName(__FUNCTION__);
     // Our owner should have neutered us before deleting us.
     // Thus we should be empty.
     CONSISTENCY_CHECK_MSGF(m_pHead == NULL, ("NeuterList not empty on shutdown. this=0x%p", this));
@@ -249,6 +260,7 @@ NeuterList::~NeuterList()
 // Wrapper around code:NeuterList::UnsafeAdd
 void NeuterList::Add(CordbProcess * pProcess, CordbBase * pObject)
 {
+    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -274,6 +286,7 @@ void NeuterList::Add(CordbProcess * pProcess, CordbBase * pObject)
 //
 void NeuterList::UnsafeAdd(CordbProcess * pProcess, CordbBase * pObject)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(pObject != NULL);
 
     // Lock if needed.
@@ -302,6 +315,7 @@ void NeuterList::UnsafeAdd(CordbProcess * pProcess, CordbBase * pObject)
 //     This will release all internal references and empty the list.
 void NeuterList::NeuterAndClear(CordbProcess * pProcess)
 {
+    printFuncName(__FUNCTION__);
     RSLock * pLock = (pProcess != NULL) ? pProcess->GetProcessLock() : NULL;
     (void)pLock; //prevent "unused variable" error from GCC
     _ASSERTE((pLock == NULL) || pLock->HasLock());
@@ -320,6 +334,7 @@ void NeuterList::NeuterAndClear(CordbProcess * pProcess)
 // Removes neutered objects from the list.
 void NeuterList::SweepAllNeuterAtWillObjects(CordbProcess * pProcess)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(pProcess != NULL);
     RSLock * pLock = pProcess->GetProcessLock();
     RSLockHolder lockHolder(pLock);
@@ -357,6 +372,7 @@ void NeuterList::SweepAllNeuterAtWillObjects(CordbProcess * pProcess)
 //    ref count has gone to 0).
 void LeftSideResourceCleanupList::NeuterLeftSideResourcesAndClear(CordbProcess * pProcess)
 {
+    printFuncName(__FUNCTION__);
     // Traversal protected under Process-lock.
     // SG-lock must already be held to do neutering.
     // Stop-Go lock is bigger than Process-lock.
@@ -401,6 +417,7 @@ void LeftSideResourceCleanupList::NeuterLeftSideResourcesAndClear(CordbProcess *
 //    It may send IPC events to do this.
 void LeftSideResourceCleanupList::SweepNeuterLeftSideResources(CordbProcess * pProcess)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(pProcess != NULL);
 
     // Must be safe to send IPC events.
@@ -460,6 +477,7 @@ extern void* GetClrModuleBase();
 // This includes enabling logging and adding the SEDebug priv.
 void CordbCommonBase::InitializeCommon()
 {
+    printFuncName(__FUNCTION__);
     static bool IsInitialized = false;
     if( IsInitialized )
     {
@@ -967,6 +985,7 @@ Cordb::Cordb(CorDebugInterfaceVersion iDebuggerVersion, const ProcessDescriptor&
     m_dacModulePath(dacModulePath),
     m_targetCLR(0)
 {
+    printFuncName(__FUNCTION__);
     g_pRSDebuggingInfo->m_Cordb = this;
 
 #ifdef _DEBUG_IMPL
@@ -977,6 +996,7 @@ Cordb::Cordb(CorDebugInterfaceVersion iDebuggerVersion, const ProcessDescriptor&
 
 Cordb::~Cordb()
 {
+    printFuncName(__FUNCTION__);
     LOG((LF_CORDB, LL_INFO10, "C::~C Terminating Cordb object.\n"));
     if (m_pd.m_ApplicationGroupId != NULL)
     {
@@ -987,6 +1007,7 @@ Cordb::~Cordb()
 
 void Cordb::Neuter()
 {
+    printFuncName(__FUNCTION__);
     if (this->IsNeutered())
     {
         return;
@@ -1023,6 +1044,7 @@ void Cordb::Neuter()
 #ifdef _DEBUG_IMPL
 void CheckMemLeaks()
 {
+    printFuncName(__FUNCTION__);
     // Memory leak detection.
     LONG l = InterlockedDecrement(&Cordb::s_DbgMemTotalOutstandingCordb);
     if (l == 0)
@@ -1061,6 +1083,7 @@ void CheckMemLeaks()
 // any resources that we're about to release.
 HRESULT Cordb::Terminate()
 {
+    printFuncName(__FUNCTION__);
     LOG((LF_CORDB, LL_INFO10000, "[%x] Terminating Cordb\n", GetCurrentThreadId()));
 
     if (!m_initialized)
@@ -1182,6 +1205,7 @@ HRESULT Cordb::Terminate()
 
 HRESULT Cordb::QueryInterface(REFIID id, void **pInterface)
 {
+    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebug)
         *pInterface = static_cast<ICorDebug*>(this);
     else if (id == IID_IUnknown)
@@ -1205,6 +1229,7 @@ HRESULT Cordb::QueryInterface(REFIID id, void **pInterface)
 //
 HRESULT Cordb::Initialize(void)
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     FAIL_IF_NEUTERED(this);
@@ -1273,6 +1298,7 @@ exit:
 
 void Cordb::EnsureAllowAnotherProcess()
 {
+    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -1308,6 +1334,7 @@ void Cordb::EnsureAllowAnotherProcess()
 //
 void Cordb::AddProcess(CordbProcess* process)
 {
+    printFuncName(__FUNCTION__);
     // At this point, we should have already checked that we
     // can have another debuggee.
     STRESS_LOG1(LF_CORDB, LL_INFO10, "Cordb::AddProcess %08x...\n", process);
@@ -1335,6 +1362,7 @@ void Cordb::AddProcess(CordbProcess* process)
 //
 void Cordb::RemoveProcess(CordbProcess* process)
 {
+    printFuncName(__FUNCTION__);
     STRESS_LOG1(LF_CORDB, LL_INFO10, "Cordb::RemoveProcess %08x...\n", process);
 
     LockProcessList();
@@ -1350,6 +1378,7 @@ void Cordb::RemoveProcess(CordbProcess* process)
 //
 void Cordb::LockProcessList(void)
 {
+    printFuncName(__FUNCTION__);
     m_processListMutex.Lock();
 }
 
@@ -1358,6 +1387,7 @@ void Cordb::LockProcessList(void)
 //
 void Cordb::UnlockProcessList(void)
 {
+    printFuncName(__FUNCTION__);
     m_processListMutex.Unlock();
 }
 
@@ -1365,6 +1395,7 @@ void Cordb::UnlockProcessList(void)
 // Return true iff this thread owns the ProcessList lock
 bool Cordb::ThreadHasProcessListLock()
 {
+    printFuncName(__FUNCTION__);
     return m_processListMutex.HasLock();
 }
 #endif
@@ -1373,6 +1404,7 @@ bool Cordb::ThreadHasProcessListLock()
 // Get the hash that has the process.
 CordbSafeHashTable<CordbProcess> *Cordb::GetProcessList()
 {
+    printFuncName(__FUNCTION__);
     // If we're accessing the hash, we'd better be locked.
     _ASSERTE(ThreadHasProcessListLock());
 
@@ -1384,6 +1416,7 @@ HRESULT Cordb::SendIPCEvent(CordbProcess * pProcess,
                             DebuggerIPCEvent * pEvent,
                             SIZE_T eventSize)
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     LOG((LF_CORDB, LL_EVERYTHING, "SendIPCEvent in Cordb called\n"));
@@ -1398,6 +1431,7 @@ HRESULT Cordb::SendIPCEvent(CordbProcess * pProcess,
 
 void Cordb::ProcessStateChanged(void)
 {
+    printFuncName(__FUNCTION__);
     m_rcEventThread->ProcessStateChanged();
 }
 
@@ -1406,6 +1440,7 @@ HRESULT Cordb::WaitForIPCEventFromProcess(CordbProcess* process,
                                           CordbAppDomain *pAppDomain,
                                           DebuggerIPCEvent* event)
 {
+    printFuncName(__FUNCTION__);
     return m_rcEventThread->WaitForIPCEventFromProcess(process,
                                                        pAppDomain,
                                                        event);
@@ -1413,6 +1448,7 @@ HRESULT Cordb::WaitForIPCEventFromProcess(CordbProcess* process,
 
 HRESULT Cordb::SetTargetCLR(HMODULE hmodTargetCLR)
 {
+    printFuncName(__FUNCTION__);
     if (m_initialized)
         return E_FAIL;
 
@@ -1431,6 +1467,7 @@ HRESULT Cordb::SetTargetCLR(HMODULE hmodTargetCLR)
 // the callback underneath us)
 HRESULT Cordb::SetManagedHandler(ICorDebugManagedCallback *pCallback)
 {
+    printFuncName(__FUNCTION__);
     if (!m_initialized)
         return E_FAIL;
 
@@ -1493,6 +1530,7 @@ HRESULT Cordb::SetManagedHandler(ICorDebugManagedCallback *pCallback)
 
 HRESULT Cordb::SetUnmanagedHandler(ICorDebugUnmanagedCallback *pCallback)
 {
+    printFuncName(__FUNCTION__);
     if (!m_initialized)
         return E_FAIL;
 
@@ -1518,6 +1556,7 @@ bool Cordb::IsCreateProcessSupported()
 // Given everything we know about our configuration, can we support interop-debugging
 bool Cordb::IsInteropDebuggingSupported()
 {
+    printFuncName(__FUNCTION__);
     // We explicitly refrain from checking the unmanaged callback. See comment in
     // ICorDebug::SetUnmanagedHandler for details.
 #ifdef FEATURE_INTEROP_DEBUGGING
@@ -1567,6 +1606,7 @@ HRESULT Cordb::CreateProcess(LPCWSTR lpApplicationName,
                              CorDebugCreateProcessFlags debuggingFlags,
                              ICorDebugProcess **ppProcess)
 {
+    printFuncName(__FUNCTION__);
     return CreateProcessCommon(NULL,
                                lpApplicationName,
                                lpCommandLine,
@@ -1596,6 +1636,7 @@ HRESULT Cordb::CreateProcessCommon(ICorDebugRemoteTarget * pRemoteTarget,
                                    CorDebugCreateProcessFlags debuggingFlags,
                                    ICorDebugProcess ** ppProcess)
 {
+    printFuncName(__FUNCTION__);
     // If you hit this assert, it means that you are attempting to create a process without specifying the version
     // number.
     _ASSERTE(CorDebugInvalidVersion != m_debuggerSpecifiedVersion);
@@ -1730,6 +1771,7 @@ HRESULT Cordb::CreateProcessEx(ICorDebugRemoteTarget * pRemoteTarget,
                                CorDebugCreateProcessFlags debuggingFlags,
                                ICorDebugProcess ** ppProcess)
 {
+    printFuncName(__FUNCTION__);
     if (pRemoteTarget == NULL)
     {
         return E_INVALIDARG;
@@ -1769,6 +1811,7 @@ HRESULT Cordb::DebugActiveProcess(DWORD dwProcessId,
                                   BOOL fWin32Attach,
                                   ICorDebugProcess **ppProcess)
 {
+    printFuncName(__FUNCTION__);
     return DebugActiveProcessCommon(NULL, dwProcessId, fWin32Attach, ppProcess);
 }
 
@@ -1777,6 +1820,7 @@ HRESULT Cordb::DebugActiveProcessCommon(ICorDebugRemoteTarget * pRemoteTarget,
                                         BOOL fWin32Attach,
                                         ICorDebugProcess ** ppProcess)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppProcess, ICorDebugProcess **);
@@ -1879,6 +1923,7 @@ HRESULT Cordb::DebugActiveProcessCommon(ICorDebugRemoteTarget * pRemoteTarget,
 // Make sure we want to support the debugger that's using us
 void Cordb::CheckCompatibility()
 {
+    printFuncName(__FUNCTION__);
     // Get the debugger version specified by the startup APIs and convert it to a CLR major version number
     CorDebugInterfaceVersion debuggerVersion = GetDebuggerVersion();
     DWORD clrMajor;
@@ -1907,6 +1952,7 @@ HRESULT Cordb::DebugActiveProcessEx(ICorDebugRemoteTarget * pRemoteTarget,
                                     BOOL fWin32Attach,
                                     ICorDebugProcess ** ppProcess)
 {
+    printFuncName(__FUNCTION__);
     if (pRemoteTarget == NULL)
     {
         return E_INVALIDARG;
@@ -1918,6 +1964,7 @@ HRESULT Cordb::DebugActiveProcessEx(ICorDebugRemoteTarget * pRemoteTarget,
 
 HRESULT Cordb::GetProcess(DWORD dwProcessId, ICorDebugProcess **ppProcess)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppProcess, ICorDebugProcess**);
@@ -1942,6 +1989,7 @@ HRESULT Cordb::GetProcess(DWORD dwProcessId, ICorDebugProcess **ppProcess)
 
 HRESULT Cordb::EnumerateProcesses(ICorDebugProcessEnum **ppProcesses)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppProcesses, ICorDebugProcessEnum **);
@@ -1979,6 +2027,7 @@ HRESULT Cordb::EnumerateProcesses(ICorDebugProcessEnum **ppProcesses)
 // @dbgtodo-  this should go away in Dev11.
 HRESULT Cordb::CanLaunchOrAttach(DWORD dwProcessId, BOOL fWin32DebuggingEnabled)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
 
@@ -2012,6 +2061,7 @@ HRESULT Cordb::CanLaunchOrAttach(DWORD dwProcessId, BOOL fWin32DebuggingEnabled)
 //
 void Cordb::EnsureCanLaunchOrAttach(BOOL fWin32DebuggingEnabled)
 {
+    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -2034,6 +2084,7 @@ void Cordb::EnsureCanLaunchOrAttach(BOOL fWin32DebuggingEnabled)
 
 HRESULT Cordb::CreateObjectV1(REFIID id, void **object)
 {
+    printFuncName(__FUNCTION__);
     return CreateObject(CorDebugVersion_1_0, ProcessDescriptor::UNINITIALIZED_PID, NULL, NULL, id, object);
 }
 
@@ -2042,6 +2093,7 @@ HRESULT Cordb::CreateObjectV1(REFIID id, void **object)
 // same debug engine version as V2, though this may change in the future.
 HRESULT Cordb::CreateObjectTelesto(REFIID id, void ** pObject)
 {
+    printFuncName(__FUNCTION__);
     return CreateObject(CorDebugVersion_2_0, ProcessDescriptor::UNINITIALIZED_PID, NULL, NULL, id, pObject);
 }
 #endif // FEATURE_DBGIPC_TRANSPORT_DI
@@ -2050,6 +2102,7 @@ HRESULT Cordb::CreateObjectTelesto(REFIID id, void ** pObject)
 // Used to create an instance for a ClassFactory (thus an external ref).
 HRESULT Cordb::CreateObject(CorDebugInterfaceVersion iDebuggerVersion, DWORD pid, LPCWSTR lpApplicationGroupId, LPCWSTR dacModulePath, REFIID id, void **object)
 {
+    printFuncName(__FUNCTION__);
     if (id != IID_IUnknown && id != IID_ICorDebug)
         return (E_NOINTERFACE);
 
@@ -2117,6 +2170,7 @@ CordbEnumFilter::CordbEnumFilter(CordbBase * pOwnerObj, NeuterList * pOwnerList)
     m_pCurrent (NULL),
     m_iCount (0)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(m_pOwnerNeuterList != NULL);
 
     HRESULT hr = S_OK;
@@ -2136,6 +2190,7 @@ CordbEnumFilter::CordbEnumFilter(CordbEnumFilter *src)
     m_pFirst (NULL),
     m_pCurrent (NULL)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(m_pOwnerNeuterList != NULL);
 
     HRESULT hr = S_OK;
@@ -2208,6 +2263,7 @@ Error:
 
 CordbEnumFilter::~CordbEnumFilter()
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(this->IsNeutered());
 
     _ASSERTE(m_pFirst == NULL);
@@ -2215,6 +2271,7 @@ CordbEnumFilter::~CordbEnumFilter()
 
 void CordbEnumFilter::Neuter()
 {
+    printFuncName(__FUNCTION__);
     EnumElement *pElement = m_pFirst;
     EnumElement *pPrevious = NULL;
 
@@ -2236,6 +2293,7 @@ void CordbEnumFilter::Neuter()
 
 HRESULT CordbEnumFilter::QueryInterface(REFIID id, void **ppInterface)
 {
+    printFuncName(__FUNCTION__);
     // if we QI with the IID of the base type, we can't just return a pointer ICorDebugEnum directly, because
     // the cast is ambiguous. This happens because CordbEnumFilter implements both ICorDebugModuleEnum and
     // ICorDebugThreadEnum, both of which derive in turn from ICorDebugEnum. This produces a diamond inheritance
@@ -2261,6 +2319,7 @@ HRESULT CordbEnumFilter::QueryInterface(REFIID id, void **ppInterface)
 
 HRESULT CordbEnumFilter::Skip(ULONG celt)
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this);
     {
@@ -2275,6 +2334,7 @@ HRESULT CordbEnumFilter::Skip(ULONG celt)
 
 HRESULT CordbEnumFilter::Reset()
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this);
     {
@@ -2286,6 +2346,7 @@ HRESULT CordbEnumFilter::Reset()
 
 HRESULT CordbEnumFilter::Clone(ICorDebugEnum **ppEnum)
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this);
     {
@@ -2304,6 +2365,7 @@ HRESULT CordbEnumFilter::Clone(ICorDebugEnum **ppEnum)
 
 HRESULT CordbEnumFilter::GetCount(ULONG *pcelt)
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this);
     {
@@ -2318,6 +2380,7 @@ HRESULT CordbEnumFilter::Next(ULONG celt,
                 ICorDebugModule *objects[],
                 ULONG *pceltFetched)
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this);
     {
@@ -2329,6 +2392,7 @@ HRESULT CordbEnumFilter::Next(ULONG celt,
 
 HRESULT CordbEnumFilter::NextWorker(ULONG celt, ICorDebugModule *objects[], ULONG *pceltFetched)
 {
+    printFuncName(__FUNCTION__);
     // <TODO>
     //
     // nickbe 11/20/2002 10:43:39
@@ -2389,6 +2453,7 @@ HRESULT CordbEnumFilter::Next(ULONG celt,
                 ICorDebugThread *objects[],
                 ULONG *pceltFetched)
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this);
     {
@@ -2400,6 +2465,7 @@ HRESULT CordbEnumFilter::Next(ULONG celt,
 
 HRESULT CordbEnumFilter::NextWorker(ULONG celt, ICorDebugThread *objects[], ULONG *pceltFetched)
 {
+    printFuncName(__FUNCTION__);
     // @TODO remove this class
     VALIDATE_POINTER_TO_OBJECT_ARRAY(objects, ICorDebugThread *, celt, true, true);
     VALIDATE_POINTER_TO_OBJECT_OR_NULL(pceltFetched, ULONG *);
@@ -2450,6 +2516,7 @@ HRESULT CordbEnumFilter::NextWorker(ULONG celt, ICorDebugThread *objects[], ULON
 
 HRESULT CordbEnumFilter::Init (ICorDebugModuleEnum * pModEnum, CordbAssembly *pAssembly)
 {
+    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(GetProcess());
 
     ICorDebugModule *pCorModule = NULL;
@@ -2541,6 +2608,7 @@ Error:
 
 HRESULT CordbEnumFilter::Init (ICorDebugThreadEnum *pThreadEnum, CordbAppDomain *pAppDomain)
 {
+    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(GetProcess());
 
     ICorDebugThread *pCorThread = NULL;

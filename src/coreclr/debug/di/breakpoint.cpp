@@ -21,12 +21,14 @@ CordbBreakpoint::CordbBreakpoint(CordbProcess * pProcess, CordbBreakpointType bp
 // Neutered by CordbAppDomain
 void CordbBreakpoint::Neuter()
 {
+    printFuncName(__FUNCTION__);
     m_pAppDomain = NULL; // clear ref
     CordbBase::Neuter();
 }
 
 HRESULT CordbBreakpoint::QueryInterface(REFIID id, void **pInterface)
 {
+    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugBreakpoint)
     {
         *pInterface = static_cast<ICorDebugBreakpoint*>(this);
@@ -46,6 +48,7 @@ HRESULT CordbBreakpoint::QueryInterface(REFIID id, void **pInterface)
 
 HRESULT CordbBreakpoint::BaseIsActive(BOOL *pbActive)
 {
+    printFuncName(__FUNCTION__);
     *pbActive = m_active ? TRUE : FALSE;
 
     return S_OK;
@@ -62,6 +65,7 @@ CordbFunctionBreakpoint::CordbFunctionBreakpoint(CordbCode *code,
   m_code(code), m_offset(offset),
   m_offsetIsIl(offsetIsIl)
 {
+    printFuncName(__FUNCTION__);
     // Remember the app domain we came from so that breakpoints can be
     // deactivated from within the ExitAppdomain callback.
     m_pAppDomain = m_code->GetAppDomain();
@@ -70,6 +74,7 @@ CordbFunctionBreakpoint::CordbFunctionBreakpoint(CordbCode *code,
 
 CordbFunctionBreakpoint::~CordbFunctionBreakpoint()
 {
+    printFuncName(__FUNCTION__);
     // @todo- eventually get CordbFunctionBreakpoint rooted and enable this.
     //_ASSERTE(this->IsNeutered());
     //_ASSERTE(m_code == NULL);
@@ -77,12 +82,14 @@ CordbFunctionBreakpoint::~CordbFunctionBreakpoint()
 
 void CordbFunctionBreakpoint::Neuter()
 {
+    printFuncName(__FUNCTION__);
     Disconnect();
     CordbBreakpoint::Neuter();
 }
 
 HRESULT CordbFunctionBreakpoint::QueryInterface(REFIID id, void **pInterface)
 {
+    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugFunctionBreakpoint)
     {
         *pInterface = static_cast<ICorDebugFunctionBreakpoint*>(this);
@@ -100,6 +107,7 @@ HRESULT CordbFunctionBreakpoint::QueryInterface(REFIID id, void **pInterface)
 
 HRESULT CordbFunctionBreakpoint::GetFunction(ICorDebugFunction **ppFunction)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppFunction, ICorDebugFunction **);
@@ -122,6 +130,7 @@ HRESULT CordbFunctionBreakpoint::GetFunction(ICorDebugFunction **ppFunction)
 // m_id is actually a LSPTR_BREAKPOINT. Get it as a type-safe member.
 LSPTR_BREAKPOINT CordbFunctionBreakpoint::GetLsPtrBP()
 {
+    printFuncName(__FUNCTION__);
     LSPTR_BREAKPOINT p;
     p.Set((void*) m_id);
     return p;
@@ -152,6 +161,7 @@ HRESULT CordbFunctionBreakpoint::GetOffset(ULONG32 *pnOffset)
 //---------------------------------------------------------------------------------------
 HRESULT CordbFunctionBreakpoint::Activate(BOOL fActivate)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     OK_IF_NEUTERED(this); // we'll check again later
 
@@ -277,6 +287,7 @@ HRESULT CordbFunctionBreakpoint::Activate(BOOL fActivate)
 
 void CordbFunctionBreakpoint::Disconnect()
 {
+    printFuncName(__FUNCTION__);
     m_code.Clear();
 }
 
@@ -297,6 +308,7 @@ CordbStepper::CordbStepper(CordbThread *thread, CordbFrame *frame)
 
 HRESULT CordbStepper::QueryInterface(REFIID id, void **pInterface)
 {
+    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugStepper)
         *pInterface = static_cast<ICorDebugStepper *>(this);
     else if (id == IID_ICorDebugStepper2)
@@ -312,6 +324,7 @@ HRESULT CordbStepper::QueryInterface(REFIID id, void **pInterface)
 
 HRESULT CordbStepper::SetRangeIL(BOOL bIL)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     m_rangeIL = (bIL != FALSE);
@@ -321,6 +334,7 @@ HRESULT CordbStepper::SetRangeIL(BOOL bIL)
 
 HRESULT CordbStepper::SetJMC(BOOL fIsJMCStepper)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     // Can't have JMC and stopping with anything else.
@@ -333,6 +347,7 @@ HRESULT CordbStepper::SetJMC(BOOL fIsJMCStepper)
 
 HRESULT CordbStepper::IsActive(BOOL *pbActive)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pbActive, BOOL *);
@@ -345,6 +360,7 @@ HRESULT CordbStepper::IsActive(BOOL *pbActive)
 // M_id is a ptr to the stepper in the LS process.
 LSPTR_STEPPER CordbStepper::GetLsPtrStepper()
 {
+    printFuncName(__FUNCTION__);
     LSPTR_STEPPER p;
     p.Set((void*) m_id);
     return p;
@@ -352,6 +368,7 @@ LSPTR_STEPPER CordbStepper::GetLsPtrStepper()
 
 HRESULT CordbStepper::Deactivate()
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     if (!m_active)
         return S_OK;
@@ -400,6 +417,7 @@ HRESULT CordbStepper::Deactivate()
 
 HRESULT CordbStepper::SetInterceptMask(CorDebugIntercept mask)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     m_rgfInterceptStop = mask;
@@ -408,6 +426,7 @@ HRESULT CordbStepper::SetInterceptMask(CorDebugIntercept mask)
 
 HRESULT CordbStepper::SetUnmappedStopMask(CorDebugUnmappedStop mask)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
 
@@ -437,6 +456,7 @@ HRESULT CordbStepper::SetUnmappedStopMask(CorDebugUnmappedStop mask)
 
 HRESULT CordbStepper::Step(BOOL bStepIn)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -464,6 +484,7 @@ HRESULT CordbStepper::StepRange(BOOL fStepIn,
                                 COR_DEBUG_STEP_RANGE rgRanges[],
                                 ULONG32 cRanges)
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY_OR_NULL(rgRanges, COR_DEBUG_STEP_RANGE, cRanges, true, true);
@@ -636,6 +657,7 @@ HRESULT CordbStepper::StepRange(BOOL fStepIn,
 //
 HRESULT CordbStepper::StepOut()
 {
+    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());

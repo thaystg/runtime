@@ -18,6 +18,7 @@
 inline
 INativeEventPipeline * CordbWin32EventThread::GetNativePipeline()
 {
+    printFuncName(__FUNCTION__);
     return m_pNativePipeline;
 }
 
@@ -50,6 +51,7 @@ bool CordbProcess::IsInteropDebugging()
 inline
 ShimProcess * CordbProcess::GetShim()
 {
+    printFuncName(__FUNCTION__);
     return m_pShim;
 };
 
@@ -74,6 +76,7 @@ ShimProcess * CordbProcess::GetShim()
 template<typename T>
 HRESULT CordbProcess::SafeReadStruct(CORDB_ADDRESS pRemotePtr, T * pLocalBuffer)
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     EX_TRY
     {
@@ -89,6 +92,7 @@ HRESULT CordbProcess::SafeReadStruct(CORDB_ADDRESS pRemotePtr, T * pLocalBuffer)
 template<class T> inline
 RSInitHolder<T>::~RSInitHolder()
 {
+    printFuncName(__FUNCTION__);
     if (m_pObject != NULL)
     {
         CordbProcess * pProcess = m_pObject->GetProcess();
@@ -120,6 +124,7 @@ RSInitHolder<T>::~RSInitHolder()
 template<typename T> inline
 HRESULT CordbProcess::SafeWriteStruct(CORDB_ADDRESS pRemotePtr, const T* pLocalBuffer)
 {
+    printFuncName(__FUNCTION__);
     HRESULT hr= S_OK;
     EX_TRY
     {
@@ -133,12 +138,14 @@ HRESULT CordbProcess::SafeWriteStruct(CORDB_ADDRESS pRemotePtr, const T* pLocalB
 inline
 CordbModule *CordbJITILFrame::GetModule()
 {
+    printFuncName(__FUNCTION__);
     return (m_ilCode->GetModule());
 }
 
 inline
 CordbAppDomain *CordbJITILFrame::GetCurrentAppDomain()
 {
+    printFuncName(__FUNCTION__);
     return (m_nativeFrame->GetCurrentAppDomain());
 }
 
@@ -148,6 +155,7 @@ CordbAppDomain *CordbJITILFrame::GetCurrentAppDomain()
 inline
 void CordbProcess::ForceDacFlush()
 {
+    printFuncName(__FUNCTION__);
     // We need to take the process lock here because otherwise we could race with the Arrowhead stackwalking
     // APIs.  The Arrowhead stackwalking APIs check the flush counter and refresh all the state if necessary.
     // However, while one thread is refreshing the state of the stackwalker, another thread may come in
@@ -178,6 +186,7 @@ void CordbProcess::ForceDacFlush()
 inline
 CordbFunction *CordbJITILFrame::GetFunction()
 {
+    printFuncName(__FUNCTION__);
     return m_nativeFrame->m_nativeCode->GetFunction();
 }
 
@@ -186,12 +195,14 @@ CordbFunction *CordbJITILFrame::GetFunction()
 //-----------------------------------------------------------------------------
 inline bool IsWin32EventThread(CordbProcess * p)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(p!= NULL);
     return p->IsWin32EventThread();
 }
 
 inline bool IsRCEventThread(Cordb* p)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(p!= NULL);
     return (p->m_rcEventThread != NULL) && p->m_rcEventThread->IsRCEventThread();
 }
@@ -203,6 +214,7 @@ inline bool IsRCEventThread(Cordb* p)
 //-----------------------------------------------------------------------------
 inline HRESULT StopContinueHolder::Init(CordbProcess * p)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(p != NULL);
     LOG((LF_CORDB, LL_INFO100000, "Doing RS internal Stop\n"));
     HRESULT hr = p->StopInternal(INFINITE, VMPTR_AppDomain::NullPtr());
@@ -218,6 +230,7 @@ inline HRESULT StopContinueHolder::Init(CordbProcess * p)
 
 inline StopContinueHolder::~StopContinueHolder()
 {
+    printFuncName(__FUNCTION__);
     // If Init() failed to call Stop, then don't call continue
     if (m_p == NULL)
         return;
@@ -240,6 +253,7 @@ inline StopContinueHolder::~StopContinueHolder()
 inline
 void CordbCommonBase::Neuter()
 {
+    printFuncName(__FUNCTION__);
     LOG((LF_CORDB, LL_EVERYTHING, "Memory: CordbBase object neutered: this=%p, id=%p\n", this, m_id));
     m_fIsNeutered = 1;
 }
@@ -249,6 +263,7 @@ void CordbCommonBase::Neuter()
 inline
 void CordbCommonBase::UnsafeNeuterDeadObject()
 {
+    printFuncName(__FUNCTION__);
     LOG((LF_CORDB, LL_EVERYTHING, "Memory: CordbBase object neutered: this=%p, id=%p\n", this, m_id));
     m_fIsNeutered = 1;
 }
@@ -260,6 +275,7 @@ void CordbCommonBase::UnsafeNeuterDeadObject()
 inline
 void CordbCommonBase::InternalAddRef()
 {
+    printFuncName(__FUNCTION__);
     CONSISTENCY_CHECK_MSGF((m_RefCount & CordbBase_InternalRefCountMask) != (CordbBase_InternalRefCountMax),
         ("Internal AddRef overlow, External Count = %d,\n'%s' @ 0x%p",
         (m_RefCount >> CordbBase_ExternalRefCountShift), this->DbgGetName(), this));
@@ -318,6 +334,7 @@ void CordbCommonBase::InternalAddRef()
 inline
 ULONG CordbCommonBase::BaseAddRef()
 {
+    printFuncName(__FUNCTION__);
     Volatile<MixedRefCountUnsigned> ref;
     MixedRefCountUnsigned refNew;
     ExternalRefCount cExternalCount;
@@ -354,6 +371,7 @@ ULONG CordbCommonBase::BaseAddRef()
 inline
 void CordbCommonBase::ExternalAddRef()
 {
+    printFuncName(__FUNCTION__);
     // Call on BaseAddRef() to avoid any asserts that prevent stuff from inside the RS from bumping
     // up the external ref count.
     BaseAddRef();
@@ -362,6 +380,7 @@ void CordbCommonBase::ExternalAddRef()
 inline
 void CordbCommonBase::InternalRelease()
 {
+    printFuncName(__FUNCTION__);
     CONSISTENCY_CHECK_MSGF((m_RefCount & CordbBase_InternalRefCountMask) != 0,
         ("Internal Release underflow, External Count = %d,\n'%s' @ 0x%p",
         (m_RefCount >> CordbBase_ExternalRefCountShift), this->DbgGetName(), this));
@@ -405,6 +424,7 @@ void CordbCommonBase::InternalRelease()
 inline
 ULONG CordbCommonBase::BaseRelease()
 {
+    printFuncName(__FUNCTION__);
     Volatile<MixedRefCountUnsigned> ref;
     MixedRefCountUnsigned refNew;
     ExternalRefCount cExternalCount;
@@ -453,6 +473,7 @@ ULONG CordbCommonBase::BaseRelease()
 
 inline ULONG CordbCommonBase::BaseAddRefEnforceExternal()
 {
+    printFuncName(__FUNCTION__);
     // External refs shouldn't be called while in the RS
 #ifdef RSCONTRACTS
     DbgRSThread * pThread = DbgRSThread::GetThread();
@@ -489,6 +510,7 @@ inline ULONG CordbCommonBase::BaseReleaseEnforceExternal()
 #ifdef _DEBUG
 inline bool RSLock::HasLock()
 {
+    printFuncName(__FUNCTION__);
     CONSISTENCY_CHECK_MSGF(IsInit(), ("RSLock '%s' not inited", m_szTag));
     return m_tidOwner == ::GetCurrentThreadId();
 }
@@ -498,12 +520,14 @@ inline bool RSLock::HasLock()
 // Ctor+  Dtor are only used for asserts.
 inline RSLock::RSLock()
 {
+    printFuncName(__FUNCTION__);
     m_eAttr = cLockUninit;
     m_tidOwner = (DWORD)-1;
 };
 
 inline RSLock::~RSLock()
 {
+    printFuncName(__FUNCTION__);
     // If this lock is still ininitialized, then no body ever deleted the critical section
     // for it and we're leaking.
     CONSISTENCY_CHECK_MSGF(!IsInit(), ("Leaking Critical section for RS Lock '%s'", m_szTag));
@@ -514,6 +538,7 @@ inline RSLock::~RSLock()
 // Initialize a lock.
 inline void RSLock::Init(const char * szTag, int eAttr, ERSLockLevel level)
 {
+    printFuncName(__FUNCTION__);
     CONSISTENCY_CHECK_MSGF(!IsInit(), ("RSLock '%s' already inited", szTag));
 #ifdef _DEBUG
     m_szTag = szTag;
@@ -534,6 +559,7 @@ inline void RSLock::Init(const char * szTag, int eAttr, ERSLockLevel level)
 // Cleanup a lock.
 inline void RSLock::Destroy()
 {
+    printFuncName(__FUNCTION__);
     CONSISTENCY_CHECK_MSGF(IsInit(), ("RSLock '%s' not inited", m_szTag));
     DeleteCriticalSection(&m_lock);
 
@@ -545,6 +571,7 @@ inline void RSLock::Destroy()
 
 inline void RSLock::Lock()
 {
+    printFuncName(__FUNCTION__);
     CONSISTENCY_CHECK_MSGF(IsInit(), ("RSLock '%s' not inited", m_szTag));
 
 #ifdef RSCONTRACTS
@@ -564,6 +591,7 @@ inline void RSLock::Lock()
 
 inline void RSLock::Unlock()
 {
+    printFuncName(__FUNCTION__);
     CONSISTENCY_CHECK_MSGF(IsInit(), ("RSLock '%s' not inited", m_szTag));
 
 #ifdef _DEBUG
@@ -589,12 +617,14 @@ inline void RSLock::Unlock()
 template <class T>
 inline T* CordbSafeHashTable<T>::GetBase(ULONG_PTR id, BOOL fFab)
 {
+    printFuncName(__FUNCTION__);
     return static_cast<T*>(UnsafeGetBase(id, fFab));
 }
 
 template <class T>
 inline T* CordbSafeHashTable<T>::GetBaseOrThrow(ULONG_PTR id, BOOL fFab)
 {
+    printFuncName(__FUNCTION__);
     T* pResult = GetBase(id, fFab);
     if (pResult == NULL)
     {
@@ -623,6 +653,7 @@ inline T* CordbSafeHashTable<T>::GetBaseOrThrow(ULONG_PTR id, BOOL fFab)
 template <class T>
 inline void CordbSafeHashTable<T>::CopyToArray(RSPtrArray<T> * pArray)
 {
+    printFuncName(__FUNCTION__);
     // Assumes caller has necessary locks to iterate
     UINT32 count = GetCount();
     pArray->AllocOrThrow(count);
@@ -656,6 +687,7 @@ inline void CordbSafeHashTable<T>::CopyToArray(RSPtrArray<T> * pArray)
 template <class T>
 inline void CordbSafeHashTable<T>::TransferToArray(RSPtrArray<T> * pArray)
 {
+    printFuncName(__FUNCTION__);
     // Assumes caller has necessary locks
 
     HASHFIND find;
@@ -693,6 +725,7 @@ inline void CordbSafeHashTable<T>::TransferToArray(RSPtrArray<T> * pArray)
 template <class T>
 inline void CordbSafeHashTable<T>::NeuterAndClear(RSLock * pLock)
 {
+    printFuncName(__FUNCTION__);
     _ASSERTE(pLock->HasLock());
 
     HASHFIND find;
