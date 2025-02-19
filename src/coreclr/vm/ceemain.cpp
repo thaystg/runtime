@@ -218,6 +218,7 @@ static void InitializeGarbageCollector();
 
 #ifdef DEBUGGING_SUPPORTED
 static void InitializeDebugger(void);
+static void InitializeRemoteDebugger(void);
 static void TerminateDebugger(void);
 extern "C" HRESULT __cdecl CorDBGetInterface(DebugInterface** rcInterface);
 #endif // DEBUGGING_SUPPORTED
@@ -846,6 +847,11 @@ void EEStartupHelper()
         // EE thread objects are created, and before any classes or
         // modules are loaded.
         InitializeDebugger(); // throws on error
+#endif // DEBUGGING_SUPPORTED
+
+#ifdef DEBUGGING_SUPPORTED
+        // Initialize the remote debugging services. 
+        InitializeRemoteDebugger(); // throws on error
 #endif // DEBUGGING_SUPPORTED
 
 #ifdef PROFILING_SUPPORTED
@@ -1746,6 +1752,24 @@ void EnsureTlsDestructionMonitor()
 }
 
 #ifdef DEBUGGING_SUPPORTED
+typedef BOOL(__cdecl* PINITREMOTEDEBUGGER)(const char* ip, int port, bool isServer);
+PINITREMOTEDEBUGGER g_pfnInitRemoteDebugger = NULL;
+
+static void InitializeRemoteDebugger(void)
+{
+    while( !::IsDebuggerPresent() )
+        ::Sleep( 100 ); // to avoid 100% CPU load
+    HMODULE hm = LoadLibraryExW(L"C:\\diag\\android_coreclr\\runtime\\artifacts\\tests\\coreclr\\windows.x64.Debug\\Tests\\Core_Root\\remotemscordbitarget.dll", NULL, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS | LOAD_WITH_ALTERED_SEARCH_PATH);
+    g_pfnInitRemoteDebugger = (PINITREMOTEDEBUGGER)GetProcAddress(hm, "InitializeRemoteDebugger");
+    if (g_pfnInitRemoteDebugger == NULL)
+    {
+        return;
+    }
+    const char* ip = "127.0.0.1";
+    int port = 1234;
+    bool isServer = false;
+    g_pfnInitRemoteDebugger(ip, port, isServer);
+}
 //
 // InitializeDebugger initialized the Runtime-side CLR Debugging Services
 //
