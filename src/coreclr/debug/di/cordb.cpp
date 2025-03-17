@@ -169,33 +169,6 @@ STDAPI DLLEXPORT CoreCLRCreateCordbObject3(int iDebuggerVersion, DWORD pid, LPCW
 //    Callers will need to call *ppCordb->DebugActiveProcess(pid).
 STDAPI DLLEXPORT CoreCLRCreateCordbObjectEx(int iDebuggerVersion, DWORD pid, LPCWSTR lpApplicationGroupId, HMODULE hmodTargetCLR, IUnknown ** ppCordb)
 {
-#ifdef HOST_UNIX
-        int err = PAL_InitializeDLL();
-        if(err != 0)
-        {
-            return FALSE;
-        }
-#endif
-
-#if defined(_DEBUG)
-        static int BreakOnDILoad = -1;
-        if (BreakOnDILoad == -1)
-            BreakOnDILoad = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_BreakOnDILoad);
-
-        if (BreakOnDILoad)
-        {
-            _ASSERTE(!"DI Loaded");
-        }
-#endif
-
-#if defined(FEATURE_DBGIPC_TRANSPORT_DI)
-        g_pDbgTransportTarget = new (nothrow) DbgTransportTarget();
-        if (g_pDbgTransportTarget == NULL)
-            return FALSE;
-
-        if (FAILED(g_pDbgTransportTarget->Init()))
-            return FALSE;
-#endif   
     return CoreCLRCreateCordbObject3(iDebuggerVersion, pid, lpApplicationGroupId, NULL, hmodTargetCLR, ppCordb);
 }
 

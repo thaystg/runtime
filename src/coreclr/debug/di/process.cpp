@@ -736,8 +736,6 @@ BOOL CordbProcess::IsDacInitialized()
 //---------------------------------------------------------------------------------------
 IDacDbiInterface * CordbProcess::GetDAC()
 {
-    if (m_pDacPrimitives == NULL)
-        TryInitializeDac();
     // Since the DD primitives may throw, easiest way to model that is to make this throw.
     CONTRACTL
     {
