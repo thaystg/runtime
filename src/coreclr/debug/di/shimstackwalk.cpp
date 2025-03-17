@@ -26,7 +26,6 @@ ShimStackWalk::ShimStackWalk(ShimProcess * pProcess, ICorDebugThread * pThread)
   : m_pChainEnumList(NULL),
     m_pFrameEnumList(NULL)
 {
-    printFuncName(__FUNCTION__);
     // The following assignments increment the ref count.
     m_pProcess.Assign(pProcess);
     m_pThread.Assign(pThread);
@@ -36,7 +35,6 @@ ShimStackWalk::ShimStackWalk(ShimProcess * pProcess, ICorDebugThread * pThread)
 
 ShimStackWalk::~ShimStackWalk()
 {
-    printFuncName(__FUNCTION__);
     Clear();
 }
 
@@ -50,7 +48,6 @@ ShimStackWalk::~ShimStackWalk()
 
 void ShimStackWalk::Clear()
 {
-    printFuncName(__FUNCTION__);
     // call Release() on each of the ShimChains
     for (int i = 0; i < m_stackChains.Count(); i++)
     {
@@ -110,7 +107,6 @@ void ShimStackWalk::Clear()
 
 BOOL ShimStackWalk::ShouldTrackUMChain(StackWalkInfo * pswInfo)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE (pswInfo != NULL);
 
     // Always track chains for non-leaf UM frames
@@ -175,7 +171,6 @@ BOOL ShimStackWalk::ShouldTrackUMChain(StackWalkInfo * pswInfo)
 
 void ShimStackWalk::Populate()
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     // query for the ICDThread3 interface
@@ -532,14 +527,12 @@ void ShimStackWalk::Populate()
 // the caller is responsible for addref and release
 ICorDebugThread * ShimStackWalk::GetThread()
 {
-    printFuncName(__FUNCTION__);
     return m_pThread;
 }
 
 // the caller is responsible for addref and release
 ShimChain * ShimStackWalk::GetChain(UINT32 index)
 {
-    printFuncName(__FUNCTION__);
     if (index >= (UINT32)(m_stackChains.Count()))
     {
         return NULL;
@@ -553,7 +546,6 @@ ShimChain * ShimStackWalk::GetChain(UINT32 index)
 // the caller is responsible for addref and release
 ICorDebugFrame * ShimStackWalk::GetFrame(UINT32 index)
 {
-    printFuncName(__FUNCTION__);
     if (index >= (UINT32)(m_stackFrames.Count()))
     {
         return NULL;
@@ -566,19 +558,16 @@ ICorDebugFrame * ShimStackWalk::GetFrame(UINT32 index)
 
 ULONG ShimStackWalk::GetChainCount()
 {
-    printFuncName(__FUNCTION__);
     return m_stackChains.Count();
 }
 
 ULONG ShimStackWalk::GetFrameCount()
 {
-    printFuncName(__FUNCTION__);
     return m_stackFrames.Count();
 }
 
 RSLock * ShimStackWalk::GetShimLock()
 {
-    printFuncName(__FUNCTION__);
     return m_pProcess->GetShimLock();
 }
 
@@ -595,7 +584,6 @@ RSLock * ShimStackWalk::GetShimLock()
 
 void ShimStackWalk::AddChainEnum(ShimChainEnum * pChainEnum)
 {
-    printFuncName(__FUNCTION__);
     pChainEnum->SetNext(m_pChainEnumList);
     if (m_pChainEnumList != NULL)
     {
@@ -621,7 +609,6 @@ void ShimStackWalk::AddChainEnum(ShimChainEnum * pChainEnum)
 
 void ShimStackWalk::AddFrameEnum(ShimFrameEnum * pFrameEnum)
 {
-    printFuncName(__FUNCTION__);
     pFrameEnum->SetNext(m_pFrameEnumList);
     if (m_pFrameEnumList != NULL)
     {
@@ -638,7 +625,6 @@ void ShimStackWalk::AddFrameEnum(ShimFrameEnum * pFrameEnum)
 // Return the ICDThread associated with the current ShimStackWalk as a key for ShimStackWalkHashTableTraits.
 ICorDebugThread * ShimStackWalk::GetKey()
 {
-    printFuncName(__FUNCTION__);
     return m_pThread;
 }
 
@@ -646,7 +632,6 @@ ICorDebugThread * ShimStackWalk::GetKey()
 //static
 UINT32 ShimStackWalk::Hash(ICorDebugThread * pThread)
 {
-    printFuncName(__FUNCTION__);
     // just return the pointer value
     return (UINT32)(size_t)pThread;
 }
@@ -670,7 +655,6 @@ UINT32 ShimStackWalk::Hash(ICorDebugThread * pThread)
 
 BOOL ShimStackWalk::IsLeafFrame(ICorDebugFrame * pFrame)
 {
-    printFuncName(__FUNCTION__);
     // check if we have any chain
     if (GetChainCount() > 0)
     {
@@ -701,7 +685,6 @@ BOOL ShimStackWalk::IsLeafFrame(ICorDebugFrame * pFrame)
 
 BOOL ShimStackWalk::IsSameFrame(ICorDebugFrame * pLeft, ICorDebugFrame * pRight)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = E_FAIL;
 
     // Quick check #1: If the pointers are the same then the two frames are the same (duh!).
@@ -798,7 +781,6 @@ BOOL ShimStackWalk::IsSameFrame(ICorDebugFrame * pLeft, ICorDebugFrame * pRight)
 // This is the shim implementation of ICDThread::EnumerateChains().
 void ShimStackWalk::EnumerateChains(ICorDebugChainEnum ** ppChainEnum)
 {
-    printFuncName(__FUNCTION__);
     NewHolder<ShimChainEnum> pChainEnum(new ShimChainEnum(this, GetShimLock()));
 
     *ppChainEnum = pChainEnum;
@@ -811,7 +793,6 @@ void ShimStackWalk::EnumerateChains(ICorDebugChainEnum ** ppChainEnum)
 // This is the shim implementation of ICDThread::GetActiveChain().
 void ShimStackWalk::GetActiveChain(ICorDebugChain ** ppChain)
 {
-    printFuncName(__FUNCTION__);
     if (GetChainCount() == 0)
     {
         *ppChain = NULL;
@@ -826,7 +807,6 @@ void ShimStackWalk::GetActiveChain(ICorDebugChain ** ppChain)
 // This is the shim implementation of ICDThread::GetActiveFrame().
 void ShimStackWalk::GetActiveFrame(ICorDebugFrame ** ppFrame)
 {
-    printFuncName(__FUNCTION__);
     //
     // Make sure two things:
     //     1)  We have at least one frame.
@@ -847,7 +827,6 @@ void ShimStackWalk::GetActiveFrame(ICorDebugFrame ** ppFrame)
 // This is the shim implementation of ICDThread::GetRegisterSet().
 void ShimStackWalk::GetActiveRegisterSet(ICorDebugRegisterSet ** ppRegisterSet)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(GetChainCount() != 0);
     _ASSERTE(GetChain(0) != NULL);
 
@@ -859,7 +838,6 @@ void ShimStackWalk::GetActiveRegisterSet(ICorDebugRegisterSet ** ppRegisterSet)
 // This is the shim implementation of ICDFrame::GetChain().
 void ShimStackWalk::GetChainForFrame(ICorDebugFrame * pFrame, ICorDebugChain ** ppChain)
 {
-    printFuncName(__FUNCTION__);
     CORDB_ADDRESS frameStart;
     CORDB_ADDRESS frameEnd;
     IfFailThrow(pFrame->GetStackRange(&frameStart, &frameEnd));
@@ -924,7 +902,6 @@ void ShimStackWalk::GetChainForFrame(ICorDebugFrame * pFrame, ICorDebugChain ** 
 // This is the shim implementation of ICDFrame::GetCaller().
 void ShimStackWalk::GetCallerForFrame(ICorDebugFrame * pFrame, ICorDebugFrame ** ppCallerFrame)
 {
-    printFuncName(__FUNCTION__);
     for (UINT32 i = 0; i < GetChainCount(); i++)
     {
         ShimChain * pCurChain = GetChain(i);
@@ -953,7 +930,6 @@ void ShimStackWalk::GetCallerForFrame(ICorDebugFrame * pFrame, ICorDebugFrame **
 // This is the shim implementation of ICDFrame::GetCallee().
 void ShimStackWalk::GetCalleeForFrame(ICorDebugFrame * pFrame, ICorDebugFrame ** ppCalleeFrame)
 {
-    printFuncName(__FUNCTION__);
     for (UINT32 i = 0; i < GetChainCount(); i++)
     {
         ShimChain * pCurChain = GetChain(i);
@@ -981,13 +957,11 @@ void ShimStackWalk::GetCalleeForFrame(ICorDebugFrame * pFrame, ICorDebugFrame **
 
 FramePointer ShimStackWalk::GetFramePointerForChain(DT_CONTEXT * pContext)
 {
-    printFuncName(__FUNCTION__);
     return FramePointer::MakeFramePointer(CORDbgGetSP(pContext));
 }
 
 FramePointer ShimStackWalk::GetFramePointerForChain(ICorDebugInternalFrame2 * pInternalFrame2)
 {
-    printFuncName(__FUNCTION__);
     CORDB_ADDRESS frameAddr;
     HRESULT hr = pInternalFrame2->GetAddress(&frameAddr);
     IfFailThrow(hr);
@@ -997,7 +971,6 @@ FramePointer ShimStackWalk::GetFramePointerForChain(ICorDebugInternalFrame2 * pI
 
 CorDebugInternalFrameType ShimStackWalk::GetInternalFrameType(ICorDebugInternalFrame2 * pFrame2)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = E_FAIL;
 
     // Retrieve the frame type of the internal frame.
@@ -1025,7 +998,6 @@ CorDebugInternalFrameType ShimStackWalk::GetInternalFrameType(ICorDebugInternalF
 
 void ShimStackWalk::AppendFrame(ICorDebugFrame * pFrame, StackWalkInfo * pStackWalkInfo)
 {
-    printFuncName(__FUNCTION__);
     // We've detected we're in a stackwalk where we have an exception and no further managed frames 
     // are on top of this frame. To ensure our IP points to the user line that threw the exception, 
     // we ask the frame to adjust the IP to the call instruction as currently it points to the instruction after it.
@@ -1057,7 +1029,6 @@ void ShimStackWalk::AppendFrame(ICorDebugFrame * pFrame, StackWalkInfo * pStackW
 
 void ShimStackWalk::AppendFrame(ICorDebugInternalFrame2 * pInternalFrame2, StackWalkInfo * pStackWalkInfo)
 {
-    printFuncName(__FUNCTION__);
     RSExtSmartPtr<ICorDebugFrame> pFrame;
     HRESULT hr = pInternalFrame2->QueryInterface(IID_ICorDebugFrame, reinterpret_cast<void **>(&pFrame));
     IfFailThrow(hr);
@@ -1085,7 +1056,6 @@ void ShimStackWalk::AppendChainWorker(StackWalkInfo *     pStackWalkInfo,
                                       CorDebugChainReason chainReason,
                                       BOOL                fIsManagedChain)
 {
-    printFuncName(__FUNCTION__);
     // first, create the chain
     NewHolder<ShimChain> pChain(new ShimChain(this,
                                               pLeafContext,
@@ -1125,7 +1095,6 @@ void ShimStackWalk::AppendChainWorker(StackWalkInfo *     pStackWalkInfo,
 
 void ShimStackWalk::AppendChain(ChainInfo * pChainInfo, StackWalkInfo * pStackWalkInfo)
 {
-    printFuncName(__FUNCTION__);
     // Check if the chain to be added is managed or not.
     BOOL fManagedChain = FALSE;
     if ((pChainInfo->m_reason == CHAIN_ENTER_MANAGED) ||
@@ -1194,7 +1163,6 @@ void ShimStackWalk::AppendChain(ChainInfo * pChainInfo, StackWalkInfo * pStackWa
 
 void ShimStackWalk::SaveChainContext(ICorDebugStackWalk * pSW, ChainInfo * pChainInfo, DT_CONTEXT * pContext)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = pSW->GetContext(CONTEXT_FULL,
                                  sizeof(*pContext),
                                  NULL,
@@ -1225,7 +1193,6 @@ BOOL ShimStackWalk::CheckInternalFrame(ICorDebugFrame *     pNextStackFrame,
                                        ICorDebugThread3 *   pThread3,
                                        ICorDebugStackWalk * pSW)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(pNextStackFrame != NULL);
     _ASSERTE(!pStackWalkInfo->ExhaustedAllInternalFrames());
 
@@ -1308,7 +1275,6 @@ BOOL ShimStackWalk::CheckInternalFrame(ICorDebugFrame *     pNextStackFrame,
 
 BOOL ShimStackWalk::ConvertInternalFrameToDynamicMethod(StackWalkInfo * pStackWalkInfo)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = E_FAIL;
 
     // QI for ICDFrame
@@ -1375,7 +1341,6 @@ BOOL ShimStackWalk::ConvertInternalFrameToDynamicMethod(StackWalkInfo * pStackWa
 
 BOOL ShimStackWalk::ConvertStackFrameToDynamicMethod(ICorDebugFrame * pFrame, StackWalkInfo * pStackWalkInfo)
 {
-    printFuncName(__FUNCTION__);
     // If this is not a dynamic method (i.e. LCG method or IL stub), then we don't need to do a conversion.
     if (!IsILFrameWithoutMetadata(pFrame))
     {
@@ -1407,7 +1372,6 @@ BOOL ShimStackWalk::ConvertStackFrameToDynamicMethod(ICorDebugFrame * pFrame, St
 
 void ShimStackWalk::TrackUMChain(ChainInfo * pChainInfo, StackWalkInfo * pStackWalkInfo)
 {
-    printFuncName(__FUNCTION__);
     if (!pChainInfo->IsTrackingUMChain())
     {
         if (pStackWalkInfo->m_fProcessingInternalFrame)
@@ -1479,7 +1443,6 @@ void ShimStackWalk::TrackUMChain(ChainInfo * pChainInfo, StackWalkInfo * pStackW
 
 BOOL ShimStackWalk::IsV3FrameType(CorDebugInternalFrameType type)
 {
-    printFuncName(__FUNCTION__);
     // These frame types are either new in Arrowhead or not used in V2.
     if ((type == STUBFRAME_INTERNALCALL) ||
         (type == STUBFRAME_CLASS_INIT) ||
@@ -1499,7 +1462,6 @@ BOOL ShimStackWalk::IsV3FrameType(CorDebugInternalFrameType type)
 // an ICDNativeFrame but no ICDILFrame.
 BOOL ShimStackWalk::IsILFrameWithoutMetadata(ICorDebugFrame * pFrame)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = E_FAIL;
 
     RSExtSmartPtr<ICorDebugNativeFrame> pNativeFrame;
@@ -1534,14 +1496,12 @@ ShimStackWalk::StackWalkInfo::StackWalkInfo()
     m_fHasConvertedFrame(false),
     m_fHasException(false)
 {
-    printFuncName(__FUNCTION__);
     m_pChildFrame.Assign(NULL);
     m_pConvertedInternalFrame2.Assign(NULL);
 }
 
 ShimStackWalk::StackWalkInfo::~StackWalkInfo()
 {
-    printFuncName(__FUNCTION__);
     if (m_pChildFrame != NULL)
     {
         m_pChildFrame.Clear();
@@ -1560,7 +1520,6 @@ ShimStackWalk::StackWalkInfo::~StackWalkInfo()
 
 void ShimStackWalk::StackWalkInfo::ResetForNextFrame()
 {
-    printFuncName(__FUNCTION__);
     m_pConvertedInternalFrame2.Clear();
     m_internalFrameType = STUBFRAME_NONE;
     m_fProcessingInternalFrame = false;
@@ -1571,25 +1530,21 @@ void ShimStackWalk::StackWalkInfo::ResetForNextFrame()
 // Check whether we have exhausted both internal frames and stack frames.
 bool ShimStackWalk::StackWalkInfo::ExhaustedAllFrames()
 {
-    printFuncName(__FUNCTION__);
     return (ExhaustedAllStackFrames() && ExhaustedAllInternalFrames());
 }
 
 bool ShimStackWalk::StackWalkInfo::ExhaustedAllStackFrames()
 {
-    printFuncName(__FUNCTION__);
     return m_fExhaustedAllStackFrames;
 }
 
 bool ShimStackWalk::StackWalkInfo::ExhaustedAllInternalFrames()
 {
-    printFuncName(__FUNCTION__);
     return (m_curInternalFrame == m_cInternalFrames);
 }
 
 ICorDebugInternalFrame2 * ShimStackWalk::StackWalkInfo::GetCurrentInternalFrame()
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(!ExhaustedAllInternalFrames() || HasConvertedFrame());
 
     if (HasConvertedFrame())
@@ -1604,19 +1559,16 @@ ICorDebugInternalFrame2 * ShimStackWalk::StackWalkInfo::GetCurrentInternalFrame(
 
 BOOL ShimStackWalk::StackWalkInfo::IsLeafFrame()
 {
-    printFuncName(__FUNCTION__);
     return m_fLeafFrame;
 }
 
 BOOL ShimStackWalk::StackWalkInfo::IsSkippingFrame()
 {
-    printFuncName(__FUNCTION__);
     return (m_pChildFrame != NULL);
 }
 
 BOOL ShimStackWalk::StackWalkInfo::HasConvertedFrame()
 {
-    printFuncName(__FUNCTION__);
     return m_fHasConvertedFrame;
 }
 
@@ -1646,31 +1598,26 @@ ShimChain::ShimChain(ShimStackWalk *     pSW,
 
 ShimChain::~ShimChain()
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(IsNeutered());
 }
 
 void ShimChain::Neuter()
 {
-    printFuncName(__FUNCTION__);
     m_fIsNeutered = TRUE;
 }
 
 BOOL ShimChain::IsNeutered()
 {
-    printFuncName(__FUNCTION__);
     return m_fIsNeutered;
 }
 
 ULONG STDMETHODCALLTYPE ShimChain::AddRef()
 {
-    printFuncName(__FUNCTION__);
     return InterlockedIncrement((LONG *)&m_refCount);
 }
 
 ULONG STDMETHODCALLTYPE ShimChain::Release()
 {
-    printFuncName(__FUNCTION__);
     LONG newRefCount = InterlockedDecrement((LONG *)&m_refCount);
     _ASSERTE(newRefCount >= 0);
 
@@ -1683,7 +1630,6 @@ ULONG STDMETHODCALLTYPE ShimChain::Release()
 
 HRESULT ShimChain::QueryInterface(REFIID id, void ** pInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugChain)
     {
         *pInterface = static_cast<ICorDebugChain *>(this);
@@ -1705,7 +1651,6 @@ HRESULT ShimChain::QueryInterface(REFIID id, void ** pInterface)
 // Returns the thread to which this chain belongs.
 HRESULT ShimChain::GetThread(ICorDebugThread ** ppThread)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppThread, ICorDebugThread **);
@@ -1722,7 +1667,6 @@ HRESULT ShimChain::GetThread(ICorDebugThread ** ppThread)
 // for the UM portions of the stack
 HRESULT ShimChain::GetStackRange(CORDB_ADDRESS * pStart, CORDB_ADDRESS * pEnd)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     EX_TRY
     {
@@ -1750,7 +1694,6 @@ HRESULT ShimChain::GetStackRange(CORDB_ADDRESS * pStart, CORDB_ADDRESS * pEnd)
 
 HRESULT ShimChain::GetContext(ICorDebugContext ** ppContext)
 {
-    printFuncName(__FUNCTION__);
     return E_NOTIMPL;
 }
 
@@ -1758,7 +1701,6 @@ HRESULT ShimChain::GetContext(ICorDebugContext ** ppContext)
 // Currently this is just a wrapper over GetNext().
 HRESULT ShimChain::GetCaller(ICorDebugChain ** ppChain)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppChain, ICorDebugChain **);
@@ -1770,7 +1712,6 @@ HRESULT ShimChain::GetCaller(ICorDebugChain ** ppChain)
 // Currently this is just a wrapper over GetPrevious().
 HRESULT ShimChain::GetCallee(ICorDebugChain ** ppChain)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppChain, ICorDebugChain **);
@@ -1781,7 +1722,6 @@ HRESULT ShimChain::GetCallee(ICorDebugChain ** ppChain)
 // Return the previous chain which is closer to the leaf.
 HRESULT ShimChain::GetPrevious(ICorDebugChain ** ppChain)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppChain, ICorDebugChain **);
@@ -1803,7 +1743,6 @@ HRESULT ShimChain::GetPrevious(ICorDebugChain ** ppChain)
 // Return the next chain which is closer to the root.
 HRESULT ShimChain::GetNext(ICorDebugChain ** ppChain)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppChain, ICorDebugChain **);
@@ -1820,7 +1759,6 @@ HRESULT ShimChain::GetNext(ICorDebugChain ** ppChain)
 // Return whether the chain contains frames running managed code.
 HRESULT ShimChain::IsManaged(BOOL * pManaged)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pManaged, BOOL *);
@@ -1833,7 +1771,6 @@ HRESULT ShimChain::IsManaged(BOOL * pManaged)
 // Return an enumerator to iterate through the frames contained in this chain.
 HRESULT ShimChain::EnumerateFrames(ICorDebugFrameEnum ** ppFrames)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppFrames, ICorDebugFrameEnum **);
@@ -1861,7 +1798,6 @@ HRESULT ShimChain::EnumerateFrames(ICorDebugFrameEnum ** ppFrames)
 // Note that this function will only succeed if the cached stack trace is valid.
 HRESULT ShimChain::GetActiveFrame(ICorDebugFrame ** ppFrame)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppFrame, ICorDebugFrame **);
@@ -1886,7 +1822,6 @@ HRESULT ShimChain::GetActiveFrame(ICorDebugFrame ** ppFrame)
 // Return the register set of the leaf end of the chain
 HRESULT ShimChain::GetRegisterSet(ICorDebugRegisterSet ** ppRegisters)
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppRegisters, ICorDebugRegisterSet **);
 
@@ -1909,7 +1844,6 @@ HRESULT ShimChain::GetRegisterSet(ICorDebugRegisterSet ** ppRegisters)
 // Return the chain reason
 HRESULT ShimChain::GetReason(CorDebugChainReason * pReason)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pReason, CorDebugChainReason *);
@@ -1921,19 +1855,16 @@ HRESULT ShimChain::GetReason(CorDebugChainReason * pReason)
 
 ShimStackWalk * ShimChain::GetShimStackWalk()
 {
-    printFuncName(__FUNCTION__);
     return m_pStackWalk;
 }
 
 UINT32 ShimChain::GetFirstFrameIndex()
 {
-    printFuncName(__FUNCTION__);
     return this->m_frameStartIndex;
 }
 
 UINT32 ShimChain::GetLastFrameIndex()
 {
-    printFuncName(__FUNCTION__);
     return this->m_frameEndIndex;
 }
 
@@ -1950,13 +1881,11 @@ ShimChainEnum::ShimChainEnum(ShimStackWalk * pSW, RSLock * pShimLock)
 
 ShimChainEnum::~ShimChainEnum()
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(IsNeutered());
 }
 
 void ShimChainEnum::Neuter()
 {
-    printFuncName(__FUNCTION__);
     if (IsNeutered())
     {
         return;
@@ -1967,20 +1896,17 @@ void ShimChainEnum::Neuter()
 
 BOOL ShimChainEnum::IsNeutered()
 {
-    printFuncName(__FUNCTION__);
     return m_fIsNeutered;
 }
 
 
 ULONG STDMETHODCALLTYPE ShimChainEnum::AddRef()
 {
-    printFuncName(__FUNCTION__);
     return InterlockedIncrement((LONG *)&m_refCount);
 }
 
 ULONG STDMETHODCALLTYPE ShimChainEnum::Release()
 {
-    printFuncName(__FUNCTION__);
     LONG newRefCount = InterlockedDecrement((LONG *)&m_refCount);
     _ASSERTE(newRefCount >= 0);
 
@@ -1993,7 +1919,6 @@ ULONG STDMETHODCALLTYPE ShimChainEnum::Release()
 
 HRESULT ShimChainEnum::QueryInterface(REFIID id, void ** ppInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugChainEnum)
     {
         *ppInterface = static_cast<ICorDebugChainEnum *>(this);
@@ -2019,7 +1944,6 @@ HRESULT ShimChainEnum::QueryInterface(REFIID id, void ** ppInterface)
 // Skip the specified number of chains.
 HRESULT ShimChainEnum::Skip(ULONG celt)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
 
@@ -2030,7 +1954,6 @@ HRESULT ShimChainEnum::Skip(ULONG celt)
 
 HRESULT ShimChainEnum::Reset()
 {
-    printFuncName(__FUNCTION__);
     m_currentChainIndex = 0;
     return S_OK;
 }
@@ -2038,7 +1961,6 @@ HRESULT ShimChainEnum::Reset()
 // Clone the chain enumerator and set the new one to the same current chain
 HRESULT ShimChainEnum::Clone(ICorDebugEnum ** ppEnum)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppEnum, ICorDebugEnum **);
@@ -2064,7 +1986,6 @@ HRESULT ShimChainEnum::Clone(ICorDebugEnum ** ppEnum)
 // Return the number of chains on the thread
 HRESULT ShimChainEnum::GetCount(ULONG * pcChains)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pcChains, ULONG *);
@@ -2078,7 +1999,6 @@ HRESULT ShimChainEnum::GetCount(ULONG * pcChains)
 // Return S_FALSE if the number of chains actually retrieved is less than the number of chains requested.
 HRESULT ShimChainEnum::Next(ULONG cChains, ICorDebugChain * rgpChains[], ULONG * pcChainsFetched)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(rgpChains, ICorDebugChain *, cChains, true, true);
@@ -2134,13 +2054,11 @@ HRESULT ShimChainEnum::Next(ULONG cChains, ICorDebugChain * rgpChains[], ULONG *
 
 ShimChainEnum * ShimChainEnum::GetNext()
 {
-    printFuncName(__FUNCTION__);
     return m_pNext;
 }
 
 void ShimChainEnum::SetNext(ShimChainEnum * pNext)
 {
-    printFuncName(__FUNCTION__);
     if (m_pNext != NULL)
     {
         m_pNext->Release();
@@ -2173,13 +2091,11 @@ ShimFrameEnum::ShimFrameEnum(ShimStackWalk * pSW,
 
 ShimFrameEnum::~ShimFrameEnum()
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(IsNeutered());
 }
 
 void ShimFrameEnum::Neuter()
 {
-    printFuncName(__FUNCTION__);
     if (IsNeutered())
     {
         return;
@@ -2190,20 +2106,17 @@ void ShimFrameEnum::Neuter()
 
 BOOL ShimFrameEnum::IsNeutered()
 {
-    printFuncName(__FUNCTION__);
     return m_fIsNeutered;
 }
 
 
 ULONG STDMETHODCALLTYPE ShimFrameEnum::AddRef()
 {
-    printFuncName(__FUNCTION__);
     return InterlockedIncrement((LONG *)&m_refCount);
 }
 
 ULONG STDMETHODCALLTYPE ShimFrameEnum::Release()
 {
-    printFuncName(__FUNCTION__);
     LONG newRefCount = InterlockedDecrement((LONG *)&m_refCount);
     _ASSERTE(newRefCount >= 0);
 
@@ -2216,7 +2129,6 @@ ULONG STDMETHODCALLTYPE ShimFrameEnum::Release()
 
 HRESULT ShimFrameEnum::QueryInterface(REFIID id, void ** ppInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugFrameEnum)
     {
         *ppInterface = static_cast<ICorDebugFrameEnum *>(this);
@@ -2242,7 +2154,6 @@ HRESULT ShimFrameEnum::QueryInterface(REFIID id, void ** ppInterface)
 // Skip the specified number of chains.
 HRESULT ShimFrameEnum::Skip(ULONG celt)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
 
@@ -2253,7 +2164,6 @@ HRESULT ShimFrameEnum::Skip(ULONG celt)
 
 HRESULT ShimFrameEnum::Reset()
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
 
@@ -2264,7 +2174,6 @@ HRESULT ShimFrameEnum::Reset()
 // Clone the chain enumerator and set the new one to the same current chain
 HRESULT ShimFrameEnum::Clone(ICorDebugEnum ** ppEnum)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppEnum, ICorDebugEnum **);
@@ -2292,7 +2201,6 @@ HRESULT ShimFrameEnum::Clone(ICorDebugEnum ** ppEnum)
 // Return the number of chains on the thread
 HRESULT ShimFrameEnum::GetCount(ULONG * pcFrames)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pcFrames, ULONG *);
@@ -2306,7 +2214,6 @@ HRESULT ShimFrameEnum::GetCount(ULONG * pcFrames)
 // Return S_FALSE if the number of chains actually retrieved is less than the number of chains requested.
 HRESULT ShimFrameEnum::Next(ULONG cFrames, ICorDebugFrame * rgpFrames[], ULONG * pcFramesFetched)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pShimLock);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(rgpFrames, ICorDebugFrame *, cFrames, true, true);
@@ -2362,13 +2269,11 @@ HRESULT ShimFrameEnum::Next(ULONG cFrames, ICorDebugFrame * rgpFrames[], ULONG *
 
 ShimFrameEnum * ShimFrameEnum::GetNext()
 {
-    printFuncName(__FUNCTION__);
     return m_pNext;
 }
 
 void ShimFrameEnum::SetNext(ShimFrameEnum * pNext)
 {
-    printFuncName(__FUNCTION__);
     if (m_pNext != NULL)
     {
         m_pNext->Release();

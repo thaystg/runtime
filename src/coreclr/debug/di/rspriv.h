@@ -11,6 +11,8 @@
 #ifndef RSPRIV_H
 #define RSPRIV_H
 
+static void printFuncName(const char* funcName);
+
 #include <winwrap.h>
 #include <windows.h>
 
@@ -176,13 +178,10 @@ private:
 
 extern forDbiWorker forDbi;
 
-
+#include <pthread.h> 
 static void printFuncName(const char* funcName)
 {
-    FILE* fptr;
-    fptr = fopen("C:\\diag\\android_coreclr\\runtime\\out.txt", "a+");
-    fprintf(fptr, "%s\n", funcName);
-    fclose(fptr);
+    //printf("%ld - %s\n", pthread_self(), funcName);
 }
 
 // for dbi we just default to new, but we need to have these defined for both dac and dbi
@@ -1642,7 +1641,6 @@ struct RsGuidToTypeMapping
 inline
 CorDebugGuidToTypeMapping GuidToTypeMappingConvert(RsGuidToTypeMapping m)
 {
-    printFuncName(__FUNCTION__);
     CorDebugGuidToTypeMapping result;
     result.iid = m.iid;
     result.pType = (ICorDebugType*)(m.spType.GetValue());
@@ -11200,13 +11198,11 @@ HRESULT CopyOutString(const WCHAR * pInputString, ULONG32 cchName, ULONG32 * pcc
 
 inline UINT AllocCookieCordbEval(CordbProcess *pProc, CordbEval* p)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(pProc->GetProcessLock()->HasLock());
     return pProc->m_EvalTable.Add(p);
 }
 inline CordbEval * UnwrapCookieCordbEval(CordbProcess *pProc, UINT cookie)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(pProc->GetProcessLock()->HasLock());
     return pProc->m_EvalTable.LookupAndRemove(cookie);
 }
@@ -11616,7 +11612,6 @@ public:
 // Helper to log debug events.
 inline void StressLogNativeDebugEvent(const DEBUG_EVENT * pDebugEvent, bool fOOB)
 {
-    printFuncName(__FUNCTION__);
     if ((pDebugEvent)->dwDebugEventCode == EXCEPTION_DEBUG_EVENT)
     {
         STRESS_LOG4(LF_CORDB, LL_EVERYTHING, "[Dispatching Win32 code=1 (EXCEPTION_DEBUG_EVENT, tid=%x, oob=%d, code=0x%x, 1st=%d]\n",
@@ -11664,19 +11659,16 @@ public:
 // Different valid reasons that we may be threads safe.
 inline ThreadSafetyReason HoldsLock(RSLock * pLock)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(pLock != NULL);
     return ThreadSafetyReason(pLock->HasLock());
 }
 inline ThreadSafetyReason OnW32ET(CordbProcess * pProc)
 {
-    printFuncName(__FUNCTION__);
     return ThreadSafetyReason(IsWin32EventThread(pProc));
 }
 
 inline ThreadSafetyReason OnRCET(Cordb *pCordb)
 {
-    printFuncName(__FUNCTION__);
     return ThreadSafetyReason (IsRCEventThread(pCordb));
 }
 
@@ -11821,7 +11813,6 @@ protected:
 // Helpers
 inline void ValidateOrThrow(const void * p)
 {
-    printFuncName(__FUNCTION__);
     if (p == NULL)
     {
         ThrowHR(E_INVALIDARG);

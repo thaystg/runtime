@@ -118,7 +118,6 @@ HRESULT NewEventChannelForThisPlatform(CORDB_ADDRESS pLeftSideDCB,
                                        MachineInfo machineInfo,
                                        IEventChannel ** ppEventChannel)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(ppEventChannel != NULL);
 
     LocalEventChannel *       pEventChannel = NULL;
@@ -155,7 +154,6 @@ LocalEventChannel::LocalEventChannel(CORDB_ADDRESS pLeftSideDCB,
                                      DebuggerIPCControlBlock * pDCBBuffer,
                                      ICorDebugMutableDataTarget * pMutableDataTarget)
 {
-    printFuncName(__FUNCTION__);
     m_pLeftSideDCB = pLeftSideDCB;
     m_pDCBBuffer   = pDCBBuffer;
 
@@ -170,7 +168,6 @@ LocalEventChannel::LocalEventChannel(CORDB_ADDRESS pLeftSideDCB,
 // virtual
 HRESULT LocalEventChannel::Init(HANDLE hTargetProc)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = E_FAIL;
 
     m_hTargetProc = hTargetProc;
@@ -201,7 +198,6 @@ HRESULT LocalEventChannel::Init(HANDLE hTargetProc)
 // virtual
 void LocalEventChannel::Detach()
 {
-    printFuncName(__FUNCTION__);
     // This averts a race condition wherein we'll detach, then reattach,
     // and find these events in the still-signalled state.
     if (m_rightSideEventAvailable != NULL)
@@ -219,7 +215,6 @@ void LocalEventChannel::Detach()
 // virtual
 void LocalEventChannel::Delete()
 {
-    printFuncName(__FUNCTION__);
     if (m_hTargetProc != NULL)
     {
         m_pDCBBuffer->m_rightSideProcessHandle.CloseInRemoteProcess(m_hTargetProc);
@@ -258,7 +253,6 @@ void LocalEventChannel::Delete()
 // virtual
 HRESULT LocalEventChannel::UpdateLeftSideDCBField(void * rsFieldAddr, SIZE_T size)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(m_pDCBBuffer != NULL);
     _ASSERTE(m_pLeftSideDCB  != NULL);
 
@@ -272,7 +266,6 @@ HRESULT LocalEventChannel::UpdateLeftSideDCBField(void * rsFieldAddr, SIZE_T siz
 // virtual
 HRESULT LocalEventChannel::UpdateRightSideDCB()
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(m_pDCBBuffer != NULL);
     _ASSERTE(m_pLeftSideDCB  != NULL);
 
@@ -285,7 +278,6 @@ HRESULT LocalEventChannel::UpdateRightSideDCB()
 // virtual
 DebuggerIPCControlBlock * LocalEventChannel::GetDCB()
 {
-    printFuncName(__FUNCTION__);
     return m_pDCBBuffer;
 }
 
@@ -295,7 +287,6 @@ DebuggerIPCControlBlock * LocalEventChannel::GetDCB()
 // virtual
 BOOL LocalEventChannel::NeedToWaitForAck(DebuggerIPCEvent * pEvent)
 {
-    printFuncName(__FUNCTION__);
     // On Windows, we need to wait for acknowledgement for every synchronous event.
     return !pEvent->asyncSend;
 }
@@ -305,7 +296,6 @@ BOOL LocalEventChannel::NeedToWaitForAck(DebuggerIPCEvent * pEvent)
 // virtual
 HANDLE LocalEventChannel::GetRightSideEventAckHandle()
 {
-    printFuncName(__FUNCTION__);
     return m_rightSideEventRead;
 }
 
@@ -314,7 +304,6 @@ HANDLE LocalEventChannel::GetRightSideEventAckHandle()
 // virtual
 void LocalEventChannel::ClearEventForLeftSide()
 {
-    printFuncName(__FUNCTION__);
     ResetEvent(m_rightSideEventAvailable);
 }
 
@@ -323,7 +312,6 @@ void LocalEventChannel::ClearEventForLeftSide()
 // virtual
 HRESULT LocalEventChannel::SendEventToLeftSide(DebuggerIPCEvent * pEvent, SIZE_T eventSize)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(eventSize <= CorDBIPC_BUFFER_SIZE);
 
     HRESULT hr       = E_FAIL;
@@ -371,7 +359,6 @@ HRESULT LocalEventChannel::SendEventToLeftSide(DebuggerIPCEvent * pEvent, SIZE_T
 // virtual
 HRESULT LocalEventChannel::GetReplyFromLeftSide(DebuggerIPCEvent * pReplyEvent, SIZE_T eventSize)
 {
-    printFuncName(__FUNCTION__);
     // Simply read the IPC event reply directly from the receive buffer on the LS.
     return SafeReadBuffer(RemoteReceiveBuffer(eventSize), reinterpret_cast<BYTE *>(pReplyEvent));
 }
@@ -382,7 +369,6 @@ HRESULT LocalEventChannel::GetReplyFromLeftSide(DebuggerIPCEvent * pReplyEvent, 
 // virtual
 HRESULT LocalEventChannel::SaveEventFromLeftSide(DebuggerIPCEvent * pEventFromLeftSide)
 {
-    printFuncName(__FUNCTION__);
     // On Windows, when a thread raises a debug event through the native pipeline, the process is suspended.
     // Thus, the LS IPC event will still be in the send buffer in the debuggee's address space.
     // Since there is no chance the send buffer can be altered, we don't need to save the event.
@@ -396,7 +382,6 @@ HRESULT LocalEventChannel::SaveEventFromLeftSide(DebuggerIPCEvent * pEventFromLe
 // virtual
 HRESULT LocalEventChannel::GetEventFromLeftSide(DebuggerIPCEvent * pLocalManagedEvent)
 {
-    printFuncName(__FUNCTION__);
     // See code:LocalEventChannel::SaveEventFromLeftSide.
     // Make sure we are reading form the send buffer, not the receive buffer.
     return SafeReadBuffer(RemoteSendBuffer(CorDBIPC_BUFFER_SIZE), reinterpret_cast<BYTE *>(pLocalManagedEvent));
@@ -416,7 +401,6 @@ HRESULT LocalEventChannel::GetEventFromLeftSide(DebuggerIPCEvent * pLocalManaged
 
 TargetBuffer LocalEventChannel::RemoteReceiveBuffer(SIZE_T size)
 {
-    printFuncName(__FUNCTION__);
     return TargetBuffer(m_pLeftSideDCB + offsetof(DebuggerIPCControlBlock, m_receiveBuffer), (ULONG)size);
 }
 
@@ -434,7 +418,6 @@ TargetBuffer LocalEventChannel::RemoteReceiveBuffer(SIZE_T size)
 
 TargetBuffer LocalEventChannel::RemoteSendBuffer(SIZE_T size)
 {
-    printFuncName(__FUNCTION__);
     return TargetBuffer(m_pLeftSideDCB + offsetof(DebuggerIPCControlBlock, m_sendBuffer), (ULONG)size);
 }
 
@@ -452,7 +435,6 @@ TargetBuffer LocalEventChannel::RemoteSendBuffer(SIZE_T size)
 
 HRESULT LocalEventChannel::SafeWriteBuffer(TargetBuffer tb, const BYTE * pLocalBuffer)
 {
-    printFuncName(__FUNCTION__);
     return m_pMutableDataTarget->WriteVirtual(tb.pAddress, pLocalBuffer, tb.cbSize);
 }
 
@@ -470,7 +452,6 @@ HRESULT LocalEventChannel::SafeWriteBuffer(TargetBuffer tb, const BYTE * pLocalB
 
 HRESULT LocalEventChannel::SafeReadBuffer(TargetBuffer tb, BYTE * pLocalBuffer)
 {
-    printFuncName(__FUNCTION__);
     ULONG32 cbRead;
     HRESULT hr = m_pMutableDataTarget->ReadVirtual(tb.pAddress, pLocalBuffer, tb.cbSize, &cbRead);
     if (FAILED(hr))
@@ -503,7 +484,6 @@ HRESULT LocalEventChannel::SafeReadBuffer(TargetBuffer tb, BYTE * pLocalBuffer)
 
 HRESULT LocalEventChannel::DuplicateHandleToLocalProcess(HANDLE * pLocalHandle, RemoteHANDLE * pRemoteHandle)
 {
-    printFuncName(__FUNCTION__);
     // Dup RSEA and RSER into this process if we don't already have them.
     // On Launch, we don't have them yet, but on attach we do.
     if (*pLocalHandle == NULL)

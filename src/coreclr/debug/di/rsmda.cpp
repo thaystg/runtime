@@ -18,7 +18,6 @@
 CordbMDA::CordbMDA(CordbProcess * pProc, DebuggerMDANotification * pData)
 : CordbBase(pProc, 0, enumCordbMDA)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(pData != NULL);
 
     // Owning Parent process should add us to process'es neuter list.
@@ -38,7 +37,6 @@ CordbMDA::CordbMDA(CordbProcess * pProc, DebuggerMDANotification * pData)
 //-----------------------------------------------------------------------------
 CordbMDA::~CordbMDA()
 {
-    printFuncName(__FUNCTION__);
     // Strings protected w/ holders that will automatically free them.
     _ASSERTE(IsNeutered());
 }
@@ -48,7 +46,6 @@ CordbMDA::~CordbMDA()
 //-----------------------------------------------------------------------------
 void CordbMDA::Neuter()
 {
-    printFuncName(__FUNCTION__);
     // Release buffers. Once we're neutered, these can no longer be accessed anyways,
     // so may as well free them now.
     // This is being done under the process-lock, and our accessors are also done
@@ -65,7 +62,6 @@ void CordbMDA::Neuter()
 //-----------------------------------------------------------------------------
 HRESULT CordbMDA::QueryInterface(REFIID riid, void **ppInterface)
 {
-    printFuncName(__FUNCTION__);
     if (riid == IID_ICorDebugMDA)
         *ppInterface = static_cast<ICorDebugMDA*>(this);
     else if (riid == IID_IUnknown)
@@ -108,7 +104,6 @@ HRESULT CordbMDA::QueryInterface(REFIID riid, void **ppInterface)
 //-----------------------------------------------------------------------------
 HRESULT CopyOutString(LPCWSTR pInputString, ULONG32 cchName, ULONG32 * pcchName, _Out_writes_to_opt_(cchName, *pcchName) WCHAR szName[])
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(pInputString != NULL);
     ULONG32 len = (ULONG32) u16_strlen(pInputString) + 1;
 
@@ -151,7 +146,6 @@ HRESULT CopyOutString(LPCWSTR pInputString, ULONG32 cchName, ULONG32 * pcchName,
 //-----------------------------------------------------------------------------
 HRESULT CordbMDA::GetName(ULONG32 cchName, ULONG32 * pcchName, _Out_writes_to_opt_(cchName, *pcchName) WCHAR szName[])
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this)
     {
@@ -167,7 +161,6 @@ HRESULT CordbMDA::GetName(ULONG32 cchName, ULONG32 * pcchName, _Out_writes_to_op
 //-----------------------------------------------------------------------------
 HRESULT CordbMDA::GetDescription(ULONG32 cchName, ULONG32 * pcchName, _Out_writes_to_opt_(cchName, *pcchName) WCHAR szName[])
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this)
     {
@@ -185,7 +178,6 @@ HRESULT CordbMDA::GetDescription(ULONG32 cchName, ULONG32 * pcchName, _Out_write
 //-----------------------------------------------------------------------------
 HRESULT CordbMDA::GetXML(ULONG32 cchName, ULONG32 * pcchName, _Out_writes_to_opt_(cchName, *pcchName) WCHAR szName[])
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this)
     {
@@ -200,7 +192,6 @@ HRESULT CordbMDA::GetXML(ULONG32 cchName, ULONG32 * pcchName, _Out_writes_to_opt
 //-----------------------------------------------------------------------------
 HRESULT CordbMDA::GetFlags(CorDebugMDAFlags * pFlags)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this)
     {
@@ -217,7 +208,6 @@ HRESULT CordbMDA::GetFlags(CorDebugMDAFlags * pFlags)
 //-----------------------------------------------------------------------------
 HRESULT CordbMDA::GetOSThreadId(DWORD * pOsTid)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this)
     {

@@ -45,7 +45,6 @@ CordbFunction::CordbFunction(CordbModule * m,
     m_fIsStaticCached(FALSE),
     m_reJitILCodes(1)
 {
-    printFuncName(__FUNCTION__);
     m_methodSigParserCached = SigParser(NULL, 0);
 
     _ASSERTE(enCVersion >= CorDB_DEFAULT_ENC_FUNCTION_VERSION);
@@ -73,7 +72,6 @@ CordbFunction::CordbFunction(CordbModule * m,
 //-----------------------------------------------------------------------------
 CordbFunction::~CordbFunction()
 {
-    printFuncName(__FUNCTION__);
     // We should have been explicitly neutered before our internal ref went to 0.
     _ASSERTE(IsNeutered());
 
@@ -92,7 +90,6 @@ CordbFunction::~CordbFunction()
 //-----------------------------------------------------------------------------
 void CordbFunction::Neuter()
 {
-    printFuncName(__FUNCTION__);
     // Neuter any/all CordbNativeCode & CordbILCode objects
     if (m_pILCode != NULL)
     {
@@ -123,7 +120,6 @@ void CordbFunction::Neuter()
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::QueryInterface(REFIID id, void **pInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugFunction)
     {
         *pInterface = static_cast<ICorDebugFunction*>(this);
@@ -174,7 +170,6 @@ HRESULT CordbFunction::QueryInterface(REFIID id, void **pInterface)
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::GetModule(ICorDebugModule **ppModule)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppModule, ICorDebugModule **);
@@ -200,7 +195,6 @@ HRESULT CordbFunction::GetModule(ICorDebugModule **ppModule)
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::GetClass(ICorDebugClass **ppClass)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppClass, ICorDebugClass **);
@@ -247,7 +241,6 @@ LExit:
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::GetToken(mdMethodDef *pMemberDef)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pMemberDef, mdMethodDef *);
@@ -276,7 +269,6 @@ HRESULT CordbFunction::GetToken(mdMethodDef *pMemberDef)
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::GetILCode(ICorDebugCode ** ppCode)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppCode, ICorDebugCode **);
@@ -316,7 +308,6 @@ HRESULT CordbFunction::GetILCode(ICorDebugCode ** ppCode)
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::GetNativeCode(ICorDebugCode **ppCode)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppCode, ICorDebugCode **);
@@ -366,7 +357,6 @@ HRESULT CordbFunction::GetNativeCode(ICorDebugCode **ppCode)
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::GetILCode(CordbILCode ** ppCode)
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     INTERNAL_SYNC_API_ENTRY(GetProcess()); //
     VALIDATE_POINTER_TO_OBJECT(ppCode, ICorDebugCode **);
@@ -417,7 +407,6 @@ HRESULT CordbFunction::GetILCode(CordbILCode ** ppCode)
 //----------------------------------------------------------------------------
 HRESULT CordbFunction::CreateBreakpoint(ICorDebugFunctionBreakpoint **ppBreakpoint)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     PUBLIC_API_ENTRY(this);
@@ -446,7 +435,6 @@ HRESULT CordbFunction::CreateBreakpoint(ICorDebugFunctionBreakpoint **ppBreakpoi
 //-----------------------------------------------------------------------------
 void CordbFunction::MakeOld()
 {
-    printFuncName(__FUNCTION__);
     if (m_pILCode != NULL)
     {
         m_pILCode->MakeOld();
@@ -468,7 +456,6 @@ void CordbFunction::MakeOld()
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::GetLocalVarSigToken(mdSignature *pmdSig)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pmdSig, mdSignature *);
@@ -499,7 +486,6 @@ HRESULT CordbFunction::GetLocalVarSigToken(mdSignature *pmdSig)
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::GetCurrentVersionNumber(ULONG32 *pnCurrentVersion)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pnCurrentVersion, ULONG32 *);
@@ -538,7 +524,6 @@ HRESULT CordbFunction::GetCurrentVersionNumber(ULONG32 *pnCurrentVersion)
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::GetVersionNumber(ULONG32 *pnVersion)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pnVersion, ULONG32 *);
@@ -574,7 +559,6 @@ HRESULT CordbFunction::GetVersionNumber(ULONG32 *pnVersion)
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::GetActiveReJitRequestILCode(ICorDebugILCode **ppReJitedILCode)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     VALIDATE_POINTER_TO_OBJECT(ppReJitedILCode, ICorDebugILCode **);
     PUBLIC_API_BEGIN(this);
@@ -607,7 +591,6 @@ HRESULT CordbFunction::GetActiveReJitRequestILCode(ICorDebugILCode **ppReJitedIL
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::CreateNativeBreakpoint(ICorDebugFunctionBreakpoint **ppBreakpoint)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppBreakpoint, ICorDebugFunctionBreakpoint **);
@@ -640,7 +623,6 @@ HRESULT CordbFunction::CreateNativeBreakpoint(ICorDebugFunctionBreakpoint **ppBr
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::DisableOptimizations()
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -681,7 +663,6 @@ HRESULT CordbFunction::DisableOptimizations()
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::AreOptimizationsDisabled(BOOL *pOptimizationsDisabled)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -708,7 +689,6 @@ HRESULT CordbFunction::AreOptimizationsDisabled(BOOL *pOptimizationsDisabled)
 
 void CordbFunction::InitNativeImpl()
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(GetProcess());
 
     // Bail now if we've already discovered that this function is implemented natively as part of the Runtime.
@@ -763,7 +743,6 @@ void CordbFunction::InitNativeImpl()
 
 HRESULT CordbFunction::GetILCodeAndSigToken()
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(GetProcess());
 
     CordbProcess * pProcess = m_pModule->GetProcess();
@@ -847,7 +826,6 @@ HRESULT CordbFunction::GetILCodeAndSigToken()
 //       classMetadataToken - the metadata token for the class to which the method belongs
 mdTypeDef CordbFunction::InitParentClassOfFunctionHelper(mdToken funcMetadataToken)
 {
-    printFuncName(__FUNCTION__);
     // Get the class this method is in.
     mdToken tkParent = mdTypeDefNil;
     IfFailThrow(GetModule()->GetInternalMD()->GetParentToken(funcMetadataToken, &tkParent));
@@ -862,7 +840,6 @@ mdTypeDef CordbFunction::InitParentClassOfFunctionHelper(mdToken funcMetadataTok
 //    Output (required): none, but sets m_pClass
 HRESULT CordbFunction::InitParentClassOfFunction()
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(GetProcess());
 
     CordbProcess * pProcess = m_pModule->GetProcess();
@@ -920,7 +897,6 @@ HRESULT CordbFunction::InitParentClassOfFunction()
 
 HRESULT CordbFunction::InitNativeCodeInfo()
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(GetProcess());
 
     CordbProcess * pProcess = m_pModule->GetProcess();
@@ -977,7 +953,6 @@ HRESULT CordbFunction::InitNativeCodeInfo()
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::SetJMCStatus(BOOL fIsUserCode)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     HRESULT hr = S_OK;
 
@@ -1035,7 +1010,6 @@ HRESULT CordbFunction::SetJMCStatus(BOOL fIsUserCode)
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::GetJMCStatus(BOOL * pfIsUserCode)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -1098,7 +1072,6 @@ HRESULT CordbFunction::GetSig(SigParser *pMethodSigParser,
                               ULONG *pFunctionArgCount,
                               BOOL *pFunctionIsStatic)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
 
@@ -1222,7 +1195,6 @@ HRESULT CordbFunction::GetArgumentType(DWORD dwIndex,
                                        const Instantiation * pInst,
                                        CordbType ** ppResultType)
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     INTERNAL_SYNC_API_ENTRY(GetProcess());
 
@@ -1283,7 +1255,6 @@ HRESULT CordbFunction::GetArgumentType(DWORD dwIndex,
 //
 VOID CordbFunction::NotifyCodeCreated(CordbNativeCode* nativeCode)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(GetProcess());
     CONTRACTL
     {
@@ -1305,7 +1276,6 @@ VOID CordbFunction::NotifyCodeCreated(CordbNativeCode* nativeCode)
 //
 HRESULT CordbFunction::LookupOrCreateReJitILCode(VMPTR_ILCodeVersionNode vmILCodeVersionNode, CordbReJitILCode** ppILCode)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this);
 
     HRESULT hr = S_OK;

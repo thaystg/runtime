@@ -34,7 +34,6 @@ ManagedEvent::~ManagedEvent()
 //---------------------------------------------------------------------------------------
 void * ManagedEvent::GetDebugCookie()
 {
-    printFuncName(__FUNCTION__);
     // Return vtable, first void* in the structure.
     return *(reinterpret_cast<void**> (this));
 }
@@ -53,7 +52,6 @@ void * ManagedEvent::GetDebugCookie()
 //---------------------------------------------------------------------------------------
 ManagedEvent::DispatchArgs::DispatchArgs(ICorDebugManagedCallback * pCallback1, ICorDebugManagedCallback2 * pCallback2, ICorDebugManagedCallback3 * pCallback3, ICorDebugManagedCallback4 * pCallback4)
 {
-    printFuncName(__FUNCTION__);
     m_pCallback1 = pCallback1;
     m_pCallback2 = pCallback2;
     m_pCallback3 = pCallback3;
@@ -64,35 +62,30 @@ ManagedEvent::DispatchArgs::DispatchArgs(ICorDebugManagedCallback * pCallback1, 
 // trivial accessor to get Callback 1
 ICorDebugManagedCallback * ManagedEvent::DispatchArgs::GetCallback1()
 {
-    printFuncName(__FUNCTION__);
     return m_pCallback1;
 }
 
 // trivial accessor to get callback 2
 ICorDebugManagedCallback2 * ManagedEvent::DispatchArgs::GetCallback2()
 {
-    printFuncName(__FUNCTION__);
     return m_pCallback2;
 }
 
 // trivial accessor to get callback 3
 ICorDebugManagedCallback3 * ManagedEvent::DispatchArgs::GetCallback3()
 {
-    printFuncName(__FUNCTION__);
     return m_pCallback3;
 }
 
 // trivial accessor to get callback 4
 ICorDebugManagedCallback4 * ManagedEvent::DispatchArgs::GetCallback4()
 {
-    printFuncName(__FUNCTION__);
     return m_pCallback4;
 }
 
 // Returns OS Thread Id that this event occurred on, 0 if no thread affinity.
 DWORD ManagedEvent::GetOSTid()
 {
-    printFuncName(__FUNCTION__);
     return m_dwThreadId;
 }
 
@@ -108,7 +101,6 @@ DWORD ManagedEvent::GetOSTid()
 //---------------------------------------------------------------------------------------
 ManagedEvent::ManagedEvent(ICorDebugThread * pThread)
 {
-    printFuncName(__FUNCTION__);
     m_dwThreadId = 0;
     if (pThread != NULL)
     {
@@ -123,7 +115,6 @@ ManagedEvent::ManagedEvent(ICorDebugThread * pThread)
 //---------------------------------------------------------------------------------------
 ManagedEvent::ManagedEvent()
 {
-    printFuncName(__FUNCTION__);
     m_dwThreadId = 0;
     m_pNext = NULL;
 }
@@ -136,7 +127,6 @@ ManagedEvent::ManagedEvent()
 // Ctor
 ManagedEventQueue::ManagedEventQueue()
 {
-    printFuncName(__FUNCTION__);
     m_pFirstEvent = NULL;
     m_pLastEvent = NULL;
     m_pLock = NULL;
@@ -155,7 +145,6 @@ ManagedEventQueue::ManagedEventQueue()
 //---------------------------------------------------------------------------------------
 void ManagedEventQueue::Init(RSLock * pLock)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(m_pLock == NULL);
     m_pLock = pLock;
 }
@@ -180,7 +169,6 @@ void ManagedEventQueue::Init(RSLock * pLock)
 //---------------------------------------------------------------------------------------
 ManagedEvent * ManagedEventQueue::Dequeue()
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pLock);
     if (m_pFirstEvent == NULL)
     {
@@ -211,7 +199,6 @@ ManagedEvent * ManagedEventQueue::Dequeue()
 //---------------------------------------------------------------------------------------
 void ManagedEventQueue::QueueEvent(ManagedEvent * pEvent)
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pLock);
     _ASSERTE(pEvent != NULL);
     _ASSERTE(pEvent->m_pNext == NULL);
@@ -234,7 +221,6 @@ void ManagedEventQueue::QueueEvent(ManagedEvent * pEvent)
 //---------------------------------------------------------------------------------------
 bool ManagedEventQueue::IsEmpty()
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pLock);
     if (m_pFirstEvent != NULL)
     {
@@ -255,7 +241,6 @@ bool ManagedEventQueue::IsEmpty()
 //---------------------------------------------------------------------------------------
 void ManagedEventQueue::DeleteAll()
 {
-    printFuncName(__FUNCTION__);
     RSLockHolder lockHolder(m_pLock);
 
     while (m_pFirstEvent != NULL)
@@ -277,7 +262,6 @@ void ManagedEventQueue::DeleteAll()
 //---------------------------------------------------------------------------------------
 BOOL ManagedEventQueue::HasQueuedCallbacks(ICorDebugThread * pThread)
 {
-    printFuncName(__FUNCTION__);
     // This is from the public paths of ICorDebugProcess::HasQueuedCallbacks.
     // In V2, this would fail in cases, notably including if the process is not synchronized.
     // In arrowhead, it always succeeds.

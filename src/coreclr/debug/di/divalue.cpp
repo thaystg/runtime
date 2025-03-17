@@ -17,7 +17,6 @@
 //       bytes from the source buffer.
 void localCopy(void * dest, MemoryRange source)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(dest != NULL);
     _ASSERTE(source.StartAddress() != NULL);
 
@@ -43,7 +42,6 @@ CordbValue::CordbValue(CordbAppDomain *        appdomain,
       m_size(0),
       m_isLiteral(isLiteral)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     _ASSERTE(GetProcess() != NULL);
@@ -71,7 +69,6 @@ CordbValue::CordbValue(CordbAppDomain *        appdomain,
 
 CordbValue::~CordbValue()
 {
-    printFuncName(__FUNCTION__);
     DTOR_ENTRY(this);
 
     _ASSERTE(this->IsNeutered());
@@ -81,7 +78,6 @@ CordbValue::~CordbValue()
 
 void CordbValue::Neuter()
 {
-    printFuncName(__FUNCTION__);
     m_appdomain = NULL;
     m_type.Clear();
 
@@ -112,7 +108,6 @@ void CordbValue::CreateGenericValue(CordbAppDomain *               pAppdomain,
                                     EnregisteredValueHomeHolder *  ppRemoteRegAddr,
                                     ICorDebugValue**               ppValue)
 {
-    printFuncName(__FUNCTION__);
     LOG((LF_CORDB,LL_INFO100000,"CV::CreateValueByType CreateGenericValue\n"));
     RSSmartPtr<CordbGenericValue> pGenValue;
     // A generic value
@@ -213,7 +208,6 @@ void CordbValue::CreateVCObjOrRefValue(CordbAppDomain *               pAppdomain
                                               EnregisteredValueHomeHolder *  ppRemoteRegAddr,
                                               ICorDebugValue**               ppValue)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(pAppdomain->GetProcess()); //
 
     // We'd really hope that our callers give us a valid appdomain, but in case
@@ -275,7 +269,6 @@ void CordbValue::CreateVCObjOrRefValue(CordbAppDomain *               pAppdomain
 //   vmObj - the remote object to get an ICDValue for
 ICorDebugValue* CordbValue::CreateHeapValue(CordbAppDomain* pAppDomain, VMPTR_Object vmObj)
 {
-    printFuncName(__FUNCTION__);
     // Create a temporary reference and dereference it to construct the heap value we want.
     RSSmartPtr<CordbReferenceValue> pRefValue(CordbValue::CreateHeapReferenceValue(pAppDomain, vmObj));
     ICorDebugValue* pExtValue;
@@ -285,7 +278,6 @@ ICorDebugValue* CordbValue::CreateHeapValue(CordbAppDomain* pAppDomain, VMPTR_Ob
 
 CordbReferenceValue* CordbValue::CreateHeapReferenceValue(CordbAppDomain* pAppDomain, VMPTR_Object vmObj)
 {
-    printFuncName(__FUNCTION__);
     IDacDbiInterface* pDac = pAppDomain->GetProcess()->GetDAC();
 
     TargetBuffer objBuffer = pDac->GetObjectContents(vmObj);
@@ -333,7 +325,6 @@ CordbReferenceValue* CordbValue::CreateHeapReferenceValue(CordbAppDomain* pAppDo
 /* static */
 ULONG32 CordbValue::GetSizeForType(CordbType * pType, BoxedValue boxing)
 {
-    printFuncName(__FUNCTION__);
     ULONG32 size = 0;
 
     switch(pType->m_elementType)
@@ -390,7 +381,6 @@ ULONG32 CordbValue::GetSizeForType(CordbType * pType, BoxedValue boxing)
 
 HRESULT CordbValue::CreateBreakpoint(ICorDebugValueBreakpoint **ppBreakpoint)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT(ppBreakpoint, ICorDebugValueBreakpoint **);
 
     return E_NOTIMPL;
@@ -403,7 +393,6 @@ HRESULT CordbValue::CreateBreakpoint(ICorDebugValueBreakpoint **ppBreakpoint)
 // Return Value:
 HRESULT CordbValue::GetExactType(ICorDebugType **ppType)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(ppType, ICorDebugType **);
     FAIL_IF_NEUTERED(this);
@@ -427,7 +416,6 @@ HRESULT CordbValue::GetExactType(ICorDebugType **ppType)
 HRESULT CordbValue::InternalCreateHandle(CorDebugHandleType      handleType,
     ICorDebugHandleValue ** ppHandle)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(GetProcess());
     LOG((LF_CORDB,LL_INFO1000,"CV::CreateHandle\n"));
 
@@ -526,7 +514,6 @@ CordbGenericValue::CordbGenericValue(CordbAppDomain *              pAppdomain,
     : CordbValue(pAppdomain, pType, remoteValue.pAddress, false),
       m_pValueHome(NULL)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(pType->m_elementType != ELEMENT_TYPE_END);
     _ASSERTE(pType->m_elementType != ELEMENT_TYPE_VOID);
     _ASSERTE(pType->m_elementType < ELEMENT_TYPE_MAX);
@@ -562,7 +549,6 @@ CordbGenericValue::CordbGenericValue(CordbType * pType)
     : CordbValue(NULL, pType, (CORDB_ADDRESS)NULL, true),
       m_pValueHome(NULL)
 {
-    printFuncName(__FUNCTION__);
     // The only purpose of a literal value is to hold a RS literal value.
     ULONG32 size = 0;
     HRESULT hr;
@@ -578,7 +564,6 @@ CordbGenericValue::CordbGenericValue(CordbType * pType)
 // destructor
 CordbGenericValue::~CordbGenericValue()
 {
-    printFuncName(__FUNCTION__);
     if (m_pValueHome != NULL)
     {
         delete m_pValueHome;
@@ -588,7 +573,6 @@ CordbGenericValue::~CordbGenericValue()
 
 HRESULT CordbGenericValue::QueryInterface(REFIID id, void **pInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugValue)
     {
         *pInterface = static_cast<ICorDebugValue*>(static_cast<ICorDebugGenericValue*>(this));
@@ -629,7 +613,6 @@ HRESULT CordbGenericValue::QueryInterface(REFIID id, void **pInterface)
 // Note: Throws error codes from reading process memory
 void CordbGenericValue::Init(MemoryRange localValue)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(this->GetProcess());
 
     if(!m_isLiteral)
@@ -656,7 +639,6 @@ void CordbGenericValue::Init(MemoryRange localValue)
 // Return Value: S_OK on success or E_INVALIDARG if the pTo is NULL
 HRESULT CordbGenericValue::GetValue(void *pTo)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(pTo, BYTE, m_size, false, true);
@@ -675,7 +657,6 @@ HRESULT CordbGenericValue::GetValue(void *pTo)
 // Return Value: S_OK on success or E_INVALIDARG if the pFrom is NULL
 HRESULT CordbGenericValue::SetValue(void *pFrom)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
@@ -712,7 +693,6 @@ HRESULT CordbGenericValue::SetValue(void *pFrom)
 // Return Value: true iff this is a literal value and pBuffer is a valid writeable address
 bool CordbGenericValue::CopyLiteralData(BYTE *pBuffer)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(this->GetProcess());
     _ASSERTE(pBuffer != NULL);
 
@@ -762,7 +742,6 @@ CordbReferenceValue::CordbReferenceValue(CordbAppDomain *              pAppdomai
 
       m_realTypeOfTypedByref(NULL)
 {
-    printFuncName(__FUNCTION__);
     memset(&m_info, 0, sizeof(m_info));
 
     LOG((LF_CORDB,LL_EVERYTHING,"CRV::CRV: this:0x%x\n",this));
@@ -799,7 +778,6 @@ CordbReferenceValue::CordbReferenceValue(CordbAppDomain *              pAppdomai
 CordbReferenceValue::CordbReferenceValue(CordbType * pType)
     : CordbValue(NULL, pType, (CORDB_ADDRESS)NULL, true, pType->GetAppDomain()->GetSweepableExitNeuterList())
 {
-    printFuncName(__FUNCTION__);
     memset(&m_info, 0, sizeof(m_info));
 
     // The only purpose of a literal value is to hold a RS literal value.
@@ -817,7 +795,6 @@ CordbReferenceValue::CordbReferenceValue(CordbType * pType)
 // Return Value: true iff this is a literal value and pBuffer is a valid writeable address
 bool CordbReferenceValue::CopyLiteralData(BYTE *pBuffer)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(pBuffer != NULL);
 
     // If this is a RS fabrication, then its a null reference.
@@ -834,7 +811,6 @@ bool CordbReferenceValue::CopyLiteralData(BYTE *pBuffer)
 // destructor
 CordbReferenceValue::~CordbReferenceValue()
 {
-    printFuncName(__FUNCTION__);
     DTOR_ENTRY(this);
 
     LOG((LF_CORDB,LL_EVERYTHING,"CRV::~CRV: this:0x%x\n",this));
@@ -844,7 +820,6 @@ CordbReferenceValue::~CordbReferenceValue()
 
 void CordbReferenceValue::Neuter()
 {
-    printFuncName(__FUNCTION__);
     if (m_valueHome.m_pHome != NULL)
     {
         m_valueHome.m_pHome->Clear();
@@ -859,7 +834,6 @@ void CordbReferenceValue::Neuter()
 
 HRESULT CordbReferenceValue::QueryInterface(REFIID id, void **pInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugValue)
     {
         *pInterface = static_cast<ICorDebugValue*>(static_cast<ICorDebugReferenceValue*>(this));
@@ -896,7 +870,6 @@ HRESULT CordbReferenceValue::QueryInterface(REFIID id, void **pInterface)
 // Return Value: S_OK on success, E_INVALIDARG on failure
 HRESULT CordbReferenceValue::GetType(CorElementType *pType)
 {
-    printFuncName(__FUNCTION__);
     LIMITED_METHOD_CONTRACT;
 
     FAIL_IF_NEUTERED(this);
@@ -929,7 +902,6 @@ HRESULT CordbReferenceValue::GetType(CorElementType *pType)
 // Return Value: S_OK on success or E_INVALIDARG if pAddress is null
 HRESULT CordbReferenceValue::GetAddress(CORDB_ADDRESS *pAddress)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(pAddress, CORDB_ADDRESS *);
 
@@ -944,7 +916,6 @@ HRESULT CordbReferenceValue::GetAddress(CORDB_ADDRESS *pAddress)
 // Return  Value: S_OK on success or E_INVALIDARG if pfIsNull is null
 HRESULT CordbReferenceValue::IsNull(BOOL * pfIsNull)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pfIsNull, BOOL *);
@@ -963,7 +934,6 @@ HRESULT CordbReferenceValue::IsNull(BOOL * pfIsNull)
 // Return Value: S_OK on success or E_INVALIDARG if pAddress is null
 HRESULT CordbReferenceValue::GetValue(CORDB_ADDRESS *pAddress)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(pAddress, CORDB_ADDRESS *);
     FAIL_IF_NEUTERED(this);
@@ -990,7 +960,6 @@ HRESULT CordbReferenceValue::GetValue(CORDB_ADDRESS *pAddress)
 // this, since we need to know the type of the new referent.
 HRESULT CordbReferenceValue::SetValue(CORDB_ADDRESS address)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -1038,7 +1007,6 @@ HRESULT CordbReferenceValue::SetValue(CORDB_ADDRESS address)
 
 HRESULT CordbReferenceValue::DereferenceStrong(ICorDebugValue **ppValue)
 {
-    printFuncName(__FUNCTION__);
     return E_NOTIMPL;
 }
 
@@ -1048,7 +1016,6 @@ HRESULT CordbReferenceValue::DereferenceStrong(ICorDebugValue **ppValue)
 // Return Value: S_OK on success or E_INVALIDARG
 HRESULT CordbReferenceValue::Dereference(ICorDebugValue **ppValue)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
 
@@ -1098,7 +1065,6 @@ HRESULT CordbReferenceValue::DereferenceCommon(
     ICorDebugValue **ppValue
 )
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(pAppDomain->GetProcess());
 
     // pCachedObject may be NULL if we're not caching.
@@ -1281,7 +1247,6 @@ HRESULT CordbReferenceValue::Build(CordbAppDomain *          appdomain,
                                    EnregisteredValueHomeHolder * ppRemoteRegAddr,
                                    CordbReferenceValue**     ppValue)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     // We can find the AD from an object handle (but not a normal object), so the AppDomain may
@@ -1322,7 +1287,6 @@ HRESULT CordbReferenceValue::BuildFromGCHandle(
     ICorDebugReferenceValue ** pOutRef
 )
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(pAppDomain != NULL);
     _ASSERTE(pOutRef != NULL);
 
@@ -1382,7 +1346,6 @@ HRESULT CordbReferenceValue::BuildFromGCHandle(
 //       indeed bad. Only if we exit normally will we end up setting m_info.objRefBad to false.
 void CordbReferenceValue::TryDereferencingTarget()
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(!!m_info.objRefBad == true);
     // First get the referent type
     CordbType * pReferentType;
@@ -1421,7 +1384,6 @@ void CordbReferenceValue::TryDereferencingTarget()
 // Note: Throws
 void CordbReferenceValue::SanityCheckPointer (CorElementType type)
 {
-    printFuncName(__FUNCTION__);
     m_info.objRefBad = TRUE;
     if (type != ELEMENT_TYPE_FNPTR)
     {
@@ -1454,7 +1416,6 @@ void CordbReferenceValue::SanityCheckPointer (CorElementType type)
 //     - Throws (errors from reading process memory)
 void CordbReferenceValue::GetPointerData(CorElementType type, MemoryRange localValue)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     // Fill in the type since we will not be getting it from the DAC
     m_info.objTypeData.elementType = type;
@@ -1530,7 +1491,6 @@ void CordbReferenceValue::GetPointerData(CorElementType type, MemoryRange localV
 //     output: pObjectData - information about the reference to be initialized
 void PreInitObjectData(DebuggerIPCE_ObjectData * pObjectData, void * objAddress, CorElementType objectType)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(pObjectData != NULL);
 
     memset(pObjectData, 0, sizeof(DebuggerIPCE_ObjectData));
@@ -1556,7 +1516,6 @@ void CordbReferenceValue::GetObjectData(CordbProcess *            pProcess,
                                         VMPTR_AppDomain           vmAppdomain,
                                         DebuggerIPCE_ObjectData * pInfo)
 {
-    printFuncName(__FUNCTION__);
     IDacDbiInterface *pInterface = pProcess->GetDAC();
     CORDB_ADDRESS objTargetAddr = PTR_TO_CORDB_ADDRESS(objectAddress);
 
@@ -1596,8 +1555,7 @@ void CordbReferenceValue::GetTypedByRefData(CordbProcess *            pProcess,
                                             CorElementType            type,
                                             VMPTR_AppDomain           vmAppDomain,
                                             DebuggerIPCE_ObjectData * pInfo)
-{
-    printFuncName(__FUNCTION__);    // make sure we don't end up with old garbage values since we don't set all the values for TypedByRef objects
+{    // make sure we don't end up with old garbage values since we don't set all the values for TypedByRef objects
     PreInitObjectData(pInfo, CORDB_ADDRESS_TO_PTR(pTypedByRef), type);
 
     // Though pTypedByRef is the value of the object ref represented by an instance of CordbReferenceValue,
@@ -1614,7 +1572,6 @@ void CordbReferenceValue::GetTypedByRefData(CordbProcess *            pProcess,
 //  Note: Throws
 void * CordbReferenceValue::GetObjectAddress(MemoryRange localValue)
 {
-    printFuncName(__FUNCTION__);
     void * objectAddress;
     if (localValue.StartAddress() != NULL)
     {
@@ -1636,7 +1593,6 @@ void * CordbReferenceValue::GetObjectAddress(MemoryRange localValue)
 // Note: Throws
 void CordbReferenceValue::UpdateTypeInfo()
 {
-    printFuncName(__FUNCTION__);
     // If the object type that we got back is different than the one we sent, then it means that we
     // originally had a CLASS and now have something more specific, like a SDARRAY, MDARRAY, or STRING or
     // a constructed type.
@@ -1657,7 +1613,6 @@ void CordbReferenceValue::UpdateTypeInfo()
     // what the "real" type of the object is...
     if (m_info.objTypeData.elementType == ELEMENT_TYPE_TYPEDBYREF)
 {
-    printFuncName(__FUNCTION__);
         IfFailThrow(CordbType::TypeDataToType(m_appdomain,
                     &m_info.typedByrefInfo.typedByrefType,
                     &m_realTypeOfTypedByref));
@@ -1674,7 +1629,6 @@ void CordbReferenceValue::UpdateTypeInfo()
 
 HRESULT CordbReferenceValue::InitRef(MemoryRange localValue)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(this->GetProcess());
 
     HRESULT hr = S_OK;
@@ -1780,7 +1734,6 @@ CordbObjectValue::CordbObjectValue(CordbAppDomain *          pAppdomain,
       m_valueHome(pAppdomain->GetProcess(), remoteValue),
       m_fIsExceptionObject(FALSE), m_fIsRcw(FALSE), m_fIsDelegate(FALSE)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(pAppdomain != NULL);
 
     m_size = m_info.objSize;
@@ -1817,7 +1770,6 @@ CordbObjectValue::CordbObjectValue(CordbAppDomain *          pAppdomain,
 // destructor
 CordbObjectValue::~CordbObjectValue()
 {
-    printFuncName(__FUNCTION__);
     DTOR_ENTRY(this);
 
     _ASSERTE(IsNeutered());
@@ -1825,7 +1777,6 @@ CordbObjectValue::~CordbObjectValue()
 
 void CordbObjectValue::Neuter()
 {
-    printFuncName(__FUNCTION__);
     // Destroy the copy of the object.
     if (m_pObjectCopy != NULL)
     {
@@ -1838,7 +1789,6 @@ void CordbObjectValue::Neuter()
 
 HRESULT CordbObjectValue::QueryInterface(REFIID id, void **pInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugValue)
     {
         *pInterface = static_cast<ICorDebugValue*>(static_cast<ICorDebugObjectValue*>(this));
@@ -1920,7 +1870,6 @@ HRESULT CordbObjectValue::QueryInterface(REFIID id, void **pInterface)
 // Return Value: S_OK on success, E_INVALIDARG on failure
 HRESULT CordbObjectValue::GetType(CorElementType *pType)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     return (CordbValue::GetType(pType));
@@ -1932,7 +1881,6 @@ HRESULT CordbObjectValue::GetType(CorElementType *pType)
 // Return Value: S_OK on success, E_INVALIDARG on failure
 HRESULT CordbObjectValue::GetSize(ULONG32 *pSize)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     return (CordbValue::GetSize(pSize));
@@ -1944,7 +1892,6 @@ HRESULT CordbObjectValue::GetSize(ULONG32 *pSize)
 // Return Value: S_OK on success, E_INVALIDARG on failure
 HRESULT CordbObjectValue::GetSize64(ULONG64 *pSize)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     return (CordbValue::GetSize64(pSize));
@@ -1960,7 +1907,6 @@ HRESULT CordbObjectValue::GetSize64(ULONG64 *pSize)
 // Return Value: S_OK on success or E_INVALIDARG if pAddress is null
 HRESULT CordbObjectValue::GetAddress(CORDB_ADDRESS *pAddress)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     COV_VALIDATE_OBJECT();
@@ -1972,7 +1918,6 @@ HRESULT CordbObjectValue::GetAddress(CORDB_ADDRESS *pAddress)
 
 HRESULT CordbObjectValue::CreateBreakpoint(ICorDebugValueBreakpoint ** ppBreakpoint)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     COV_VALIDATE_OBJECT();
@@ -1986,7 +1931,6 @@ HRESULT CordbObjectValue::CreateBreakpoint(ICorDebugValueBreakpoint ** ppBreakpo
 // Return Value: S_OK or E_INVALIDARG
 HRESULT CordbObjectValue::IsValid(BOOL * pfIsValid)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(pfIsValid, BOOL *);
     FAIL_IF_NEUTERED(this);
@@ -2000,7 +1944,6 @@ HRESULT CordbObjectValue::IsValid(BOOL * pfIsValid)
 HRESULT CordbObjectValue::CreateRelocBreakpoint(
                                       ICorDebugValueBreakpoint **ppBreakpoint)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppBreakpoint, ICorDebugValueBreakpoint **);
@@ -2019,7 +1962,6 @@ HRESULT CordbObjectValue::CreateHandle(
     CorDebugHandleType handleType,
     ICorDebugHandleValue ** ppHandle)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -2035,7 +1977,6 @@ HRESULT CordbObjectValue::CreateHandle(
 HRESULT CordbObjectValue::CreatePinnedHandle(
     ICorDebugHandleValue ** ppHandle)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -2049,7 +1990,6 @@ HRESULT CordbObjectValue::CreatePinnedHandle(
 // Return Value:  S_OK if success, CORDBG_E_CLASS_NOT_LOADED, E_INVALIDARG, OOM on failure
 HRESULT CordbObjectValue::GetClass(ICorDebugClass **ppClass)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(ppClass, ICorDebugClass **);
     FAIL_IF_NEUTERED(this);
@@ -2096,7 +2036,6 @@ HRESULT CordbObjectValue::GetFieldValueForType(ICorDebugType * pType,
                                                mdFieldDef fieldDef,
                                                ICorDebugValue ** ppValue)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(pType, ICorDebugType *);
     VALIDATE_POINTER_TO_OBJECT(ppValue, ICorDebugValue **);
@@ -2220,7 +2159,6 @@ HRESULT CordbObjectValue::GetFieldValue(ICorDebugClass *pClass,
                                         mdFieldDef fieldDef,
                                         ICorDebugValue **ppValue)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -2264,7 +2202,6 @@ HRESULT CordbObjectValue::GetFieldValue(ICorDebugClass *pClass,
 HRESULT CordbObjectValue::GetVirtualMethod(mdMemberRef memberRef,
                                            ICorDebugFunction **ppFunction)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT(ppFunction, ICorDebugFunction **);
     FAIL_IF_NEUTERED(this);
     COV_VALIDATE_OBJECT();
@@ -2276,7 +2213,6 @@ HRESULT CordbObjectValue::GetVirtualMethodAndType(mdMemberRef memberRef,
                                                   ICorDebugFunction **ppFunction,
                                                   ICorDebugType **ppType)
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppFunction, ICorDebugFunction **);
     VALIDATE_POINTER_TO_OBJECT(ppFunction, ICorDebugType **);
@@ -2288,7 +2224,6 @@ HRESULT CordbObjectValue::GetVirtualMethodAndType(mdMemberRef memberRef,
 
 HRESULT CordbObjectValue::GetContext(ICorDebugContext **ppContext)
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppContext, ICorDebugContext **);
 
@@ -2306,7 +2241,6 @@ HRESULT CordbObjectValue::GetContext(ICorDebugContext **ppContext)
 //
 HRESULT CordbObjectValue::IsValueClass(BOOL * pfIsValueClass)
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     COV_VALIDATE_OBJECT();
 
@@ -2318,7 +2252,6 @@ HRESULT CordbObjectValue::IsValueClass(BOOL * pfIsValueClass)
 
 HRESULT CordbObjectValue::GetManagedCopy(IUnknown **ppObject)
 {
-    printFuncName(__FUNCTION__);
     // GetManagedCopy() is deprecated. In the case where the version of
     // the debugger doesn't match the version of the debuggee, the two processes
     // might have dangerously different notions of the layout of an object.
@@ -2329,7 +2262,6 @@ HRESULT CordbObjectValue::GetManagedCopy(IUnknown **ppObject)
 
 HRESULT CordbObjectValue::SetFromManagedCopy(IUnknown *pObject)
 {
-    printFuncName(__FUNCTION__);
     // Deprecated for the same reason as GetManagedCopy()
     return E_NOTIMPL;
 } // CordbObjectValue::SetFromManagedCopy
@@ -2342,7 +2274,6 @@ HRESULT CordbObjectValue::SetFromManagedCopy(IUnknown *pObject)
 //
 HRESULT CordbObjectValue::GetValue(void *pTo)
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     COV_VALIDATE_OBJECT();
 
@@ -2356,7 +2287,6 @@ HRESULT CordbObjectValue::GetValue(void *pTo)
 
 HRESULT CordbObjectValue::SetValue(void *pFrom)
 {
-    printFuncName(__FUNCTION__);
     // You're not allowed to set a whole object at once.
     return E_INVALIDARG;
 } // CordbObjectValue::SetValue
@@ -2368,7 +2298,6 @@ HRESULT CordbObjectValue::SetValue(void *pFrom)
 // Note: if the object is not really a string, the value in pcchString will be garbage on exit
 HRESULT CordbObjectValue::GetLength(ULONG32 *pcchString)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(pcchString, SIZE_T *);
     FAIL_IF_NEUTERED(this);
@@ -2395,7 +2324,6 @@ HRESULT CordbObjectValue::GetString(ULONG32 cchString,
                                     ULONG32 *pcchString,
                                     _Out_writes_bytes_opt_(cchString) WCHAR szString[])
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(szString, WCHAR, cchString, true, true);
@@ -2427,7 +2355,6 @@ HRESULT CordbObjectValue::GetString(ULONG32 cchString,
 // ReturnValue: S_OK on success or E_OUTOFMEMORY or read process memory errors on failure
 HRESULT CordbObjectValue::Init()
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(this->GetProcess()); //
     LOG((LF_CORDB,LL_INFO1000,"Invoking COV::Init\n"));
 
@@ -2474,7 +2401,6 @@ HRESULT CordbObjectValue::Init()
 // owns the monitor lock on this object then a failing HRESULT will be returned
 HRESULT CordbObjectValue::GetThreadOwningMonitorLock(ICorDebugThread **ppThread, DWORD *pAcquisitionCount)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -2500,7 +2426,6 @@ HRESULT CordbObjectValue::GetThreadOwningMonitorLock(ICorDebugThread **ppThread,
 // are waiting for the monitor then a failing HRESULT will be returned
 HRESULT CordbObjectValue::GetMonitorEventWaitList(ICorDebugThreadEnum **ppThreadEnum)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -2512,7 +2437,6 @@ HRESULT CordbObjectValue::GetMonitorEventWaitList(ICorDebugThreadEnum **ppThread
 
 HRESULT CordbObjectValue::EnumerateExceptionCallStack(ICorDebugExceptionObjectCallStackEnum** ppCallStackEnum)
 {
-    printFuncName(__FUNCTION__);
     if (!ppCallStackEnum)
         return E_INVALIDARG;
 
@@ -2569,7 +2493,6 @@ HRESULT CordbObjectValue::EnumerateExceptionCallStack(ICorDebugExceptionObjectCa
 
 HRESULT CordbObjectValue::ForceCatchHandlerFoundEvents(BOOL enableEvents)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -2605,7 +2528,6 @@ HRESULT CordbObjectValue::ForceCatchHandlerFoundEvents(BOOL enableEvents)
 
 HRESULT CordbObjectValue::IsExceptionObject()
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     if (m_info.objTypeData.elementType != ELEMENT_TYPE_CLASS)
@@ -2638,7 +2560,6 @@ HRESULT CordbObjectValue::IsExceptionObject()
 
 HRESULT CordbObjectValue::IsRcw()
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     if (m_info.objTypeData.elementType != ELEMENT_TYPE_CLASS)
@@ -2671,7 +2592,6 @@ HRESULT CordbObjectValue::IsRcw()
 
 HRESULT CordbObjectValue::IsDelegate()
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     if (m_info.objTypeData.elementType != ELEMENT_TYPE_CLASS)
@@ -2704,7 +2624,6 @@ HRESULT CordbObjectValue::IsDelegate()
 
 HRESULT IsSupportedDelegateHelper(IDacDbiInterface::DelegateType delType)
 {
-    printFuncName(__FUNCTION__);
     switch (delType)
     {
     case IDacDbiInterface::DelegateType::kClosedDelegate:
@@ -2717,7 +2636,6 @@ HRESULT IsSupportedDelegateHelper(IDacDbiInterface::DelegateType delType)
 
 HRESULT CordbObjectValue::GetTargetHelper(ICorDebugReferenceValue **ppTarget)
 {
-    printFuncName(__FUNCTION__);
     IDacDbiInterface::DelegateType delType;
     VMPTR_Object pDelegateObj;
     VMPTR_Object pDelegateTargetObj;
@@ -2754,7 +2672,6 @@ HRESULT CordbObjectValue::GetTargetHelper(ICorDebugReferenceValue **ppTarget)
 
 HRESULT CordbObjectValue::GetFunctionHelper(ICorDebugFunction **ppFunction)
 {
-    printFuncName(__FUNCTION__);
     IDacDbiInterface::DelegateType delType;
     VMPTR_Object pDelegateObj;
 
@@ -2799,7 +2716,6 @@ HRESULT CordbObjectValue::GetFunctionHelper(ICorDebugFunction **ppFunction)
 
 HRESULT CordbObjectValue::GetTarget(ICorDebugReferenceValue **ppObject)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppObject, ICorDebugReferenceValue **);
@@ -2818,7 +2734,6 @@ HRESULT CordbObjectValue::GetTarget(ICorDebugReferenceValue **ppObject)
 
 HRESULT CordbObjectValue::GetFunction(ICorDebugFunction **ppFunction)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppFunction, ICorDebugFunction **);
@@ -2994,7 +2909,6 @@ CordbVCObjectValue::CordbVCObjectValue(CordbAppDomain *               pAppdomain
       m_pObjectCopy(NULL),
       m_pValueHome(NULL)
 {
-    printFuncName(__FUNCTION__);
     // instantiate the value home
     NewHolder<ValueHome> pHome(NULL);
 
@@ -3013,7 +2927,6 @@ CordbVCObjectValue::CordbVCObjectValue(CordbAppDomain *               pAppdomain
 // destructor
 CordbVCObjectValue::~CordbVCObjectValue()
 {
-    printFuncName(__FUNCTION__);
     DTOR_ENTRY(this);
 
     _ASSERTE(IsNeutered());
@@ -3035,7 +2948,6 @@ CordbVCObjectValue::~CordbVCObjectValue()
 
 HRESULT CordbVCObjectValue::QueryInterface(REFIID id, void **pInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugValue)
     {
         *pInterface = static_cast<ICorDebugValue*>(static_cast<ICorDebugObjectValue*>(this));
@@ -3081,7 +2993,6 @@ HRESULT CordbVCObjectValue::QueryInterface(REFIID id, void **pInterface)
 // ReturnValue: S_OK on success or E_INVALIDARG if pType is NULL
 HRESULT CordbVCObjectValue::GetType(CorElementType *pType)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(pType, CorElementType *);
 
@@ -3095,7 +3006,6 @@ HRESULT CordbVCObjectValue::GetType(CorElementType *pType)
 // Return Value: S_OK on success, CORDBG_E_OBJECT_NEUTERED or synchronization errors on failure
 HRESULT CordbVCObjectValue::GetClass(ICorDebugClass **ppClass)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -3112,7 +3022,6 @@ HRESULT CordbVCObjectValue::GetClass(ICorDebugClass **ppClass)
 // ReturnValue: the instance of CordbClass belonging to this VC object
 CordbClass *CordbVCObjectValue::GetClass()
 {
-    printFuncName(__FUNCTION__);
     CordbClass *tycon;
     Instantiation inst;
     m_type->DestConstructedType(&tycon, &inst);
@@ -3135,7 +3044,6 @@ HRESULT CordbVCObjectValue::GetFieldValueForType(ICorDebugType * pType,
                                                  mdFieldDef fieldDef,
                                                  ICorDebugValue ** ppValue)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -3225,7 +3133,6 @@ HRESULT CordbVCObjectValue::GetFieldValue(ICorDebugClass *pClass,
                                         mdFieldDef fieldDef,
                                         ICorDebugValue **ppValue)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -3264,7 +3171,6 @@ HRESULT CordbVCObjectValue::GetFieldValue(ICorDebugClass *pClass,
 //        and is responsible for allocation and deallocation.
 HRESULT CordbVCObjectValue::GetValue(void *pTo)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(pTo, BYTE, m_size, false, true);
     FAIL_IF_NEUTERED(this);
 
@@ -3281,7 +3187,6 @@ HRESULT CordbVCObjectValue::GetValue(void *pTo)
 //               process memory errors, CORDBG_E_CLASS_NOT_LOADED or OOM on failure
 HRESULT CordbVCObjectValue::SetValue(void * pSrc)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -3316,7 +3221,6 @@ HRESULT CordbVCObjectValue::SetValue(void * pSrc)
 HRESULT CordbVCObjectValue::GetVirtualMethod(mdMemberRef memberRef,
                                            ICorDebugFunction **ppFunction)
 {
-    printFuncName(__FUNCTION__);
     return E_NOTIMPL;
 }
 
@@ -3324,20 +3228,17 @@ HRESULT CordbVCObjectValue::GetVirtualMethodAndType(mdMemberRef memberRef,
                                                     ICorDebugFunction **ppFunction,
                                                     ICorDebugType **ppType)
 {
-    printFuncName(__FUNCTION__);
     return E_NOTIMPL;
 }
 
 HRESULT CordbVCObjectValue::GetContext(ICorDebugContext **ppContext)
 {
-    printFuncName(__FUNCTION__);
     return E_NOTIMPL;
 }
 
 // self-identifier--always returns true as long as pbIsValueClass is non-Null
 HRESULT CordbVCObjectValue::IsValueClass(BOOL *pbIsValueClass)
 {
-    printFuncName(__FUNCTION__);
     if (pbIsValueClass)
         *pbIsValueClass = TRUE;
 
@@ -3346,14 +3247,12 @@ HRESULT CordbVCObjectValue::IsValueClass(BOOL *pbIsValueClass)
 
 HRESULT CordbVCObjectValue::GetManagedCopy(IUnknown **ppObject)
 {
-    printFuncName(__FUNCTION__);
     // This function is deprecated
     return E_NOTIMPL;
 }
 
 HRESULT CordbVCObjectValue::SetFromManagedCopy(IUnknown *pObject)
 {
-    printFuncName(__FUNCTION__);
     // This function is deprecated
     return E_NOTIMPL;
 }
@@ -3376,7 +3275,6 @@ HRESULT CordbVCObjectValue::SetFromManagedCopy(IUnknown *pObject)
 //
 HRESULT CordbVCObjectValue::Init(MemoryRange localValue)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     INTERNAL_SYNC_API_ENTRY(this->GetProcess()); //
@@ -3439,21 +3337,18 @@ CordbBoxValue::CordbBoxValue(CordbAppDomain *appdomain,
        m_offsetToVars(offsetToVars),
        m_valueHome(appdomain->GetProcess(), remoteValue)
 {
-    printFuncName(__FUNCTION__);
     m_size = size;
 } // CordbBoxValue::CordbBoxValue
 
 // destructor
 CordbBoxValue::~CordbBoxValue()
 {
-    printFuncName(__FUNCTION__);
     DTOR_ENTRY(this);
     _ASSERTE(IsNeutered());
 } // CordbBoxValue::~CordbBoxValue
 
 HRESULT CordbBoxValue::QueryInterface(REFIID id, void **pInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugValue)
     {
         *pInterface = static_cast<ICorDebugValue*>(static_cast<ICorDebugBoxValue*>(this));
@@ -3510,7 +3405,6 @@ HRESULT CordbBoxValue::QueryInterface(REFIID id, void **pInterface)
 // ReturnValue: S_OK on success or E_INVALIDARG if pType is NULL
 HRESULT CordbBoxValue::GetType(CorElementType *pType)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT(pType, CorElementType *);
 
     *pType = ELEMENT_TYPE_CLASS;
@@ -3520,7 +3414,6 @@ HRESULT CordbBoxValue::GetType(CorElementType *pType)
 
 HRESULT CordbBoxValue::IsValid(BOOL *pbValid)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT(pbValid, BOOL *);
 
     // <TODO>@todo: implement tracking of objects across collections.</TODO>
@@ -3530,7 +3423,6 @@ HRESULT CordbBoxValue::IsValid(BOOL *pbValid)
 
 HRESULT CordbBoxValue::CreateRelocBreakpoint(ICorDebugValueBreakpoint **ppBreakpoint)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT(ppBreakpoint, ICorDebugValueBreakpoint **);
 
     return E_NOTIMPL;
@@ -3548,7 +3440,6 @@ HRESULT CordbBoxValue::CreateHandle(
     CorDebugHandleType handleType,
     ICorDebugHandleValue ** ppHandle)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -3566,7 +3457,6 @@ HRESULT CordbBoxValue::CreateHandle(
 HRESULT CordbBoxValue::CreatePinnedHandle(
     ICorDebugHandleValue ** ppHandle)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -3577,14 +3467,12 @@ HRESULT CordbBoxValue::CreatePinnedHandle(
 
 HRESULT CordbBoxValue::GetValue(void *pTo)
 {
-    printFuncName(__FUNCTION__);
     // Can't get a whole copy of a box.
     return E_INVALIDARG;
 }
 
 HRESULT CordbBoxValue::SetValue(void *pFrom)
 {
-    printFuncName(__FUNCTION__);
     // You're not allowed to set a box value.
     return E_INVALIDARG;
 }
@@ -3597,7 +3485,6 @@ HRESULT CordbBoxValue::SetValue(void *pFrom)
 //               ReadProcessMemory.
 HRESULT CordbBoxValue::GetObject(ICorDebugObjectValue **ppObject)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(ppObject, ICorDebugObjectValue **);
     FAIL_IF_NEUTERED(this);
@@ -3632,7 +3519,6 @@ HRESULT CordbBoxValue::GetObject(ICorDebugObjectValue **ppObject)
 // owns the monitor lock on this object then a failing HRESULT will be returned
 HRESULT CordbBoxValue::GetThreadOwningMonitorLock(ICorDebugThread **ppThread, DWORD *pAcquisitionCount)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -3657,7 +3543,6 @@ HRESULT CordbBoxValue::GetThreadOwningMonitorLock(ICorDebugThread **ppThread, DW
 // are waiting for the monitor then a failing HRESULT will be returned
 HRESULT CordbBoxValue::GetMonitorEventWaitList(ICorDebugThreadEnum **ppThreadEnum)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -3706,7 +3591,6 @@ CordbArrayValue::CordbArrayValue(CordbAppDomain *          pAppdomain,
       m_pObjectCopy(NULL),
       m_valueHome(pAppdomain->GetProcess(), remoteValue)
 {
-    printFuncName(__FUNCTION__);
     m_size = m_info.objSize;
     pType->DestUnaryType(&m_elemtype);
 
@@ -3717,7 +3601,6 @@ CordbArrayValue::CordbArrayValue(CordbAppDomain *          pAppdomain,
 // destructor
 CordbArrayValue::~CordbArrayValue()
 {
-    printFuncName(__FUNCTION__);
     DTOR_ENTRY(this);
     _ASSERTE(IsNeutered());
 
@@ -3728,7 +3611,6 @@ CordbArrayValue::~CordbArrayValue()
 
 HRESULT CordbArrayValue::QueryInterface(REFIID id, void **pInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugValue)
     {
         *pInterface = static_cast<ICorDebugValue*>(static_cast<ICorDebugArrayValue*>(this));
@@ -3785,7 +3667,6 @@ HRESULT CordbArrayValue::QueryInterface(REFIID id, void **pInterface)
 // Return Value: S_OK on success or E_INVALIDARG if pType is null
 HRESULT CordbArrayValue::GetElementType(CorElementType *pType)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pType, CorElementType *);
@@ -3801,7 +3682,6 @@ HRESULT CordbArrayValue::GetElementType(CorElementType *pType)
 // Return Value: S_OK on success or E_INVALIDARG if pnRank is null
 HRESULT CordbArrayValue::GetRank(ULONG32 *pnRank)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pnRank, SIZE_T *);
@@ -3818,7 +3698,6 @@ HRESULT CordbArrayValue::GetRank(ULONG32 *pnRank)
 // Return Value: S_OK on success or E_INVALIDARG if pnCount is null
 HRESULT CordbArrayValue::GetCount(ULONG32 *pnCount)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pnCount, ULONG32 *);
@@ -3835,7 +3714,6 @@ HRESULT CordbArrayValue::GetCount(ULONG32 *pnCount)
 // Return Value: S_OK on success or E_INVALIDARG
 HRESULT CordbArrayValue::GetDimensions(ULONG32 cdim, ULONG32 dims[])
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(dims, SIZE_T, cdim, true, true);
@@ -3870,7 +3748,6 @@ HRESULT CordbArrayValue::GetDimensions(ULONG32 cdim, ULONG32 dims[])
 // Return Value: S_OK on success or E_INVALIDARG if pbHasBaseIndicies is null
 HRESULT CordbArrayValue::HasBaseIndicies(BOOL *pbHasBaseIndicies)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pbHasBaseIndicies, BOOL *);
@@ -3887,7 +3764,6 @@ HRESULT CordbArrayValue::HasBaseIndicies(BOOL *pbHasBaseIndicies)
 // Return Value: S_OK on success or E_INVALIDARG if cdim is not equal to the array rank or indices is null
 HRESULT CordbArrayValue::GetBaseIndicies(ULONG32 cdim, ULONG32 indices[])
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(indices, SIZE_T, cdim, true, true);
@@ -3920,7 +3796,6 @@ HRESULT CordbArrayValue::GetElement(ULONG32           cdim,
                                     ULONG32           indices[],
                                     ICorDebugValue **ppValue)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(indices, SIZE_T, cdim, true, true);
     VALIDATE_POINTER_TO_OBJECT(ppValue, ICorDebugValue **);
@@ -3987,7 +3862,6 @@ HRESULT CordbArrayValue::GetElement(ULONG32           cdim,
 HRESULT CordbArrayValue::GetElementAtPosition(ULONG32 nPosition,
                                               ICorDebugValue **ppValue)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(ppValue, ICorDebugValue **);
     FAIL_IF_NEUTERED(this);
@@ -4064,7 +3938,6 @@ HRESULT CordbArrayValue::GetElementAtPosition(ULONG32 nPosition,
 
 HRESULT CordbArrayValue::IsValid(BOOL *pbValid)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT(pbValid, BOOL *);
 
     // <TODO>@todo: implement tracking of objects across collections.</TODO>
@@ -4075,7 +3948,6 @@ HRESULT CordbArrayValue::IsValid(BOOL *pbValid)
 HRESULT CordbArrayValue::CreateRelocBreakpoint(
                                       ICorDebugValueBreakpoint **ppBreakpoint)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT(ppBreakpoint, ICorDebugValueBreakpoint **);
 
     return E_NOTIMPL;
@@ -4091,7 +3963,6 @@ HRESULT CordbArrayValue::CreateHandle(
     CorDebugHandleType handleType,
     ICorDebugHandleValue ** ppHandle)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -4109,7 +3980,6 @@ HRESULT CordbArrayValue::CreateHandle(
 HRESULT CordbArrayValue::CreatePinnedHandle(
     ICorDebugHandleValue ** ppHandle)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -4124,7 +3994,6 @@ HRESULT CordbArrayValue::CreatePinnedHandle(
 // Return Value: S_OK on success, E_INVALIDARG or read process memory errors on failure
 HRESULT CordbArrayValue::GetValue(void *pTo)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(pTo, void *, 1, false, true);
     FAIL_IF_NEUTERED(this);
 
@@ -4141,7 +4010,6 @@ HRESULT CordbArrayValue::GetValue(void *pTo)
 
 HRESULT CordbArrayValue::SetValue(void *pFrom)
 {
-    printFuncName(__FUNCTION__);
     // You're not allowed to set a whole array at once.
     return E_INVALIDARG;
 }
@@ -4153,7 +4021,6 @@ HRESULT CordbArrayValue::SetValue(void *pFrom)
 //       attempt to read array contents until we receive a request to do so.
 HRESULT CordbArrayValue::Init()
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(this->GetProcess()); //
     HRESULT hr = S_OK;
 
@@ -4229,7 +4096,6 @@ HRESULT CordbArrayValue::Init()
 // owns the monitor lock on this object then a failing HRESULT will be returned
 HRESULT CordbArrayValue::GetThreadOwningMonitorLock(ICorDebugThread **ppThread, DWORD *pAcquisitionCount)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -4253,7 +4119,6 @@ HRESULT CordbArrayValue::GetThreadOwningMonitorLock(ICorDebugThread **ppThread, 
 // are waiting for the monitor then a failing HRESULT will be returned
 HRESULT CordbArrayValue::GetMonitorEventWaitList(ICorDebugThreadEnum **ppThreadEnum)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -4280,7 +4145,6 @@ CordbHandleValue::CordbHandleValue(
                     pAppdomain->GetSweepableExitNeuterList()
                 )
 {
-    printFuncName(__FUNCTION__);
     m_vmHandle = VMPTR_OBJECTHANDLE::NullPtr();
     m_fCanBeValid = TRUE;
 
@@ -4298,7 +4162,6 @@ CordbHandleValue::CordbHandleValue(
 //    Call code:CordbHandleValue::ClearHandle to clear the handle value.
 void CordbHandleValue::AssignHandle(VMPTR_OBJECTHANDLE handle)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(GetProcess()->ThreadHoldsProcessLock());
     _ASSERTE(m_vmHandle.IsNull());
 
@@ -4319,7 +4182,6 @@ void CordbHandleValue::AssignHandle(VMPTR_OBJECTHANDLE handle)
 //    This is the inverse of code:CordbHandleValue::AssignHandle
 void CordbHandleValue::ClearHandle()
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(GetProcess()->ThreadHoldsProcessLock());
     _ASSERTE(!m_vmHandle.IsNull());
 
@@ -4333,7 +4195,6 @@ void CordbHandleValue::ClearHandle()
 // Return Value: S_OK on success or CORDBG_E_TARGET_INCONSISTENT, E_INVALIDARG, read process memory errors.
 HRESULT CordbHandleValue::Init(VMPTR_OBJECTHANDLE pHandle)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(GetProcess());
     HRESULT hr = S_OK;
 
@@ -4366,7 +4227,6 @@ HRESULT CordbHandleValue::Init(VMPTR_OBJECTHANDLE pHandle)
 // destructor
 CordbHandleValue::~CordbHandleValue()
 {
-    printFuncName(__FUNCTION__);
     DTOR_ENTRY(this);
 
     _ASSERTE(IsNeutered());
@@ -4375,7 +4235,6 @@ CordbHandleValue::~CordbHandleValue()
 // Free left-side resources, mainly the GC handle keeping the object alive.
 void CordbHandleValue::NeuterLeftSideResources()
 {
-    printFuncName(__FUNCTION__);
     Dispose();
 
     RSLockHolder lockHolder(GetProcess()->GetProcessLock());
@@ -4390,7 +4249,6 @@ void CordbHandleValue::NeuterLeftSideResources()
 //   implicitly by the left-side process exiting.
 void CordbHandleValue::Neuter()
 {
-    printFuncName(__FUNCTION__);
     // CordbHandleValue is on the AppDomainExit neuter list.
 
     // We should have cleaned up our Left-side resource by now (m_vmHandle
@@ -4416,7 +4274,6 @@ void CordbHandleValue::Neuter()
 //               errors from read process memory.
 HRESULT CordbHandleValue::RefreshHandleValue()
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(this->GetProcess()); //
     _ASSERTE(m_appdomain != NULL);
     _ASSERTE(!m_appdomain->IsNeutered());
@@ -4492,7 +4349,6 @@ HRESULT CordbHandleValue::RefreshHandleValue()
 
 HRESULT CordbHandleValue::QueryInterface(REFIID id, void **pInterface)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT(pInterface, void **);
 
     if (id == IID_ICorDebugValue)
@@ -4536,7 +4392,6 @@ HRESULT CordbHandleValue::QueryInterface(REFIID id, void **pInterface)
 // Return Value: S_OK on success or E_INVALIDARG or CORDBG_E_HANDLE_HAS_BEEN_DISPOSED on failure
 HRESULT CordbHandleValue::GetHandleType(CorDebugHandleType *pType)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(pType, CorDebugHandleType *);
     FAIL_IF_NEUTERED(this);
@@ -4561,7 +4416,6 @@ HRESULT CordbHandleValue::GetHandleType(CorDebugHandleType *pType)
 // @dbgtodo Microsoft inspection: remove the dispose handle hresults when the IPC events are eliminated
 HRESULT CordbHandleValue::Dispose()
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -4620,7 +4474,6 @@ HRESULT CordbHandleValue::Dispose()
 // failure
 HRESULT CordbHandleValue::GetType(CorElementType *pType)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(pType, CorElementType *);
     FAIL_IF_NEUTERED(this);
@@ -4668,7 +4521,6 @@ HRESULT CordbHandleValue::GetType(CorElementType *pType)
 // Return Value: S_OK on success, E_INVALIDARG (if pSize is null), or CORDBG_E_HANDLE_HAS_BEEN_DISPOSED on failure
 HRESULT CordbHandleValue::GetSize(ULONG32 *pSize)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(pSize, ULONG32 *);
     FAIL_IF_NEUTERED(this);
@@ -4700,7 +4552,6 @@ HRESULT CordbHandleValue::GetSize(ULONG32 *pSize)
 // Return Value: S_OK on success, E_INVALIDARG (if pSize is null), or CORDBG_E_HANDLE_HAS_BEEN_DISPOSED on failure
 HRESULT CordbHandleValue::GetSize64(ULONG64 *pSize)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(pSize, ULONG64 *);
     FAIL_IF_NEUTERED(this);
@@ -4724,7 +4575,6 @@ HRESULT CordbHandleValue::GetSize64(ULONG64 *pSize)
 // Return Value: S_OK on success or CORDBG_E_HANDLE_HAS_BEEN_DISPOSED or E_INVALIDARG on failure
 HRESULT CordbHandleValue::GetAddress(CORDB_ADDRESS *pAddress)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(pAddress, CORDB_ADDRESS *);
     FAIL_IF_NEUTERED(this);
@@ -4748,7 +4598,6 @@ HRESULT CordbHandleValue::GetAddress(CORDB_ADDRESS *pAddress)
 
 HRESULT CordbHandleValue::CreateBreakpoint(ICorDebugValueBreakpoint **ppBreakpoint)
 {
-    printFuncName(__FUNCTION__);
     return E_NOTIMPL;
 }   // CreateBreakpoint
 
@@ -4759,7 +4608,6 @@ HRESULT CordbHandleValue::CreateBreakpoint(ICorDebugValueBreakpoint **ppBreakpoi
 //               errors from read process memory.
 HRESULT CordbHandleValue::IsNull(BOOL *pbNull)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(pbNull, BOOL *);
     FAIL_IF_NEUTERED(this);
@@ -4808,7 +4656,6 @@ HRESULT CordbHandleValue::IsNull(BOOL *pbNull)
 //               errors from read process memory.
 HRESULT CordbHandleValue::GetValue(CORDB_ADDRESS *pValue)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(pValue, CORDB_ADDRESS *);
     FAIL_IF_NEUTERED(this);
@@ -4828,7 +4675,6 @@ HRESULT CordbHandleValue::GetValue(CORDB_ADDRESS *pValue)
 
 HRESULT CordbHandleValue::SetValue(CORDB_ADDRESS value)
 {
-    printFuncName(__FUNCTION__);
     // do not support SetValue on Handle
     return E_FAIL;
 }   // CordbHandleValue::GetValue
@@ -4840,7 +4686,6 @@ HRESULT CordbHandleValue::SetValue(CORDB_ADDRESS value)
 //               errors from read process memory.
 HRESULT CordbHandleValue::Dereference(ICorDebugValue **ppValue)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_REENTRANT_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(ppValue, ICorDebugValue **);
@@ -4881,7 +4726,6 @@ HRESULT CordbHandleValue::Dereference(ICorDebugValue **ppValue)
 
 HRESULT CordbHandleValue::DereferenceStrong(ICorDebugValue **ppValue)
 {
-    printFuncName(__FUNCTION__);
     return E_NOTIMPL;
 }
 
@@ -4902,7 +4746,6 @@ HRESULT CordbHeapValue3Impl::GetThreadOwningMonitorLock(CordbProcess* pProcess,
                                                         ICorDebugThread **ppThread,
                                                         DWORD *pAcquisitionCount)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     EX_TRY
     {
@@ -4935,7 +4778,6 @@ HRESULT CordbHeapValue3Impl::GetThreadOwningMonitorLock(CordbProcess* pProcess,
 //   puserData - the array to add it to
 VOID ThreadEnumerationCallback(VMPTR_Thread vmThread, VOID* pUserData)
 {
-    printFuncName(__FUNCTION__);
     CQuickArrayList<VMPTR_Thread>* pThreadList = (CQuickArrayList<VMPTR_Thread>*) pUserData;
     pThreadList->Push(vmThread);
 }
@@ -4957,7 +4799,6 @@ HRESULT CordbHeapValue3Impl::GetMonitorEventWaitList(CordbProcess* pProcess,
                                                      CORDB_ADDRESS remoteObjAddress,
                                                      ICorDebugThreadEnum **ppThreadEnum)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     RSSmartPtr<CordbThread> *rsThreads = NULL;
     EX_TRY

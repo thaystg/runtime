@@ -40,7 +40,6 @@ BOOL GetAllProcessesInSystem(DWORD *ProcessId,
                              DWORD dwArraySize,
                              DWORD *pdwNumEntries)
 {
-    printFuncName(__FUNCTION__);
     HandleHolder hSnapshotHolder;
 
     // Create the Process' Snapshot
@@ -102,7 +101,6 @@ CorpubPublish::CorpubPublish()
     : CordbCommonBase(0)
     , m_fpGetModuleFileNameEx(NULL)
 {
-    printFuncName(__FUNCTION__);
     // Try to get psapi!GetModuleFileNameExW once, and then every process object can use it.
     // If we can't get it, then we'll fallback to getting information from the IPC block.
 	m_hPSAPIdll = WszLoadLibrary(W("api-ms-win-obsolete-psapi-l1-1-0.dll"));
@@ -117,14 +115,12 @@ CorpubPublish::CorpubPublish()
 
 CorpubPublish::~CorpubPublish()
 {
-    printFuncName(__FUNCTION__);
     // m_hPSAPIdll is a module holder, so the dtor will free it automatically for us.
 }
 
 
 COM_METHOD CorpubPublish::QueryInterface(REFIID id, void **ppInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorPublish)
         *ppInterface = (ICorPublish*)this;
     else if (id == IID_IUnknown)
@@ -143,7 +139,6 @@ COM_METHOD CorpubPublish::QueryInterface(REFIID id, void **ppInterface)
 COM_METHOD CorpubPublish::EnumProcesses(COR_PUB_ENUMPROCESS Type,
                                         ICorPublishProcessEnum **ppIEnum)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = E_FAIL;
     CorpubProcess* pProcessList = NULL  ;
     CorpubProcessEnum* pProcEnum = NULL;
@@ -229,7 +224,6 @@ exit:
 HRESULT CorpubPublish::GetProcess(unsigned pid,
                                   ICorPublishProcess **ppProcess)
 {
-    printFuncName(__FUNCTION__);
     *ppProcess = NULL;
 
     // Query for this specific process (even if we've already handed out a
@@ -406,7 +400,6 @@ CorpubProcess::CorpubProcess(DWORD dwProcessId,
 #endif // !FEATURE_DBGIPC_TRANSPORT_DI
       m_pNext(NULL)
 {
-    printFuncName(__FUNCTION__);
     {
         // First try to get the process name from the OS. That can't be spoofed by badly formed IPC block.
         // psapi!GetModuleFileNameExW can get that, but it's not available on all platforms so we
@@ -485,7 +478,6 @@ exit:
 
 CorpubProcess::~CorpubProcess()
 {
-    printFuncName(__FUNCTION__);
     delete [] m_szProcessName;
 #if !defined(FEATURE_DBGIPC_TRANSPORT_DI)
     delete m_pIPCReader;
@@ -497,7 +489,6 @@ CorpubProcess::~CorpubProcess()
 
 HRESULT CorpubProcess::QueryInterface(REFIID id, void **ppInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorPublishProcess)
         *ppInterface = (ICorPublishProcess*)this;
     else if (id == IID_IUnknown)
@@ -516,7 +507,6 @@ HRESULT CorpubProcess::QueryInterface(REFIID id, void **ppInterface)
 // Helper to tell if this process has exited.
 bool CorpubProcess::IsExited()
 {
-    printFuncName(__FUNCTION__);
     DWORD res = WaitForSingleObject(this->m_hProcess, 0);
     return (res == WAIT_OBJECT_0);
 }
@@ -524,7 +514,6 @@ bool CorpubProcess::IsExited()
 
 HRESULT CorpubProcess::IsManaged(BOOL *pbManaged)
 {
-    printFuncName(__FUNCTION__);
     *pbManaged = (m_fIsManaged == true) ? TRUE : FALSE;
 
     return S_OK;
@@ -543,7 +532,6 @@ HRESULT AllocateAndReadRemoteBuffer(
     BYTE * * ppNewLocalBuffer
 )
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(ppNewLocalBuffer != NULL);
     *ppNewLocalBuffer = NULL;
 
@@ -590,7 +578,6 @@ HRESULT AllocateAndReadRemoteString(
     _Outptr_result_bytebuffer_(cbSize) WCHAR * * ppNewLocalBuffer
     )
 {
-    printFuncName(__FUNCTION__);
     // Make sure buffer has right geometry.
     if (cbSize < 0)
     {
@@ -641,7 +628,6 @@ HRESULT AllocateAndReadRemoteString(
 //
 HRESULT CorpubProcess::EnumAppDomains(ICorPublishAppDomainEnum **ppIEnum)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT(ppIEnum, ICorPublishAppDomainEnum **);
     *ppIEnum = NULL;
 
@@ -823,7 +809,6 @@ exit:
  */
 HRESULT CorpubProcess::GetProcessID(unsigned *pid)
 {
-    printFuncName(__FUNCTION__);
     *pid = m_dwProcessId;
 
     return S_OK;
@@ -836,7 +821,6 @@ HRESULT CorpubProcess::GetDisplayName(ULONG32 cchName,
                                       ULONG32 *pcchName,
                                       _Out_writes_to_opt_(cchName, *pcchName) WCHAR szName[])
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT_ARRAY_OR_NULL(szName, WCHAR, cchName, true, true);
     VALIDATE_POINTER_TO_OBJECT_OR_NULL(pcchName, ULONG32 *);
 
@@ -867,19 +851,16 @@ CorpubAppDomain::CorpubAppDomain (_In_ LPWSTR szAppDomainName, ULONG Id)
     m_szAppDomainName (szAppDomainName),
     m_id (Id)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(m_szAppDomainName != NULL);
 }
 
 CorpubAppDomain::~CorpubAppDomain()
 {
-    printFuncName(__FUNCTION__);
     delete [] m_szAppDomainName;
 }
 
 HRESULT CorpubAppDomain::QueryInterface (REFIID id, void **ppInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorPublishAppDomain)
         *ppInterface = (ICorPublishAppDomain*)this;
     else if (id == IID_IUnknown)
@@ -900,7 +881,6 @@ HRESULT CorpubAppDomain::QueryInterface (REFIID id, void **ppInterface)
  */
 HRESULT CorpubAppDomain::GetID (ULONG32 *pId)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT(pId, ULONG32 *);
 
     *pId = m_id;
@@ -915,7 +895,6 @@ HRESULT CorpubAppDomain::GetName(ULONG32 cchName,
                                 ULONG32 *pcchName,
                                 _Out_writes_to_opt_(cchName, *pcchName) WCHAR szName[])
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT_ARRAY_OR_NULL(szName, WCHAR, cchName, true, true);
     VALIDATE_POINTER_TO_OBJECT_OR_NULL(pcchName, ULONG32 *);
 
@@ -939,7 +918,6 @@ CorpubProcessEnum::CorpubProcessEnum (CorpubProcess *pFirst)
     m_pFirst (pFirst),
     m_pCurrent (pFirst)
 {
-    printFuncName(__FUNCTION__);
     // Increment the ref count on each process, we own the list
     CorpubProcess * cur = pFirst;
     while( cur != NULL )
@@ -951,7 +929,6 @@ CorpubProcessEnum::CorpubProcessEnum (CorpubProcess *pFirst)
 
 CorpubProcessEnum::~CorpubProcessEnum()
 {
-    printFuncName(__FUNCTION__);
     // Release each process in the list (our client may still have a reference
     // to some of them)
     while (m_pFirst != NULL)
@@ -964,7 +941,6 @@ CorpubProcessEnum::~CorpubProcessEnum()
 
 HRESULT CorpubProcessEnum::QueryInterface (REFIID id, void **ppInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorPublishProcessEnum)
         *ppInterface = (ICorPublishProcessEnum*)this;
     else if (id == IID_IUnknown)
@@ -982,7 +958,6 @@ HRESULT CorpubProcessEnum::QueryInterface (REFIID id, void **ppInterface)
 
 HRESULT CorpubProcessEnum::Skip(ULONG celt)
 {
-    printFuncName(__FUNCTION__);
     while ((m_pCurrent != NULL) && (celt-- > 0))
     {
         m_pCurrent = m_pCurrent->GetNextProcess();
@@ -993,7 +968,6 @@ HRESULT CorpubProcessEnum::Skip(ULONG celt)
 
 HRESULT CorpubProcessEnum::Reset()
 {
-    printFuncName(__FUNCTION__);
     m_pCurrent = m_pFirst;
 
     return S_OK;
@@ -1001,14 +975,12 @@ HRESULT CorpubProcessEnum::Reset()
 
 HRESULT CorpubProcessEnum::Clone(ICorPublishEnum **ppEnum)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT(ppEnum, ICorPublishEnum **);
     return E_NOTIMPL;
 }
 
 HRESULT CorpubProcessEnum::GetCount(ULONG *pcelt)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT(pcelt, ULONG *);
 
     CorpubProcess *pTemp = m_pFirst;
@@ -1028,7 +1000,6 @@ HRESULT CorpubProcessEnum::Next(ULONG celt,
                 ICorPublishProcess *objects[],
                 ULONG *pceltFetched)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(objects, ICorPublishProcess *,
         celt, true, true);
     VALIDATE_POINTER_TO_OBJECT_OR_NULL(pceltFetched, ULONG *);
@@ -1090,7 +1061,6 @@ CorpubAppDomainEnum::CorpubAppDomainEnum (CorpubAppDomain *pFirst)
     m_pFirst (pFirst),
     m_pCurrent (pFirst)
 {
-    printFuncName(__FUNCTION__);
     CorpubAppDomain *pCur = pFirst;
     while( pCur != NULL )
     {
@@ -1101,7 +1071,6 @@ CorpubAppDomainEnum::CorpubAppDomainEnum (CorpubAppDomain *pFirst)
 
 CorpubAppDomainEnum::~CorpubAppDomainEnum()
 {
-    printFuncName(__FUNCTION__);
     // Delete all the app domains
     while (m_pFirst != NULL )
     {
@@ -1113,7 +1082,6 @@ CorpubAppDomainEnum::~CorpubAppDomainEnum()
 
 HRESULT CorpubAppDomainEnum::QueryInterface (REFIID id, void **ppInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorPublishAppDomainEnum)
         *ppInterface = (ICorPublishAppDomainEnum*)this;
     else if (id == IID_IUnknown)
@@ -1131,7 +1099,6 @@ HRESULT CorpubAppDomainEnum::QueryInterface (REFIID id, void **ppInterface)
 
 HRESULT CorpubAppDomainEnum::Skip(ULONG celt)
 {
-    printFuncName(__FUNCTION__);
     while ((m_pCurrent != NULL) && (celt-- > 0))
     {
         m_pCurrent = m_pCurrent->GetNextAppDomain();
@@ -1142,7 +1109,6 @@ HRESULT CorpubAppDomainEnum::Skip(ULONG celt)
 
 HRESULT CorpubAppDomainEnum::Reset()
 {
-    printFuncName(__FUNCTION__);
     m_pCurrent = m_pFirst;
 
     return S_OK;
@@ -1150,14 +1116,12 @@ HRESULT CorpubAppDomainEnum::Reset()
 
 HRESULT CorpubAppDomainEnum::Clone(ICorPublishEnum **ppEnum)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT(ppEnum, ICorPublishEnum **);
     return E_NOTIMPL;
 }
 
 HRESULT CorpubAppDomainEnum::GetCount(ULONG *pcelt)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT(pcelt, ULONG *);
 
     CorpubAppDomain *pTemp = m_pFirst;
@@ -1177,7 +1141,6 @@ HRESULT CorpubAppDomainEnum::Next(ULONG celt,
                 ICorPublishAppDomain *objects[],
                 ULONG *pceltFetched)
 {
-    printFuncName(__FUNCTION__);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(objects, ICorPublishProcess *,
         celt, true, true);
     VALIDATE_POINTER_TO_OBJECT_OR_NULL(pceltFetched, ULONG *);

@@ -11,7 +11,6 @@
 
 HRESULT CordbRegisterSet::GetRegistersAvailable(ULONG64* pAvailable)
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pAvailable, ULONG64*);
 
@@ -59,7 +58,6 @@ HRESULT CordbRegisterSet::GetRegistersAvailable(ULONG64* pAvailable)
 HRESULT CordbRegisterSet::GetRegisters(ULONG64 mask, ULONG32 regCount,
                                        CORDB_REGISTER regBuffer[])
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -200,7 +198,6 @@ HRESULT CordbRegisterSet::GetRegisters(ULONG64 mask, ULONG32 regCount,
 HRESULT CordbRegisterSet::GetRegistersAvailable(ULONG32 regCount,
                                                 BYTE    pAvailable[])
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(pAvailable, CORDB_REGISTER, regCount, true, true);
 
@@ -212,7 +209,6 @@ HRESULT CordbRegisterSet::GetRegistersAvailable(ULONG32 regCount,
 HRESULT CordbRegisterSet::GetRegisters(ULONG32 maskCount, BYTE mask[],
                                        ULONG32 regCount, CORDB_REGISTER regBuffer[])
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(regBuffer, CORDB_REGISTER, regCount, true, true);
 
@@ -226,7 +222,6 @@ HRESULT CordbRegisterSet::GetRegisters(ULONG32 maskCount, BYTE mask[],
 // and the context can't be fully accurate.
 void CordbRegisterSet::InternalCopyRDToContext(DT_CONTEXT *pInputContext)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(GetProcess());
     _ASSERTE(pInputContext);
 

@@ -146,7 +146,6 @@ BOOL CompatibleHostAndTargetPlatforms(HANDLE hTargetProcess)
 
 ShimLocalDataTarget::ShimLocalDataTarget(DWORD processId, HANDLE hProcess)
 {
-    printFuncName(__FUNCTION__);
     m_ref = 0;
 
     m_processId = processId;
@@ -164,7 +163,6 @@ ShimLocalDataTarget::ShimLocalDataTarget(DWORD processId, HANDLE hProcess)
 //
 ShimLocalDataTarget::~ShimLocalDataTarget()
 {
-    printFuncName(__FUNCTION__);
     Dispose();
 }
 
@@ -183,7 +181,6 @@ ShimLocalDataTarget::~ShimLocalDataTarget()
 
 void ShimLocalDataTarget::Dispose()
 {
-    printFuncName(__FUNCTION__);
     if (m_hProcess != NULL)
     {
         CloseHandle(m_hProcess);
@@ -213,7 +210,6 @@ HRESULT BuildPlatformSpecificDataTarget(MachineInfo machineInfo,
                                         const ProcessDescriptor * pProcessDescriptor,
                                         ShimDataTarget ** ppDataTarget)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     HANDLE hProcess = NULL;
     ShimLocalDataTarget * pLocalDataTarget = NULL;
@@ -308,7 +304,6 @@ ShimLocalDataTarget::ReadVirtual(
     ULONG32 cbRequestSize,
     ULONG32 *pcbRead)
 {
-    printFuncName(__FUNCTION__);
     ReturnFailureIfStateNotOk();
 
 
@@ -357,7 +352,6 @@ ShimLocalDataTarget::WriteVirtual(
     const BYTE * pBuffer,
     ULONG32 cbRequestSize)
 {
-    printFuncName(__FUNCTION__);
     ReturnFailureIfStateNotOk();
 
     SIZE_T cbWritten;
@@ -380,7 +374,6 @@ ShimLocalDataTarget::GetThreadContext(
     ULONG32 contextSize,
     BYTE * pContext)
 {
-    printFuncName(__FUNCTION__);
     ReturnFailureIfStateNotOk();
     // @dbgtodo - Ideally we should cache the thread handles so that we don't need to
     // open and close the thread handles every time.
@@ -419,7 +412,6 @@ ShimLocalDataTarget::SetThreadContext(
     ULONG32 contextSize,
     const BYTE * pContext)
 {
-    printFuncName(__FUNCTION__);
     ReturnFailureIfStateNotOk();
     HRESULT hr = E_FAIL;
 
@@ -452,7 +444,6 @@ ShimLocalDataTarget::ContinueStatusChanged(
     DWORD dwThreadId,
     CORDB_CONTINUE_STATUS dwContinueStatus)
 {
-    printFuncName(__FUNCTION__);
     ReturnFailureIfStateNotOk();
     if (m_fpContinueStatusChanged != NULL)
     {

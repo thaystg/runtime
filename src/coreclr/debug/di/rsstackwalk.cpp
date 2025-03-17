@@ -29,13 +29,11 @@ CordbStackWalk::CordbStackWalk(CordbThread * pCordbThread)
     m_cachedHR(S_OK),
     m_fIsOneFrameAhead(false)
 {
-    printFuncName(__FUNCTION__);
     m_pCachedFrame.Clear();
 }
 
 void CordbStackWalk::Init()
 {
-    printFuncName(__FUNCTION__);
     CordbProcess * pProcess = GetProcess();
     m_lastSyncFlushCounter = pProcess->m_flushCounter;
 
@@ -102,7 +100,6 @@ void CordbStackWalk::CheckForLegacyHijackCase()
 
 CordbStackWalk::~CordbStackWalk()
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(IsNeutered());
 }
 
@@ -114,7 +111,6 @@ CordbStackWalk::~CordbStackWalk()
 
 void CordbStackWalk::DeleteAll()
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(GetProcess()->GetProcessLock()->HasLock());
 
     // delete allocated memory
@@ -158,7 +154,6 @@ void CordbStackWalk::DeleteAll()
 
 void CordbStackWalk::Neuter()
 {
-    printFuncName(__FUNCTION__);
     if (IsNeutered())
     {
         return;
@@ -171,7 +166,6 @@ void CordbStackWalk::Neuter()
 // standard QI function
 HRESULT CordbStackWalk::QueryInterface(REFIID id, void **pInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugStackWalk)
     {
         *pInterface = static_cast<ICorDebugStackWalk*>(this);
@@ -202,7 +196,6 @@ HRESULT CordbStackWalk::QueryInterface(REFIID id, void **pInterface)
 
 void CordbStackWalk::RefreshIfNeeded()
 {
-    printFuncName(__FUNCTION__);
     CordbProcess * pProcess = GetProcess();
     _ASSERTE(pProcess->GetProcessLock()->HasLock());
 
@@ -259,7 +252,6 @@ HRESULT CordbStackWalk::GetContext(ULONG32   contextFlags,
                                    ULONG32 * pContextSize,
                                    BYTE      pbContextBuf[])
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_REENTRANT_API_BEGIN(this)
     {
@@ -356,7 +348,6 @@ HRESULT CordbStackWalk::GetContext(ULONG32   contextFlags,
 
 HRESULT CordbStackWalk::SetContext(CorDebugSetContextFlag flag, ULONG32 contextSize, BYTE context[])
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_REENTRANT_API_BEGIN(this)
     {
@@ -374,7 +365,6 @@ HRESULT CordbStackWalk::SetContext(CorDebugSetContextFlag flag, ULONG32 contextS
 
 void CordbStackWalk::SetContextWorker(CorDebugSetContextFlag flag, ULONG32 contextSize, BYTE context[])
 {
-    printFuncName(__FUNCTION__);
     if (context == NULL)
     {
         ThrowHR(E_INVALIDARG);
@@ -428,7 +418,6 @@ void CordbStackWalk::SetContextWorker(CorDebugSetContextFlag flag, ULONG32 conte
 
 BOOL CordbStackWalk::UnwindStackFrame()
 {
-    printFuncName(__FUNCTION__);
     CordbProcess * pProcess = GetProcess();
     _ASSERTE(pProcess->GetProcessLock()->HasLock());
 
@@ -455,7 +444,6 @@ BOOL CordbStackWalk::UnwindStackFrame()
 
 HRESULT CordbStackWalk::Next()
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_REENTRANT_API_BEGIN(this)
     {
@@ -524,7 +512,6 @@ HRESULT CordbStackWalk::Next()
 
 HRESULT CordbStackWalk::GetFrame(ICorDebugFrame ** ppFrame)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_REENTRANT_API_NO_LOCK_BEGIN(this)
     {
@@ -557,7 +544,6 @@ HRESULT CordbStackWalk::GetFrame(ICorDebugFrame ** ppFrame)
 
 HRESULT CordbStackWalk::GetFrameWorker(ICorDebugFrame ** ppFrame)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(GetProcess()->GetProcessLock()->HasLock());
 
     if (ppFrame == NULL)

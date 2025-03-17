@@ -22,7 +22,6 @@ HRESULT STDMETHODCALLTYPE ShimDataTarget::QueryInterface(
     PVOID* pInterface
     )
 {
-    printFuncName(__FUNCTION__);
     if (InterfaceId == IID_IUnknown)
     {
         *pInterface = static_cast<IUnknown *>(static_cast<ICorDebugDataTarget *>(this));
@@ -52,7 +51,6 @@ HRESULT STDMETHODCALLTYPE ShimDataTarget::QueryInterface(
 // Standard impl of IUnknown::AddRef
 ULONG STDMETHODCALLTYPE ShimDataTarget::AddRef()
 {
-    printFuncName(__FUNCTION__);
     LONG ref = InterlockedIncrement(&m_ref);
     return ref;
 }
@@ -60,7 +58,6 @@ ULONG STDMETHODCALLTYPE ShimDataTarget::AddRef()
 // Standard impl of IUnknown::Release
 ULONG STDMETHODCALLTYPE ShimDataTarget::Release()
 {
-    printFuncName(__FUNCTION__);
     LONG ref = InterlockedDecrement(&m_ref);
     if (ref == 0)
     {
@@ -77,7 +74,6 @@ ULONG STDMETHODCALLTYPE ShimDataTarget::Release()
 //     The OS PID of the process this data target is representing.
 DWORD ShimDataTarget::GetPid()
 {
-    printFuncName(__FUNCTION__);
     return m_processId;
 }
 
@@ -90,7 +86,6 @@ DWORD ShimDataTarget::GetPid()
 //
 void ShimDataTarget::HookContinueStatusChanged(FPContinueStatusChanged fpContinueStatusChanged, void * pUserData)
 {
-    printFuncName(__FUNCTION__);
     m_fpContinueStatusChanged = fpContinueStatusChanged;
     m_pContinueStatusChangedUserData = pUserData;
 }

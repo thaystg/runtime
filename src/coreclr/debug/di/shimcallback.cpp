@@ -24,19 +24,16 @@
 ShimProxyCallback::ShimProxyCallback(ShimProcess * pShim)
     : m_cRef(0)
 {
-    printFuncName(__FUNCTION__);
     m_pShim = pShim;
 }
 
 // Implement IUnknown
 ULONG ShimProxyCallback::AddRef()
 {
-    printFuncName(__FUNCTION__);
     return InterlockedIncrement(&m_cRef);
 }
 ULONG ShimProxyCallback::Release()
 {
-    printFuncName(__FUNCTION__);
     LONG ref = InterlockedDecrement(&m_cRef);
     if (ref == 0)
     {
@@ -48,7 +45,6 @@ ULONG ShimProxyCallback::Release()
 }
 HRESULT ShimProxyCallback::QueryInterface(REFIID riid, void **ppInterface)
 {
-    printFuncName(__FUNCTION__);
     if (riid == IID_ICorDebugManagedCallback)
     {
         *ppInterface = static_cast<ICorDebugManagedCallback*>(this);
@@ -95,7 +91,6 @@ HRESULT ShimProxyCallback::QueryInterface(REFIID riid, void **ppInterface)
 //   @dbgtodo shim-stackwalks: this is used for exception callbacks, which may change for V3.
 ICorDebugFrame * UpdateFrame(ICorDebugThread * pThread, ICorDebugFrame * pOldFrame)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY_FOR_SHIM(NULL);
 
     RSExtSmartPtr<ICorDebugFrame> pNewFrame;
@@ -134,7 +129,6 @@ ICorDebugFrame * UpdateFrame(ICorDebugThread * pThread, ICorDebugFrame * pOldFra
 // Implementation of ICorDebugManagedCallback::Breakpoint
 HRESULT ShimProxyCallback::Breakpoint(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread, ICorDebugBreakpoint * pBreakpoint)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class BreakpointEvent  : public ManagedEvent
     {
@@ -167,7 +161,6 @@ HRESULT ShimProxyCallback::Breakpoint(ICorDebugAppDomain * pAppDomain, ICorDebug
 // Implementation of ICorDebugManagedCallback::StepComplete
 HRESULT ShimProxyCallback::StepComplete(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread, ICorDebugStepper * pStepper, CorDebugStepReason reason)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class StepCompleteEvent  : public ManagedEvent
     {
@@ -202,7 +195,6 @@ HRESULT ShimProxyCallback::StepComplete(ICorDebugAppDomain * pAppDomain, ICorDeb
 // Implementation of ICorDebugManagedCallback::Break
 HRESULT ShimProxyCallback::Break(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class BreakEvent  : public ManagedEvent
     {
@@ -233,7 +225,6 @@ HRESULT ShimProxyCallback::Break(ICorDebugAppDomain * pAppDomain, ICorDebugThrea
 // Implementation of ICorDebugManagedCallback::Exception
 HRESULT ShimProxyCallback::Exception(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread, BOOL fUnhandled)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class ExceptionEvent  : public ManagedEvent
     {
@@ -266,7 +257,6 @@ HRESULT ShimProxyCallback::Exception(ICorDebugAppDomain * pAppDomain, ICorDebugT
 // Implementation of ICorDebugManagedCallback::EvalComplete
 HRESULT ShimProxyCallback::EvalComplete(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread, ICorDebugEval * pEval)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class EvalCompleteEvent  : public ManagedEvent
     {
@@ -299,7 +289,6 @@ HRESULT ShimProxyCallback::EvalComplete(ICorDebugAppDomain * pAppDomain, ICorDeb
 // Implementation of ICorDebugManagedCallback::EvalException
 HRESULT ShimProxyCallback::EvalException(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread, ICorDebugEval * pEval)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class EvalExceptionEvent  : public ManagedEvent
     {
@@ -333,7 +322,6 @@ HRESULT ShimProxyCallback::EvalException(ICorDebugAppDomain * pAppDomain, ICorDe
 // This will only be called for a Real create-process event.
 HRESULT ShimProxyCallback::CreateProcess(ICorDebugProcess * pProcess)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent(true);
     QueueCreateProcess(pProcess);
     return S_OK;
@@ -341,7 +329,6 @@ HRESULT ShimProxyCallback::CreateProcess(ICorDebugProcess * pProcess)
 
 void ShimProxyCallback::QueueCreateProcess(ICorDebugProcess * pProcess)
 {
-    printFuncName(__FUNCTION__);
     class CreateProcessEvent  : public ManagedEvent
     {
         // callbacks parameters. These are strong references
@@ -379,7 +366,6 @@ void ShimProxyCallback::QueueCreateProcess(ICorDebugProcess * pProcess)
 // Implementation of ICorDebugManagedCallback::ExitProcess
 HRESULT ShimProxyCallback::ExitProcess(ICorDebugProcess * pProcess)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class ExitProcessEvent  : public ManagedEvent
     {
@@ -409,7 +395,6 @@ HRESULT ShimProxyCallback::ExitProcess(ICorDebugProcess * pProcess)
 // Implementation of ICorDebugManagedCallback::CreateThread
 HRESULT ShimProxyCallback::CreateThread(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class CreateThreadEvent  : public ManagedEvent
     {
@@ -443,7 +428,6 @@ HRESULT ShimProxyCallback::CreateThread(ICorDebugAppDomain * pAppDomain, ICorDeb
 // Implementation of ICorDebugManagedCallback::ExitThread
 HRESULT ShimProxyCallback::ExitThread(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class ExitThreadEvent  : public ManagedEvent
     {
@@ -485,7 +469,6 @@ HRESULT ShimProxyCallback::ExitThread(ICorDebugAppDomain * pAppDomain, ICorDebug
 //   DAC from out-of-proc.
 void ShimProxyCallback::FakeLoadModule(ICorDebugAppDomain *pAppDomain, ICorDebugModule *pModule)
 {
-    printFuncName(__FUNCTION__);
     class FakeLoadModuleEvent  : public ManagedEvent
     {
         // callbacks parameters. These are strong references
@@ -522,7 +505,6 @@ void ShimProxyCallback::FakeLoadModule(ICorDebugAppDomain *pAppDomain, ICorDebug
 // Implementation of ICorDebugManagedCallback::LoadModule
 HRESULT ShimProxyCallback::LoadModule(ICorDebugAppDomain * pAppDomain, ICorDebugModule * pModule)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class LoadModuleEvent  : public ManagedEvent
     {
@@ -556,7 +538,6 @@ HRESULT ShimProxyCallback::LoadModule(ICorDebugAppDomain * pAppDomain, ICorDebug
 // Implementation of ICorDebugManagedCallback::UnloadModule
 HRESULT ShimProxyCallback::UnloadModule(ICorDebugAppDomain * pAppDomain, ICorDebugModule * pModule)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class UnloadModuleEvent  : public ManagedEvent
     {
@@ -588,7 +569,6 @@ HRESULT ShimProxyCallback::UnloadModule(ICorDebugAppDomain * pAppDomain, ICorDeb
 // Implementation of ICorDebugManagedCallback::LoadClass
 HRESULT ShimProxyCallback::LoadClass(ICorDebugAppDomain * pAppDomain, ICorDebugClass * pClass)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class LoadClassEvent  : public ManagedEvent
     {
@@ -619,7 +599,6 @@ HRESULT ShimProxyCallback::LoadClass(ICorDebugAppDomain * pAppDomain, ICorDebugC
 // Implementation of ICorDebugManagedCallback::UnloadClass
 HRESULT ShimProxyCallback::UnloadClass(ICorDebugAppDomain * pAppDomain, ICorDebugClass * pClass)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class UnloadClassEvent  : public ManagedEvent
     {
@@ -650,7 +629,6 @@ HRESULT ShimProxyCallback::UnloadClass(ICorDebugAppDomain * pAppDomain, ICorDebu
 // Implementation of ICorDebugManagedCallback::DebuggerError
 HRESULT ShimProxyCallback::DebuggerError(ICorDebugProcess * pProcess, HRESULT errorHR, DWORD errorCode)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class DebuggerErrorEvent  : public ManagedEvent
     {
@@ -683,7 +661,6 @@ HRESULT ShimProxyCallback::DebuggerError(ICorDebugProcess * pProcess, HRESULT er
 // Implementation of ICorDebugManagedCallback::LogMessage
 HRESULT ShimProxyCallback::LogMessage(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread, LONG lLevel, _In_ LPWSTR pLogSwitchName, _In_ LPWSTR pMessage)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class LogMessageEvent  : public ManagedEvent
     {
@@ -720,7 +697,6 @@ HRESULT ShimProxyCallback::LogMessage(ICorDebugAppDomain * pAppDomain, ICorDebug
 // Implementation of ICorDebugManagedCallback::LogSwitch
 HRESULT ShimProxyCallback::LogSwitch(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread, LONG lLevel, ULONG ulReason, _In_ LPWSTR pLogSwitchName, _In_ LPWSTR pParentName)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class LogSwitchEvent  : public ManagedEvent
     {
@@ -759,7 +735,6 @@ HRESULT ShimProxyCallback::LogSwitch(ICorDebugAppDomain * pAppDomain, ICorDebugT
 // Implementation of ICorDebugManagedCallback::CreateAppDomain
 HRESULT ShimProxyCallback::CreateAppDomain(ICorDebugProcess * pProcess, ICorDebugAppDomain * pAppDomain)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class CreateAppDomainEvent  : public ManagedEvent
     {
@@ -793,7 +768,6 @@ HRESULT ShimProxyCallback::CreateAppDomain(ICorDebugProcess * pProcess, ICorDebu
 // Implementation of ICorDebugManagedCallback::ExitAppDomain
 HRESULT ShimProxyCallback::ExitAppDomain(ICorDebugProcess * pProcess, ICorDebugAppDomain * pAppDomain)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class ExitAppDomainEvent  : public ManagedEvent
     {
@@ -825,7 +799,6 @@ HRESULT ShimProxyCallback::ExitAppDomain(ICorDebugProcess * pProcess, ICorDebugA
 // Implementation of ICorDebugManagedCallback::LoadAssembly
 HRESULT ShimProxyCallback::LoadAssembly(ICorDebugAppDomain * pAppDomain, ICorDebugAssembly * pAssembly)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class LoadAssemblyEvent  : public ManagedEvent
     {
@@ -859,7 +832,6 @@ HRESULT ShimProxyCallback::LoadAssembly(ICorDebugAppDomain * pAppDomain, ICorDeb
 // Implementation of ICorDebugManagedCallback::UnloadAssembly
 HRESULT ShimProxyCallback::UnloadAssembly(ICorDebugAppDomain * pAppDomain, ICorDebugAssembly * pAssembly)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class UnloadAssemblyEvent  : public ManagedEvent
     {
@@ -891,7 +863,6 @@ HRESULT ShimProxyCallback::UnloadAssembly(ICorDebugAppDomain * pAppDomain, ICorD
 // Implementation of ICorDebugManagedCallback::ControlCTrap
 HRESULT ShimProxyCallback::ControlCTrap(ICorDebugProcess * pProcess)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class ControlCTrapEvent  : public ManagedEvent
     {
@@ -925,7 +896,6 @@ HRESULT ShimProxyCallback::ControlCTrap(ICorDebugProcess * pProcess)
 // Implementation of ICorDebugManagedCallback::NameChange
 HRESULT ShimProxyCallback::NameChange(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class NameChangeEvent  : public ManagedEvent
     {
@@ -956,7 +926,6 @@ HRESULT ShimProxyCallback::NameChange(ICorDebugAppDomain * pAppDomain, ICorDebug
 // Implementation of ICorDebugManagedCallback::UpdateModuleSymbols
 HRESULT ShimProxyCallback::UpdateModuleSymbols(ICorDebugAppDomain * pAppDomain, ICorDebugModule * pModule, IStream * pSymbolStream)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class UpdateModuleSymbolsEvent  : public ManagedEvent
     {
@@ -989,7 +958,6 @@ HRESULT ShimProxyCallback::UpdateModuleSymbols(ICorDebugAppDomain * pAppDomain, 
 // Implementation of ICorDebugManagedCallback::EditAndContinueRemap
 HRESULT ShimProxyCallback::EditAndContinueRemap(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread, ICorDebugFunction * pFunction, BOOL fAccurate)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class EditAndContinueRemapEvent  : public ManagedEvent
     {
@@ -1024,7 +992,6 @@ HRESULT ShimProxyCallback::EditAndContinueRemap(ICorDebugAppDomain * pAppDomain,
 // Implementation of ICorDebugManagedCallback::BreakpointSetError
 HRESULT ShimProxyCallback::BreakpointSetError(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread, ICorDebugBreakpoint * pBreakpoint, DWORD dwError)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class BreakpointSetErrorEvent  : public ManagedEvent
     {
@@ -1059,7 +1026,6 @@ HRESULT ShimProxyCallback::BreakpointSetError(ICorDebugAppDomain * pAppDomain, I
 // Implementation of ICorDebugManagedCallback2::FunctionRemapOpportunity
 HRESULT ShimProxyCallback::FunctionRemapOpportunity(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread, ICorDebugFunction * pOldFunction, ICorDebugFunction * pNewFunction, ULONG32 oldILOffset)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class FunctionRemapOpportunityEvent  : public ManagedEvent
     {
@@ -1096,7 +1062,6 @@ HRESULT ShimProxyCallback::FunctionRemapOpportunity(ICorDebugAppDomain * pAppDom
 // Implementation of ICorDebugManagedCallback2::CreateConnection
 HRESULT ShimProxyCallback::CreateConnection(ICorDebugProcess * pProcess, CONNID dwConnectionId, _In_ LPWSTR pConnectionName)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class CreateConnectionEvent  : public ManagedEvent
     {
@@ -1129,7 +1094,6 @@ HRESULT ShimProxyCallback::CreateConnection(ICorDebugProcess * pProcess, CONNID 
 // Implementation of ICorDebugManagedCallback2::ChangeConnection
 HRESULT ShimProxyCallback::ChangeConnection(ICorDebugProcess * pProcess, CONNID dwConnectionId)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class ChangeConnectionEvent  : public ManagedEvent
     {
@@ -1160,7 +1124,6 @@ HRESULT ShimProxyCallback::ChangeConnection(ICorDebugProcess * pProcess, CONNID 
 // Implementation of ICorDebugManagedCallback2::DestroyConnection
 HRESULT ShimProxyCallback::DestroyConnection(ICorDebugProcess * pProcess, CONNID dwConnectionId)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class DestroyConnectionEvent  : public ManagedEvent
     {
@@ -1192,7 +1155,6 @@ HRESULT ShimProxyCallback::DestroyConnection(ICorDebugProcess * pProcess, CONNID
 // Implementation of ICorDebugManagedCallback2::Exception
 HRESULT ShimProxyCallback::Exception(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread, ICorDebugFrame * pFrame, ULONG32 nOffset, CorDebugExceptionCallbackType dwEventType, DWORD dwFlags)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class ExceptionEvent  : public ManagedEvent
     {
@@ -1231,7 +1193,6 @@ HRESULT ShimProxyCallback::Exception(ICorDebugAppDomain * pAppDomain, ICorDebugT
 // Implementation of ICorDebugManagedCallback2::ExceptionUnwind
 HRESULT ShimProxyCallback::ExceptionUnwind(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread, CorDebugExceptionUnwindCallbackType dwEventType, DWORD dwFlags)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class ExceptionUnwindEvent  : public ManagedEvent
     {
@@ -1266,7 +1227,6 @@ HRESULT ShimProxyCallback::ExceptionUnwind(ICorDebugAppDomain * pAppDomain, ICor
 // Implementation of ICorDebugManagedCallback2::FunctionRemapComplete
 HRESULT ShimProxyCallback::FunctionRemapComplete(ICorDebugAppDomain * pAppDomain, ICorDebugThread * pThread, ICorDebugFunction * pFunction)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class FunctionRemapCompleteEvent  : public ManagedEvent
     {
@@ -1299,7 +1259,6 @@ HRESULT ShimProxyCallback::FunctionRemapComplete(ICorDebugAppDomain * pAppDomain
 // Implementation of ICorDebugManagedCallback2::MDANotification
 HRESULT ShimProxyCallback::MDANotification(ICorDebugController * pController, ICorDebugThread * pThread, ICorDebugMDA * pMDA)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class MDANotificationEvent  : public ManagedEvent
     {
@@ -1336,7 +1295,6 @@ HRESULT ShimProxyCallback::MDANotification(ICorDebugController * pController, IC
 // Return value: S_OK
 HRESULT ShimProxyCallback::CustomNotification(ICorDebugThread * pThread, ICorDebugAppDomain * pAppDomain)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class CustomNotificationEvent  : public ManagedEvent
     {
@@ -1370,7 +1328,6 @@ HRESULT ShimProxyCallback::CustomNotification(ICorDebugThread * pThread, ICorDeb
 // Return value: S_OK
 HRESULT ShimProxyCallback::BeforeGarbageCollection(ICorDebugProcess* pProcess)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class BeforeGarbageCollectionEvent : public ManagedEvent
     {
@@ -1402,7 +1359,6 @@ HRESULT ShimProxyCallback::BeforeGarbageCollection(ICorDebugProcess* pProcess)
 // Return value: S_OK
 HRESULT ShimProxyCallback::AfterGarbageCollection(ICorDebugProcess* pProcess)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class AfterGarbageCollectionEvent : public ManagedEvent
     {
@@ -1434,7 +1390,6 @@ HRESULT ShimProxyCallback::AfterGarbageCollection(ICorDebugProcess* pProcess)
 // Return value: S_OK
 HRESULT ShimProxyCallback::DataBreakpoint(ICorDebugProcess* pProcess, ICorDebugThread* pThread, BYTE* pContext, ULONG32 contextSize)
 {
-    printFuncName(__FUNCTION__);
     m_pShim->PreDispatchEvent();
     class DataBreakpointEvent : public ManagedEvent
     {

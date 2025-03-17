@@ -39,7 +39,6 @@ STDAPI ReOpenMetaDataWithMemoryEx(
     ULONG       cbData,
     DWORD       dwReOpenFlags)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = MDReOpenMetaDataWithMemoryEx(pUnk,pData, cbData, dwReOpenFlags);
     return hr;
 }
@@ -65,7 +64,6 @@ CordbModule::CordbModule(
     m_fForceMetaDataSerialize(FALSE),
     m_nativeCodeTable(101)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(pProcess->GetProcessLock()->HasLock());
 
     _ASSERTE(!vmModule.IsNull());
@@ -122,7 +120,6 @@ CordbModule::CordbModule(
 //
 void DbgAssertModuleDeletedCallback(VMPTR_DomainAssembly vmDomainAssembly, void * pUserData)
 {
-    printFuncName(__FUNCTION__);
     CordbModule * pThis = reinterpret_cast<CordbModule *>(pUserData);
     INTERNAL_DAC_CALLBACK(pThis->GetProcess());
 
@@ -146,7 +143,6 @@ void DbgAssertModuleDeletedCallback(VMPTR_DomainAssembly vmDomainAssembly, void 
 //
 void CordbModule::DbgAssertModuleDeleted()
 {
-    printFuncName(__FUNCTION__);
     GetProcess()->GetDAC()->EnumerateModulesInAssembly(
         m_pAssembly->GetDomainAssemblyPtr(),
         DbgAssertModuleDeletedCallback,
@@ -156,7 +152,6 @@ void CordbModule::DbgAssertModuleDeleted()
 
 CordbModule::~CordbModule()
 {
-    printFuncName(__FUNCTION__);
     // We should have been explicitly neutered before our internal ref went to 0.
     _ASSERTE(IsNeutered());
 
@@ -166,7 +161,6 @@ CordbModule::~CordbModule()
 // Neutered by CordbAppDomain
 void CordbModule::Neuter()
 {
-    printFuncName(__FUNCTION__);
     // m_pAppDomain, m_pAssembly assigned w/o AddRef()
     m_classes.NeuterAndClear(GetProcess()->GetProcessLock());
     m_functions.NeuterAndClear(GetProcess()->GetProcessLock());
@@ -200,7 +194,6 @@ void CordbModule::Neuter()
 //
 void GetStreamFromTargetBuffer(CordbProcess * pProcess, TargetBuffer buffer, IStream ** ppStream)
 {
-    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -240,7 +233,6 @@ void GetStreamFromTargetBuffer(CordbProcess * pProcess, TargetBuffer buffer, ISt
 //
 IDacDbiInterface::SymbolFormat CordbModule::GetInMemorySymbolStream(IStream ** ppStream)
 {
-    printFuncName(__FUNCTION__);
     // @dbgtodo : add a PUBLIC_REENTRANT_API_ENTRY_FOR_SHIM contract
     // This function is mainly called internally in dbi, and also by the shim to emulate the
     // UpdateModuleSymbols callback on attach.
@@ -284,7 +276,6 @@ IDacDbiInterface::SymbolFormat CordbModule::GetInMemorySymbolStream(IStream ** p
 //
 VMPTR_PEAssembly CordbModule::GetPEFile()
 {
-    printFuncName(__FUNCTION__);
     return m_vmPEFile;
 }
 
@@ -300,7 +291,6 @@ VMPTR_PEAssembly CordbModule::GetPEFile()
 //     This will lazily create the metadata, possibly invoking back into the data-target.
 IMetaDataImport * CordbModule::GetMetaDataImporter()
 {
-    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -362,7 +352,6 @@ IMetaDataImport * CordbModule::GetMetaDataImporter()
 //
 void CordbModule::UpdateMetaDataCacheIfNeeded(mdToken token)
 {
-    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -402,7 +391,6 @@ void CordbModule::UpdateMetaDataCacheIfNeeded(mdToken token)
 // Returns TRUE if the token is present, FALSE if not.
 BOOL CordbModule::CheckIfTokenInMetaData(mdToken token)
 {
-    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -483,7 +471,6 @@ public:
 // has edited the metadata
 void CordbModule::RefreshMetaData()
 {
-    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -610,7 +597,6 @@ void CordbModule::RefreshMetaData()
 // current metadata
 BOOL CordbModule::IsFileMetaDataValid()
 {
-    printFuncName(__FUNCTION__);
     bool fOpenFromFile = true;
 
     // Dynamic, In-memory, modules must be OpenScopeOnMemory.
@@ -655,7 +641,6 @@ BOOL CordbModule::IsFileMetaDataValid()
 //     This should not be handed out through ICorDebug.
 IMDInternalImport * CordbModule::GetInternalMD()
 {
-    printFuncName(__FUNCTION__);
     if (m_pInternalMetaDataImport == NULL)
     {
         UpdateInternalMetaData(); // throws
@@ -681,7 +666,6 @@ IMDInternalImport * CordbModule::GetInternalMD()
 //
 void CordbModule::InitMetaData(TargetBuffer buffer, BOOL allowFileMappingOptimization)
 {
-    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -747,7 +731,6 @@ void CordbModule::InitMetaData(TargetBuffer buffer, BOOL allowFileMappingOptimiz
 //     stale internal MetaData.
 void CordbModule::UpdateInternalMetaData()
 {
-    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -789,7 +772,6 @@ void CordbModule::UpdateInternalMetaData()
 // OpenScopeOnMemory can't be shared b/c we allocate a buffer.
 HRESULT CordbModule::InitPublicMetaDataFromFile()
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this->GetProcess());
 
     // @dbgtodo  metadata - In v3, we can't assume we have the same path namespace as the target (i.e. it could be
@@ -947,7 +929,6 @@ HRESULT CordbModule::InitPublicMetaDataFromFile(const WCHAR * pszFullPathName,
 //
 void CordbModule::InitPublicMetaData(TargetBuffer buffer)
 {
-    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -1032,7 +1013,6 @@ void CordbModule::InitPublicMetaData(TargetBuffer buffer)
 //
 void CordbModule::UpdatePublicMetaDataFromRemote(TargetBuffer bufferRemoteMetaData)
 {
-    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         // @dbgtodo  metadata  - think about the error semantics here. These fails during dispatching an event; so
@@ -1110,7 +1090,6 @@ void CordbModule::CopyRemoteMetaData(
     TargetBuffer buffer,
     CoTaskMemHolder<VOID> * pLocalBuffer)
 {
-    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -1140,7 +1119,6 @@ void CordbModule::CopyRemoteMetaData(
 
 HRESULT CordbModule::QueryInterface(REFIID id, void **pInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugModule)
     {
         *pInterface = static_cast<ICorDebugModule*>(this);
@@ -1173,7 +1151,6 @@ HRESULT CordbModule::QueryInterface(REFIID id, void **pInterface)
 
 HRESULT CordbModule::GetProcess(ICorDebugProcess **ppProcess)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppProcess, ICorDebugProcess **);
@@ -1186,7 +1163,6 @@ HRESULT CordbModule::GetProcess(ICorDebugProcess **ppProcess)
 
 HRESULT CordbModule::GetBaseAddress(CORDB_ADDRESS *pAddress)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pAddress, CORDB_ADDRESS *);
@@ -1197,7 +1173,6 @@ HRESULT CordbModule::GetBaseAddress(CORDB_ADDRESS *pAddress)
 
 HRESULT CordbModule::GetAssembly(ICorDebugAssembly **ppAssembly)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppAssembly, ICorDebugAssembly **);
@@ -1215,7 +1190,6 @@ HRESULT CordbModule::GetAssembly(ICorDebugAssembly **ppAssembly)
 // wrapper around code:GetNameWorker (which throws).
 HRESULT CordbModule::GetName(ULONG32 cchName, ULONG32 *pcchName, _Out_writes_to_opt_(cchName, *pcchName) WCHAR szName[])
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this)
     {
@@ -1270,7 +1244,6 @@ HRESULT CordbModule::GetName(ULONG32 cchName, ULONG32 *pcchName, _Out_writes_to_
 //
 HRESULT CordbModule::GetNameWorker(ULONG32 cchName, ULONG32 *pcchName, _Out_writes_to_opt_(cchName, *pcchName) WCHAR szName[])
 {
-    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -1356,7 +1329,6 @@ HRESULT CordbModule::GetNameWorker(ULONG32 cchName, ULONG32 *pcchName, _Out_writ
 //    token (along with many others) to have an A or W suffix.
 const WCHAR * CordbModule::GetModulePath()
 {
-    printFuncName(__FUNCTION__);
     // Lazily initialize.  Module filenames cannot change, and so once
     // we've retrieved this successfully, it's stored for good.
     if (!m_strModulePath.IsSet())
@@ -1377,7 +1349,6 @@ const WCHAR * CordbModule::GetModulePath()
 // See also code:CordbModule::SetJITCompilerFlags
 HRESULT CordbModule::EnableJITDebugging(BOOL bTrackJITInfo, BOOL bAllowJitOpts)
 {
-    printFuncName(__FUNCTION__);
     // Leftside will enforce that this is a valid time to change jit flags.
     // V1.0 behavior allowed setting these in the middle of a module's lifetime, which meant
     // that different methods throughout the module may have been jitted differently.
@@ -1398,7 +1369,6 @@ HRESULT CordbModule::EnableJITDebugging(BOOL bTrackJITInfo, BOOL bAllowJitOpts)
 
 HRESULT CordbModule::EnableClassLoadCallbacks(BOOL bClassLoadCallbacks)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_ALLOW_LIVE_DO_STOPGO(GetProcess());
@@ -1438,7 +1408,6 @@ HRESULT CordbModule::EnableClassLoadCallbacks(BOOL bClassLoadCallbacks)
 HRESULT CordbModule::GetFunctionFromToken(mdMethodDef token,
                                           ICorDebugFunction **ppFunction)
 {
-    printFuncName(__FUNCTION__);
     // This is not reentrant. DBI should call code:CordbModule::LookupOrCreateFunctionLatestVersion instead.
     PUBLIC_API_ENTRY(this);
     ATT_ALLOW_LIVE_DO_STOPGO(GetProcess()); // @todo - can this be RequiredStop?
@@ -1473,7 +1442,6 @@ HRESULT CordbModule::GetFunctionFromToken(mdMethodDef token,
 HRESULT CordbModule::GetFunctionFromRVA(CORDB_ADDRESS rva,
                                         ICorDebugFunction **ppFunction)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppFunction, ICorDebugFunction **);
@@ -1484,7 +1452,6 @@ HRESULT CordbModule::GetFunctionFromRVA(CORDB_ADDRESS rva,
 HRESULT CordbModule::LookupClassByToken(mdTypeDef token,
                                         CordbClass **ppClass)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this->GetProcess()); //
     FAIL_IF_NEUTERED(this);
 
@@ -1523,7 +1490,6 @@ HRESULT CordbModule::LookupClassByToken(mdTypeDef token,
 HRESULT CordbModule::GetClassFromToken(mdTypeDef token,
                                        ICorDebugClass **ppClass)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_ALLOW_LIVE_DO_STOPGO(this->GetProcess()); // @todo - could this be RequiredStopped?
@@ -1553,7 +1519,6 @@ HRESULT CordbModule::GetClassFromToken(mdTypeDef token,
 
 HRESULT CordbModule::CreateBreakpoint(ICorDebugModuleBreakpoint **ppBreakpoint)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppBreakpoint, ICorDebugModuleBreakpoint **);
@@ -1567,7 +1532,6 @@ HRESULT CordbModule::CreateBreakpoint(ICorDebugModuleBreakpoint **ppBreakpoint)
 //
 HRESULT CordbModule::GetToken(mdModule *pToken)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pToken, mdModule *);
@@ -1588,7 +1552,6 @@ HRESULT CordbModule::GetToken(mdModule *pToken)
 // meta data for this module.
 HRESULT CordbModule::GetMetaDataInterface(REFIID riid, IUnknown **ppObj)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppObj, IUnknown **);
@@ -1619,7 +1582,6 @@ HRESULT CordbModule::GetMetaDataInterface(REFIID riid, IUnknown **ppObj)
 //     populate the cache if needed.
 CordbFunction* CordbModule::LookupFunctionLatestVersion(mdMethodDef funcMetaDataToken)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this);
     return m_functions.GetBase(funcMetaDataToken);
 }
@@ -1641,7 +1603,6 @@ CordbFunction* CordbModule::LookupFunctionLatestVersion(mdMethodDef funcMetaData
 //
 CordbFunction* CordbModule::LookupOrCreateFunctionLatestVersion(mdMethodDef funcMetaDataToken)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this);
     CordbFunction * pFunction = m_functions.GetBase(funcMetaDataToken);
     if (pFunction != NULL)
@@ -1665,7 +1626,6 @@ CordbFunction* CordbModule::LookupOrCreateFunctionLatestVersion(mdMethodDef func
 //
 CordbFunction * CordbModule::LookupOrCreateFunction(mdMethodDef funcMetaDataToken, SIZE_T enCVersion)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this);
 
     _ASSERTE(GetProcess()->ThreadHoldsProcessLock());
@@ -1697,7 +1657,6 @@ CordbFunction * CordbModule::LookupOrCreateFunction(mdMethodDef funcMetaDataToke
 
 HRESULT CordbModule::IsDynamic(BOOL *pDynamic)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pDynamic, BOOL *);
@@ -1709,14 +1668,12 @@ HRESULT CordbModule::IsDynamic(BOOL *pDynamic)
 
 BOOL CordbModule::IsDynamic()
 {
-    printFuncName(__FUNCTION__);
     return m_fDynamic;
 }
 
 
 HRESULT CordbModule::IsInMemory(BOOL *pInMemory)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pInMemory, BOOL *);
@@ -1729,7 +1686,6 @@ HRESULT CordbModule::IsInMemory(BOOL *pInMemory)
 HRESULT CordbModule::GetGlobalVariableValue(mdFieldDef fieldDef,
                                             ICorDebugValue **ppValue)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppValue, ICorDebugValue **);
@@ -1764,7 +1720,6 @@ HRESULT CordbModule::GetGlobalVariableValue(mdFieldDef fieldDef,
 //
 CordbFunction * CordbModule::CreateFunction(mdMethodDef funcMetaDataToken, SIZE_T enCVersion)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this);
 
     // In EnC cases, the token may not yet be valid. We may be caching the CordbFunction
@@ -1796,7 +1751,6 @@ HRESULT CordbModule::UpdateFunction(mdMethodDef funcMetaDataToken,
                                     SIZE_T enCVersion,
                                     CordbFunction** ppFunction)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this);
     if (ppFunction)
         *ppFunction = NULL;
@@ -1860,7 +1814,6 @@ HRESULT CordbModule::UpdateFunction(mdMethodDef funcMetaDataToken,
 
 HRESULT CordbModule::LookupOrCreateClass(mdTypeDef classMetaDataToken,CordbClass** ppClass)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
 
@@ -1887,7 +1840,6 @@ HRESULT CordbModule::LookupOrCreateClass(mdTypeDef classMetaDataToken,CordbClass
 //
 CordbClass* CordbModule::LookupClass(mdTypeDef classMetaDataToken)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this);
     _ASSERTE(GetProcess()->ThreadHoldsProcessLock());
     return m_classes.GetBase(classMetaDataToken);
@@ -1900,7 +1852,6 @@ CordbClass* CordbModule::LookupClass(mdTypeDef classMetaDataToken)
 HRESULT CordbModule::CreateClass(mdTypeDef classMetaDataToken,
                                  CordbClass** ppClass)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
 
@@ -1957,7 +1908,6 @@ HRESULT CordbModule::CreateClass(mdTypeDef classMetaDataToken,
 //
 HRESULT CordbModule::ResolveTypeRef(mdTypeRef token, CordbClass **ppClass)
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     INTERNAL_SYNC_API_ENTRY(GetProcess()); //
 
@@ -2007,7 +1957,6 @@ HRESULT CordbModule::ResolveTypeRef(mdTypeRef token, CordbClass **ppClass)
 //    See code:CordbModule::ResolveTypeRef for more details.
 HRESULT CordbModule::ResolveTypeRefOrDef(mdToken token, CordbClass **ppClass)
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     INTERNAL_SYNC_API_ENTRY(this->GetProcess()); //
 
@@ -2035,7 +1984,6 @@ HRESULT CordbModule::ResolveTypeRefOrDef(mdToken token, CordbClass **ppClass)
 //
 HRESULT CordbModule::GetSize(ULONG32 *pcBytes)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pcBytes, ULONG32 *);
@@ -2047,7 +1995,6 @@ HRESULT CordbModule::GetSize(ULONG32 *pcBytes)
 
 CordbAssembly *CordbModule::GetCordbAssembly()
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this);
     return m_pAssembly;
 }
@@ -2057,7 +2004,6 @@ CordbAssembly *CordbModule::GetCordbAssembly()
 HRESULT CordbModule::GetEditAndContinueSnapshot(
     ICorDebugEditAndContinueSnapshot **ppEditAndContinueSnapshot)
 {
-    printFuncName(__FUNCTION__);
     return E_NOTIMPL;
 }
 
@@ -2088,7 +2034,6 @@ HRESULT CordbModule::ApplyChanges(ULONG  cbMetaData,
                                   ULONG  cbIL,
                                   BYTE   pbIL[])
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -2195,7 +2140,6 @@ HRESULT CordbModule::ApplyChangesInternal(ULONG  cbMetaData,
                                           ULONG  cbIL,
                                           BYTE   pbIL[])
 {
-    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         NOTHROW;
@@ -2344,7 +2288,6 @@ HRESULT CordbModule::SetJMCStatus(
         ULONG32 cOthers,
         mdToken others[])
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -2399,7 +2342,6 @@ HRESULT CordbModule::SetJMCStatus(
 HRESULT CordbModule::ResolveAssembly(mdToken tkAssemblyRef,
                                     ICorDebugAssembly **ppAssembly)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(this->GetProcess());
@@ -2448,7 +2390,6 @@ HRESULT CordbModule::ResolveAssembly(mdToken tkAssemblyRef,
 
 CordbAssembly * CordbModule::ResolveAssemblyInternal(mdToken tkAssemblyRef)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(GetProcess()); //
 
     if (TypeFromToken(tkAssemblyRef) != mdtAssemblyRef || tkAssemblyRef == mdAssemblyRefNil)
@@ -2483,7 +2424,6 @@ CordbAssembly * CordbModule::ResolveAssemblyInternal(mdToken tkAssemblyRef)
 //
 HRESULT CordbModule::CreateReaderForInMemorySymbols(REFIID riid, void** ppObj)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
 
@@ -2573,7 +2513,6 @@ HRESULT CordbModule::CreateReaderForInMemorySymbols(REFIID riid, void** ppObj)
 //    properly return CORDBG_E_MUST_BE_IN_LOAD_MODULE
 void CordbModule::SetLoadEventContinueMarker()
 {
-    printFuncName(__FUNCTION__);
     // Well behaved targets should only set this once.
     GetProcess()->TargetConsistencyCheck(m_nLoadEventContinueCounter == 0);
 
@@ -2592,7 +2531,6 @@ void CordbModule::SetLoadEventContinueMarker()
 //   then reattach, the RS state is flushed and we lose the fact that we can toggle the jit flags.
 HRESULT CordbModule::EnsureModuleIsInLoadCallback()
 {
-    printFuncName(__FUNCTION__);
     if (this->m_nLoadEventContinueCounter < GetProcess()->m_continueCounter)
     {
         return CORDBG_E_MUST_BE_IN_LOAD_MODULE;
@@ -2607,7 +2545,6 @@ HRESULT CordbModule::EnsureModuleIsInLoadCallback()
 // See also code:CordbModule::EnableJITDebugging
 HRESULT CordbModule::SetJITCompilerFlags(DWORD dwFlags)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
 
@@ -2656,7 +2593,6 @@ HRESULT CordbModule::SetJITCompilerFlags(DWORD dwFlags)
 // Implementation of ICorDebugModule2::GetJitCompilerFlags
 HRESULT CordbModule::GetJITCompilerFlags(DWORD *pdwFlags )
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pdwFlags, DWORD*);
@@ -2694,7 +2630,6 @@ HRESULT CordbModule::GetJITCompilerFlags(DWORD *pdwFlags )
 
 HRESULT CordbModule::IsMappedLayout(BOOL *isMapped)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     VALIDATE_POINTER_TO_OBJECT(isMapped, BOOL*);
     FAIL_IF_NEUTERED(this);
@@ -2741,7 +2676,6 @@ CordbCode::CordbCode(CordbFunction * pFunction, UINT_PTR id, SIZE_T encVersion, 
     m_continueCounterLastSync(0),
     m_pFunction(pFunction)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(pFunction != NULL);
     _ASSERTE(m_nVersion >= CorDB_DEFAULT_ENC_FUNCTION_VERSION);
 } // CordbCode::CordbCode
@@ -2751,7 +2685,6 @@ CordbCode::CordbCode(CordbFunction * pFunction, UINT_PTR id, SIZE_T encVersion, 
 //-----------------------------------------------------------------------------
 CordbCode::~CordbCode()
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(IsNeutered());
 }
 
@@ -2761,7 +2694,6 @@ CordbCode::~CordbCode()
 //-----------------------------------------------------------------------------
 void CordbCode::Neuter()
 {
-    printFuncName(__FUNCTION__);
     m_pFunction = NULL;
 
     delete [] m_rgbCode;
@@ -2776,7 +2708,6 @@ void CordbCode::Neuter()
 //-----------------------------------------------------------------------------
 HRESULT CordbCode::QueryInterface(REFIID id, void ** pInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugCode)
     {
         *pInterface = static_cast<ICorDebugCode*>(this);
@@ -2804,7 +2735,6 @@ HRESULT CordbCode::QueryInterface(REFIID id, void ** pInterface)
 //-----------------------------------------------------------------------------
 HRESULT CordbCode::GetEnCRemapSequencePoints(ULONG32 cMap, ULONG32 * pcMap, ULONG32 offsets[])
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_OR_NULL(pcMap, ULONG32*);
     VALIDATE_POINTER_TO_OBJECT_ARRAY_OR_NULL(offsets, ULONG32*, cMap, true, true);
@@ -2828,7 +2758,6 @@ HRESULT CordbCode::GetEnCRemapSequencePoints(ULONG32 cMap, ULONG32 * pcMap, ULON
 //-----------------------------------------------------------------------------
 HRESULT CordbCode::IsIL(BOOL *pbIL)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pbIL, BOOL *);
@@ -2852,7 +2781,6 @@ HRESULT CordbCode::IsIL(BOOL *pbIL)
 //-----------------------------------------------------------------------------
 HRESULT CordbCode::GetFunction(ICorDebugFunction **ppFunction)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppFunction, ICorDebugFunction **);
@@ -2876,7 +2804,6 @@ HRESULT CordbCode::GetFunction(ICorDebugFunction **ppFunction)
 //-----------------------------------------------------------------------------
 HRESULT CordbCode::GetSize(ULONG32 *pcBytes)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pcBytes, ULONG32 *);
@@ -2901,7 +2828,6 @@ HRESULT CordbCode::GetSize(ULONG32 *pcBytes)
 HRESULT CordbCode::CreateBreakpoint(ULONG32 offset,
                                     ICorDebugFunctionBreakpoint **ppBreakpoint)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppBreakpoint, ICorDebugFunctionBreakpoint **);
@@ -2965,7 +2891,6 @@ HRESULT CordbCode::GetCode(ULONG32 startOffset,
                            BYTE buffer[],
                            ULONG32 *pcBufferSize)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(buffer, BYTE, cBufferAlloc, true, true);
@@ -3024,7 +2949,6 @@ HRESULT CordbCode::GetCode(ULONG32 startOffset,
 //-----------------------------------------------------------------------------
 HRESULT CordbCode::GetVersionNumber( ULONG32 *nVersion)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(nVersion, ULONG32 *);
@@ -3044,7 +2968,6 @@ HRESULT CordbCode::GetVersionNumber( ULONG32 *nVersion)
 // get the CordbFunction instance for this code object
 CordbFunction * CordbCode::GetFunction()
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(m_pFunction != NULL);
     return m_pFunction;
 }
@@ -3088,7 +3011,6 @@ CordbILCode::CordbILCode(CordbFunction * pFunction,
 //-----------------------------------------------------------------------------
 void CordbILCode::MakeOld()
 {
-    printFuncName(__FUNCTION__);
     m_fIsOld = TRUE;
 }
 #endif
@@ -3106,7 +3028,6 @@ void CordbILCode::MakeOld()
 //-----------------------------------------------------------------------------
 HRESULT CordbILCode::GetAddress(CORDB_ADDRESS * pStart)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pStart, CORDB_ADDRESS *);
@@ -3135,7 +3056,6 @@ HRESULT CordbILCode::GetAddress(CORDB_ADDRESS * pStart)
 //-----------------------------------------------------------------------------
 HRESULT CordbILCode::ReadCodeBytes()
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     EX_TRY
     {
@@ -3176,7 +3096,6 @@ HRESULT CordbILCode::GetILToNativeMapping(ULONG32                    cMap,
                                           ULONG32 *                  pcMap,
                                           COR_DEBUG_IL_TO_NATIVE_MAP map[])
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_OR_NULL(pcMap, ULONG32 *);
@@ -3205,7 +3124,6 @@ HRESULT CordbILCode::GetILToNativeMapping(ULONG32                    cMap,
 HRESULT CordbILCode::GetLocalVarSig(SigParser *pLocalSigParser,
     ULONG *pLocalVarCount)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(GetProcess());
 
     CONTRACTL  // @dbgtodo  exceptions - convert to throws...
@@ -3295,7 +3213,6 @@ HRESULT CordbILCode::GetLocalVariableType(DWORD dwIndex,
     const Instantiation * pInst,
     CordbType ** ppResultType)
 {
-    printFuncName(__FUNCTION__);
     ATT_ALLOW_LIVE_DO_STOPGO(GetProcess());
     LOG((LF_CORDB, LL_INFO10000, "CIC::GLVT dwIndex=0x%x pInst=0x%p\n", dwIndex, pInst));
     HRESULT hr = S_OK;
@@ -3331,13 +3248,11 @@ HRESULT CordbILCode::GetLocalVariableType(DWORD dwIndex,
 
 mdSignature CordbILCode::GetLocalVarSigToken()
 {
-    printFuncName(__FUNCTION__);
     return m_localVarSigToken;
 }
 
 HRESULT CordbILCode::CreateNativeBreakpoint(ICorDebugFunctionBreakpoint **ppBreakpoint)
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppBreakpoint, ICorDebugFunctionBreakpoint **);
 
@@ -3376,7 +3291,6 @@ m_cClauses(0),
 m_cbLocalIL(0),
 m_cILMap(0)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(!vmILCodeVersionNode.IsNull());
     DacSharedReJitInfo data = { 0 };
     IfFailThrow(GetProcess()->GetDAC()->GetILCodeVersionNodeData(vmILCodeVersionNode, &data));
@@ -3390,7 +3304,6 @@ m_cILMap(0)
 //    S_OK if all fields are inited. Else error.
 HRESULT CordbReJitILCode::Init(DacSharedReJitInfo* pSharedReJitInfo)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     // Instrumented IL map
@@ -3557,7 +3470,6 @@ HRESULT CordbReJitILCode::Init(DacSharedReJitInfo* pSharedReJitInfo)
 //    S_OK if successfully copied elements to clauses array.
 HRESULT CordbReJitILCode::GetEHClauses(ULONG32 cClauses, ULONG32 * pcClauses, CorDebugEHClause clauses[])
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_OR_NULL(pcClauses, ULONG32 *);
@@ -3590,18 +3502,15 @@ HRESULT CordbReJitILCode::GetEHClauses(ULONG32 cClauses, ULONG32 * pcClauses, Co
 
 ULONG CordbReJitILCode::AddRef()
 {
-    printFuncName(__FUNCTION__);
     return CordbCode::AddRef();
 }
 ULONG CordbReJitILCode::Release()
 {
-    printFuncName(__FUNCTION__);
     return CordbCode::Release();
 }
 
 HRESULT CordbReJitILCode::QueryInterface(REFIID riid, void** ppInterface)
 {
-    printFuncName(__FUNCTION__);
     if (riid == IID_ICorDebugILCode)
     {
         *ppInterface = static_cast<ICorDebugILCode*>(this);
@@ -3621,7 +3530,6 @@ HRESULT CordbReJitILCode::QueryInterface(REFIID riid, void** ppInterface)
 
 HRESULT CordbReJitILCode::GetLocalVarSigToken(mdSignature *pmdSig)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pmdSig, mdSignature *);
@@ -3633,7 +3541,6 @@ HRESULT CordbReJitILCode::GetLocalVarSigToken(mdSignature *pmdSig)
 
 HRESULT CordbReJitILCode::GetInstrumentedILMap(ULONG32 cMap, ULONG32 *pcMap, COR_IL_MAP map[])
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_OR_NULL(pcClauses, ULONG32 *);
@@ -3680,7 +3587,6 @@ HRESULT FindNativeInfoInILVariableArray(DWORD                                   
                                         const DacDbiArrayList<ICorDebugInfo::NativeVarInfo> * nativeInfoList,
                                         const ICorDebugInfo::NativeVarInfo **                 ppNativeInfo)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(ppNativeInfo != NULL);
     *ppNativeInfo = NULL;
 
@@ -3766,7 +3672,6 @@ CordbVariableHome::CordbVariableHome(CordbNativeCode *pCode,
                                      ULONG index) :
     CordbBase(pCode->GetModule()->GetProcess(), 0)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(pCode != NULL);
 
     m_pCode.Assign(pCode);
@@ -3777,13 +3682,11 @@ CordbVariableHome::CordbVariableHome(CordbNativeCode *pCode,
 
 CordbVariableHome::~CordbVariableHome()
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(this->IsNeutered());
 }
 
 void CordbVariableHome::Neuter()
 {
-    printFuncName(__FUNCTION__);
     m_pCode.Clear();
     CordbBase::Neuter();
 }
@@ -3794,7 +3697,6 @@ void CordbVariableHome::Neuter()
 //-----------------------------------------------------------------------------
 HRESULT CordbVariableHome::QueryInterface(REFIID id, void **pInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugVariableHome)
     {
         *pInterface = static_cast<ICorDebugVariableHome *>(this);
@@ -3825,7 +3727,6 @@ HRESULT CordbVariableHome::QueryInterface(REFIID id, void **pInterface)
 //-----------------------------------------------------------------------------
 HRESULT CordbVariableHome::GetCode(ICorDebugCode **ppCode)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppCode, ICorDebugCode **);
@@ -3849,7 +3750,6 @@ HRESULT CordbVariableHome::GetCode(ICorDebugCode **ppCode)
 //-----------------------------------------------------------------------------
 HRESULT CordbVariableHome::GetSlotIndex(ULONG32 *pSlotIndex)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pSlotIndex, ULONG32 *);
@@ -3876,7 +3776,6 @@ HRESULT CordbVariableHome::GetSlotIndex(ULONG32 *pSlotIndex)
 //-----------------------------------------------------------------------------
 HRESULT CordbVariableHome::GetArgumentIndex(ULONG32 *pArgumentIndex)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pArgumentIndex, ULONG32 *);
@@ -3906,7 +3805,6 @@ HRESULT CordbVariableHome::GetArgumentIndex(ULONG32 *pArgumentIndex)
 HRESULT CordbVariableHome::GetLiveRange(ULONG32 *pStartOffset,
                                         ULONG32 *pEndOffset)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pStartOffset, ULONG32 *);
@@ -3930,7 +3828,6 @@ HRESULT CordbVariableHome::GetLiveRange(ULONG32 *pStartOffset,
 //-----------------------------------------------------------------------------
 HRESULT CordbVariableHome::GetLocationType(VariableLocationType *pLocationType)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pLocationType, VariableLocationType *);
@@ -3965,7 +3862,6 @@ HRESULT CordbVariableHome::GetLocationType(VariableLocationType *pLocationType)
 //-----------------------------------------------------------------------------
 HRESULT CordbVariableHome::GetRegister(CorDebugRegister *pRegister)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pRegister, CorDebugRegister *);
@@ -3998,7 +3894,6 @@ HRESULT CordbVariableHome::GetRegister(CorDebugRegister *pRegister)
 //-----------------------------------------------------------------------------
 HRESULT CordbVariableHome::GetOffset(LONG *pOffset)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pOffset, LONG *);
@@ -4040,7 +3935,6 @@ CordbNativeCode::CordbNativeCode(CordbFunction *                pFunction,
     m_fCodeAvailable(TRUE),
     m_fIsInstantiatedGeneric(fIsInstantiatedGeneric != FALSE)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(GetVersion() >= CorDB_DEFAULT_ENC_FUNCTION_VERSION);
 
     for (CodeBlobRegion region = kHot; region < MAX_REGIONS; ++region)
@@ -4055,7 +3949,6 @@ CordbNativeCode::CordbNativeCode(CordbFunction *                pFunction,
 //-----------------------------------------------------------------------------
 HRESULT CordbNativeCode::QueryInterface(REFIID id, void ** pInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugCode)
     {
         *pInterface = static_cast<ICorDebugCode *>(this);
@@ -4099,7 +3992,6 @@ HRESULT CordbNativeCode::QueryInterface(REFIID id, void ** pInterface)
 //-----------------------------------------------------------------------------
 HRESULT CordbNativeCode::GetAddress(CORDB_ADDRESS * pStart)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pStart, CORDB_ADDRESS *);
@@ -4134,7 +4026,6 @@ HRESULT CordbNativeCode::GetAddress(CORDB_ADDRESS * pStart)
 //-----------------------------------------------------------------------------
 HRESULT CordbNativeCode::ReadCodeBytes()
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     EX_TRY
@@ -4180,7 +4071,6 @@ HRESULT CordbNativeCode::ReadCodeBytes()
 //-----------------------------------------------------------------------------
 ULONG32 CordbNativeCode::GetColdSize()
 {
-    printFuncName(__FUNCTION__);
     ULONG32 pcBytes = 0;
     for (CodeBlobRegion index = kCold; index < MAX_REGIONS; ++index)
     {
@@ -4201,7 +4091,6 @@ ULONG32 CordbNativeCode::GetColdSize()
 //-----------------------------------------------------------------------------
 ULONG32 CordbNativeCode::GetSize()
 {
-    printFuncName(__FUNCTION__);
     ULONG32 pcBytes = 0;
     for (CodeBlobRegion index = kHot; index < MAX_REGIONS; ++index)
     {
@@ -4228,7 +4117,6 @@ HRESULT CordbNativeCode::GetILToNativeMapping(ULONG32                    cMap,
                                               ULONG32 *                  pcMap,
                                               COR_DEBUG_IL_TO_NATIVE_MAP map[])
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_OR_NULL(pcMap, ULONG32 *);
@@ -4287,7 +4175,6 @@ HRESULT CordbNativeCode::GetCodeChunks(
     CodeChunkInfo chunks[]
 )
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
 
     if (pcnumChunks == NULL)
@@ -4339,7 +4226,6 @@ HRESULT CordbNativeCode::GetCodeChunks(
 //-----------------------------------------------------------------------------
 HRESULT CordbNativeCode::GetCompilerFlags(DWORD * pdwFlags)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pdwFlags, DWORD *);
@@ -4358,7 +4244,6 @@ HRESULT CordbNativeCode::ILVariableToNative(DWORD dwIndex,
                                             SIZE_T ip,
                                             const ICorDebugInfo::NativeVarInfo ** ppNativeInfo)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(m_nativeVarData.IsInitialized());
 
     return FindNativeInfoInILVariableArray(dwIndex,
@@ -4370,7 +4255,6 @@ HRESULT CordbNativeCode::ILVariableToNative(DWORD dwIndex,
 
 HRESULT CordbNativeCode::GetReturnValueLiveOffset(ULONG32 ILoffset, ULONG32 bufferSize, ULONG32 *pFetched, ULONG32 *pOffsets)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     PUBLIC_API_ENTRY(this);
@@ -4401,7 +4285,6 @@ HRESULT CordbNativeCode::GetReturnValueLiveOffset(ULONG32 ILoffset, ULONG32 buff
 //-----------------------------------------------------------------------------
 HRESULT CordbNativeCode::EnumerateVariableHomes(ICorDebugVariableHomeEnum **ppEnum)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppEnum, ICorDebugVariableHomeEnum **);
@@ -4878,7 +4761,6 @@ int CordbNativeCode::GetCallInstructionLength(BYTE *ip, ULONG32 count)
 
 HRESULT CordbNativeCode::GetSigParserFromFunction(mdToken mdFunction, mdToken *pClass, SigParser &parser, SigParser &methodGenerics)
 {
-    printFuncName(__FUNCTION__);
     // mdFunction may be a MemberRef, a MethodDef, or a MethodSpec.  We must handle all three cases.
     HRESULT hr = S_OK;
     IMetaDataImport* pImport = m_pFunction->GetModule()->GetMetaDataImporter();
@@ -4926,7 +4808,6 @@ HRESULT CordbNativeCode::GetSigParserFromFunction(mdToken mdFunction, mdToken *p
 
 HRESULT CordbNativeCode::EnsureReturnValueAllowed(Instantiation *currentInstantiation, mdToken targetClass, SigParser &parser, SigParser &methodGenerics)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     uint32_t genCount = 0;
     IfFailRet(SkipToReturn(parser, &genCount));
@@ -4936,7 +4817,6 @@ HRESULT CordbNativeCode::EnsureReturnValueAllowed(Instantiation *currentInstanti
 
 HRESULT CordbNativeCode::EnsureReturnValueAllowedWorker(Instantiation *currentInstantiation, mdToken targetClass, SigParser &parser, SigParser &methodGenerics, ULONG genCount)
 {
-    printFuncName(__FUNCTION__);
     // There are a few considerations here:
     // 1.  Generic instantiations.  This is a "Foo<T>", and we need to check if that "Foo"
     //      fits one of the categories we disallow (such as a struct).
@@ -5080,7 +4960,6 @@ HRESULT CordbNativeCode::EnsureReturnValueAllowedWorker(Instantiation *currentIn
 
 HRESULT CordbNativeCode::SkipToReturn(SigParser &parser, uint32_t *genCount)
 {
-    printFuncName(__FUNCTION__);
     // Takes a method signature parser (at the beginning of a signature) and skips to the
     // return value.
     HRESULT hr = S_OK;
@@ -5103,7 +4982,6 @@ HRESULT CordbNativeCode::SkipToReturn(SigParser &parser, uint32_t *genCount)
 
 HRESULT CordbNativeCode::GetCallSignature(ULONG32 ILoffset, mdToken *pClass, mdToken *pFunction, SigParser &parser, SigParser &generics)
 {
-    printFuncName(__FUNCTION__);
     // check if specified IL offset is at a call instruction
     CordbILCode *pCode = this->m_pFunction->GetILCode();
     BYTE buffer[3];
@@ -5144,7 +5022,6 @@ HRESULT CordbNativeCode::GetCallSignature(ULONG32 ILoffset, mdToken *pClass, mdT
 
 HRESULT CordbNativeCode::GetReturnValueLiveOffsetImpl(Instantiation *currentInstantiation, ULONG32 ILoffset, ULONG32 bufferSize, ULONG32 *pFetched, ULONG32 *pOffsets)
 {
-    printFuncName(__FUNCTION__);
     if (pFetched == NULL)
         return E_INVALIDARG;
 
@@ -5240,7 +5117,6 @@ CordbNativeCode * CordbModule::LookupOrCreateNativeCode(mdMethodDef methodToken,
                                                         VMPTR_MethodDesc methodDesc,
                                                         CORDB_ADDRESS startAddress)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(GetProcess());
     _ASSERTE(startAddress != (CORDB_ADDRESS)NULL);
     _ASSERTE(methodDesc != VMPTR_MethodDesc::NullPtr());
@@ -5288,7 +5164,6 @@ CordbNativeCode * CordbModule::LookupOrCreateNativeCode(mdMethodDef methodToken,
 //
 void CordbNativeCode::LoadNativeInfo()
 {
-    printFuncName(__FUNCTION__);
     THROW_IF_NEUTERED(this);
     INTERNAL_API_ENTRY(this->GetProcess());
 

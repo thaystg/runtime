@@ -36,7 +36,6 @@ CordbClass::CordbClass(CordbModule *m, mdTypeDef classMetadataToken)
     m_fHasTypeParams(false),
     m_continueCounterLastSync(0)
 {
-    printFuncName(__FUNCTION__);
     m_classInfo.Clear();
 }
 
@@ -56,7 +55,6 @@ CordbClass::CordbClass(CordbModule *m, mdTypeDef classMetadataToken)
 //-----------------------------------------------------------------------------
 CordbClass::~CordbClass()
 {
-    printFuncName(__FUNCTION__);
     // We should have been explicitly neutered before our internal ref went to 0.
     _ASSERTE(IsNeutered());
 }
@@ -67,7 +65,6 @@ CordbClass::~CordbClass()
 //-----------------------------------------------------------------------------
 void CordbClass::Neuter()
 {
-    printFuncName(__FUNCTION__);
     // Reduce the reference count on the type object for this class
     m_type.Clear();
     CordbBase::Neuter();
@@ -82,7 +79,6 @@ void CordbClass::Neuter()
 //-----------------------------------------------------------------------------
 HRESULT CordbClass::QueryInterface(REFIID id, void **pInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugClass)
     {
         *pInterface = static_cast<ICorDebugClass*>(this);
@@ -122,7 +118,6 @@ HRESULT CordbClass::GetStaticFieldValue(mdFieldDef fieldDef,
                                         ICorDebugFrame *pFrame,
                                         ICorDebugValue **ppValue)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppValue, ICorDebugValue **);
@@ -231,7 +226,6 @@ HRESULT CordbClass::GetStaticFieldValue2(CordbModule * pModule,
                                          ICorDebugFrame * pFrame,
                                          ICorDebugValue ** ppValue)
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(pModule);
     INTERNAL_SYNC_API_ENTRY(pModule->GetProcess());
     _ASSERTE((pModule->GetProcess()->GetShim() == NULL) || pModule->GetProcess()->GetSynchronized());
@@ -385,7 +379,6 @@ HRESULT CordbClass::GetParameterizedType(CorElementType elementType,
                                          ICorDebugType * rgpTypeArgs[],
                                          ICorDebugType ** ppType)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppType, ICorDebugType **);
@@ -456,7 +449,6 @@ HRESULT CordbClass::GetParameterizedType(CorElementType elementType,
 //-----------------------------------------------------------------------------
 bool IsFieldStaticLiteral(IMetaDataImport *pImport, mdFieldDef fieldDef)
 {
-    printFuncName(__FUNCTION__);
     DWORD dwFieldAttr;
     HRESULT hr2 = pImport->GetFieldProps(
         fieldDef,
@@ -496,7 +488,6 @@ HRESULT CordbClass::PostProcessUnavailableHRESULT(HRESULT hr,
                                        IMetaDataImport *pImport,
                                        mdFieldDef fieldDef)
 {
-    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         NOTHROW; // just translates an HR. shouldn't need to throw.
@@ -525,7 +516,6 @@ HRESULT CordbClass::PostProcessUnavailableHRESULT(HRESULT hr,
 //-----------------------------------------------------------------------------
 HRESULT CordbClass::GetModule(ICorDebugModule **ppModule)
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppModule, ICorDebugModule **);
 
@@ -546,7 +536,6 @@ HRESULT CordbClass::GetModule(ICorDebugModule **ppModule)
 //-----------------------------------------------------------------------------
 HRESULT CordbClass::GetToken(mdTypeDef *pTypeDef)
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(pTypeDef, mdTypeDef *);
 
@@ -574,7 +563,6 @@ HRESULT CordbClass::GetToken(mdTypeDef *pTypeDef)
 //-----------------------------------------------------------------------------
 HRESULT CordbClass::SetJMCStatus(BOOL fIsUserCode)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
@@ -661,7 +649,6 @@ HRESULT CordbClass::SetJMCStatus(BOOL fIsUserCode)
 //-----------------------------------------------------------------------------
 bool CordbClass::IsValueClass()
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_API_ENTRY(this);
     THROW_IF_NEUTERED(this);
 
@@ -690,7 +677,6 @@ bool CordbClass::IsValueClass()
 //
 HRESULT CordbClass::GetThisType(const Instantiation * pInst, CordbType ** ppResultType)
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
 
     HRESULT hr = S_OK;
@@ -757,7 +743,6 @@ HRESULT CordbClass::GetThisType(const Instantiation * pInst, CordbType ** ppResu
 //-----------------------------------------------------------------------------
 void CordbClass::Init(ClassLoadLevel desiredLoadLevel)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(this->GetProcess());
 
     CordbProcess * pProcess = GetProcess();
@@ -821,7 +806,6 @@ void CordbClass::Init(ClassLoadLevel desiredLoadLevel)
 // determine if any fields for a type are unallocated statics
 BOOL CordbClass::GotUnallocatedStatic(DacDbiArrayList<FieldData> * pFieldList)
 {
-    printFuncName(__FUNCTION__);
     BOOL fGotUnallocatedStatic = FALSE;
     unsigned int count = 0;
     while ((count < pFieldList->Count()) && !fGotUnallocatedStatic )
@@ -857,7 +841,6 @@ BOOL CordbClass::GotUnallocatedStatic(DacDbiArrayList<FieldData> * pFieldList)
 HRESULT FieldData::GetFieldSignature(CordbModule *pModule,
                                                   SigParser *pSigParser)
 {
-    printFuncName(__FUNCTION__);
     CONTRACTL
     {
         THROWS;
@@ -948,7 +931,6 @@ void CordbClass::InitEnCFieldInfo(EnCHangingFieldInfo * pEncField,
                                   mdFieldDef            fieldToken,
                                   mdTypeDef             classToken)
 {
-    printFuncName(__FUNCTION__);
     IDacDbiInterface * pInterface = GetProcess()->GetDAC();
 
     if (fStatic)
@@ -1001,7 +983,6 @@ FieldData * CordbClass::GetEnCFieldFromDac(BOOL               fStatic,
                                            CordbObjectValue * pObject,
                                            mdFieldDef         fieldToken)
 {
-    printFuncName(__FUNCTION__);
     EnCHangingFieldInfo encField;
     mdTypeDef           metadataToken;
     FieldData           fieldData,
@@ -1059,7 +1040,6 @@ HRESULT CordbClass::GetEnCHangingField(mdFieldDef fldToken,
                                       FieldData **ppFieldData,
                                        CordbObjectValue * pObject)
 {
-    printFuncName(__FUNCTION__);
     FAIL_IF_NEUTERED(this);
     INTERNAL_SYNC_API_ENTRY(GetProcess());
 
@@ -1127,7 +1107,6 @@ HRESULT CordbClass::GetEnCHangingField(mdFieldDef fldToken,
 //-----------------------------------------------------------------------------
 HRESULT CordbClass::GetFieldInfo(mdFieldDef fldToken, FieldData **ppFieldData)
 {
-    printFuncName(__FUNCTION__);
     INTERNAL_SYNC_API_ENTRY(GetProcess());
 
     Init();
@@ -1165,7 +1144,6 @@ HRESULT CordbClass::SearchFieldInfo(
     FieldData **ppFieldData
 )
 {
-    printFuncName(__FUNCTION__);
     unsigned int i;
 
     IMetaDataImport * pImport = pModule->GetMetaDataImporter(); // throws

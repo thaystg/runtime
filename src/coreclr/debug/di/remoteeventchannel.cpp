@@ -93,7 +93,6 @@ HRESULT NewEventChannelForThisPlatform(CORDB_ADDRESS pLeftSideDCB,
                                        MachineInfo machineInfo,
                                        IEventChannel ** ppEventChannel)
 {
-    printFuncName(__FUNCTION__);
     // @dbgtodo  Mac - Consider moving all of the transport logic to one place.
     // Perhaps add a new function on DbgTransportManager.
     HandleHolder hDummy;
@@ -172,7 +171,6 @@ RemoteEventChannel::RemoteEventChannel(DebuggerIPCControlBlock * pDCBBuffer,
                                        DbgTransportTarget *      pProxy,
                                        DbgTransportSession *     pTransport)
 {
-    printFuncName(__FUNCTION__);
     m_pDCBBuffer = pDCBBuffer;
     m_pProxy = pProxy;
     m_pTransport = pTransport;
@@ -184,7 +182,6 @@ RemoteEventChannel::RemoteEventChannel(DebuggerIPCControlBlock * pDCBBuffer,
 // virtual
 HRESULT RemoteEventChannel::Init(HANDLE hTargetProc)
 {
-    printFuncName(__FUNCTION__);
     return S_OK;
 }
 
@@ -193,7 +190,6 @@ HRESULT RemoteEventChannel::Init(HANDLE hTargetProc)
 // virtual
 void RemoteEventChannel::Detach()
 {
-    printFuncName(__FUNCTION__);
     // This is a nop for Mac debugging because we don't use RSEA/RSER.
     return;
 }
@@ -203,7 +199,6 @@ void RemoteEventChannel::Detach()
 // virtual
 void RemoteEventChannel::Delete()
 {
-    printFuncName(__FUNCTION__);
     if (m_pDCBBuffer != NULL)
     {
         delete m_pDCBBuffer;
@@ -223,7 +218,6 @@ void RemoteEventChannel::Delete()
 // virtual
 HRESULT RemoteEventChannel::UpdateLeftSideDCBField(void * rsFieldAddr, SIZE_T size)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(m_pDCBBuffer != NULL);
 
     // Ask the transport to update the LS DCB.
@@ -235,7 +229,6 @@ HRESULT RemoteEventChannel::UpdateLeftSideDCBField(void * rsFieldAddr, SIZE_T si
 // virtual
 HRESULT RemoteEventChannel::UpdateRightSideDCB()
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(m_pDCBBuffer != NULL);
 
     // Ask the transport to read the DCB from the Ls.
@@ -247,7 +240,6 @@ HRESULT RemoteEventChannel::UpdateRightSideDCB()
 // virtual
 DebuggerIPCControlBlock * RemoteEventChannel::GetDCB()
 {
-    printFuncName(__FUNCTION__);
     return m_pDCBBuffer;
 }
 
@@ -256,7 +248,6 @@ DebuggerIPCControlBlock * RemoteEventChannel::GetDCB()
 // virtual
 BOOL RemoteEventChannel::NeedToWaitForAck(DebuggerIPCEvent * pEvent)
 {
-    printFuncName(__FUNCTION__);
     // There are three cases to consider when sending an event over the transport:
     //
     // 1) asynchronous
@@ -277,7 +268,6 @@ BOOL RemoteEventChannel::NeedToWaitForAck(DebuggerIPCEvent * pEvent)
 // virtual
 HANDLE RemoteEventChannel::GetRightSideEventAckHandle()
 {
-    printFuncName(__FUNCTION__);
     // Delegate to the transport which does the real work.
     return m_pTransport->GetIPCEventReadyEvent();
 }
@@ -287,7 +277,6 @@ HANDLE RemoteEventChannel::GetRightSideEventAckHandle()
 // virtual
 void RemoteEventChannel::ClearEventForLeftSide()
 {
-    printFuncName(__FUNCTION__);
     // This is a nop for Mac debugging because we don't use RSEA/RSER.
     return;
 }
@@ -297,7 +286,6 @@ void RemoteEventChannel::ClearEventForLeftSide()
 // virtual
 HRESULT RemoteEventChannel::SendEventToLeftSide(DebuggerIPCEvent * pEvent, SIZE_T eventSize)
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(eventSize <= CorDBIPC_BUFFER_SIZE);
 
     // Delegate to the transport.  The event size is ignored.
@@ -309,7 +297,6 @@ HRESULT RemoteEventChannel::SendEventToLeftSide(DebuggerIPCEvent * pEvent, SIZE_
 // virtual
 HRESULT RemoteEventChannel::GetReplyFromLeftSide(DebuggerIPCEvent * pReplyEvent, SIZE_T eventSize)
 {
-    printFuncName(__FUNCTION__);
     // Delegate to the transport.
     m_pTransport->GetNextEvent(pReplyEvent, (DWORD)eventSize);
     return S_OK;
@@ -321,7 +308,6 @@ HRESULT RemoteEventChannel::GetReplyFromLeftSide(DebuggerIPCEvent * pReplyEvent,
 // virtual
 HRESULT RemoteEventChannel::SaveEventFromLeftSide(DebuggerIPCEvent * pEventFromLeftSide)
 {
-    printFuncName(__FUNCTION__);
     if (m_fLeftSideEventAvailable)
     {
         // We should only be saving one event at a time.
@@ -341,7 +327,6 @@ HRESULT RemoteEventChannel::SaveEventFromLeftSide(DebuggerIPCEvent * pEventFromL
 // virtual
 HRESULT RemoteEventChannel::GetEventFromLeftSide(DebuggerIPCEvent * pLocalManagedEvent)
 {
-    printFuncName(__FUNCTION__);
     if (m_fLeftSideEventAvailable)
     {
         memcpy(reinterpret_cast<BYTE *>(pLocalManagedEvent), m_rgbLeftSideEventBuffer, CorDBIPC_BUFFER_SIZE);

@@ -14,7 +14,6 @@
 
 CordbHashTable::~CordbHashTable()
 {
-    printFuncName(__FUNCTION__);
     HASHFIND    find;
 
     for (CordbHashEntry *entry = (CordbHashEntry *) FindFirstEntry(&find);
@@ -25,7 +24,6 @@ CordbHashTable::~CordbHashTable()
 
 HRESULT CordbHashTable::UnsafeAddBase(CordbBase *pBase)
 {
-    printFuncName(__FUNCTION__);
     AssertIsProtected();
     DbgIncChangeCount();
 
@@ -59,13 +57,11 @@ HRESULT CordbHashTable::UnsafeAddBase(CordbBase *pBase)
 }
 bool CordbHashTable::IsInitialized()
 {
-    printFuncName(__FUNCTION__);
     return m_initialized;
 }
 
 CordbBase *CordbHashTable::UnsafeGetBase(ULONG_PTR id, BOOL fFab)
 {
-    printFuncName(__FUNCTION__);
     AssertIsProtected();
 
     CordbHashEntry *entry = NULL;
@@ -79,7 +75,6 @@ CordbBase *CordbHashTable::UnsafeGetBase(ULONG_PTR id, BOOL fFab)
 
 HRESULT CordbHashTable::UnsafeSwapBase(CordbBase *pOldBase, CordbBase *pNewBase)
 {
-    printFuncName(__FUNCTION__);
     if (!m_initialized)
         return E_FAIL;
 
@@ -110,7 +105,6 @@ HRESULT CordbHashTable::UnsafeSwapBase(CordbBase *pOldBase, CordbBase *pNewBase)
 
 CordbBase *CordbHashTable::UnsafeRemoveBase(ULONG_PTR id)
 {
-    printFuncName(__FUNCTION__);
     AssertIsProtected();
 
     if (!m_initialized)
@@ -138,14 +132,12 @@ CordbBase *CordbHashTable::UnsafeRemoveBase(ULONG_PTR id)
 
 CordbBase *CordbHashTable::UnsafeFindFirst(HASHFIND *find)
 {
-    printFuncName(__FUNCTION__);
     AssertIsProtected();
     return UnsafeUnlockedFindFirst(find);
 }
 
 CordbBase *CordbHashTable::UnsafeUnlockedFindFirst(HASHFIND *find)
 {
-    printFuncName(__FUNCTION__);
     CordbHashEntry *entry = (CordbHashEntry *) FindFirstEntry(find);
 
     if (entry == NULL)
@@ -156,14 +148,12 @@ CordbBase *CordbHashTable::UnsafeUnlockedFindFirst(HASHFIND *find)
 
 CordbBase *CordbHashTable::UnsafeFindNext(HASHFIND *find)
 {
-    printFuncName(__FUNCTION__);
     AssertIsProtected();
     return UnsafeUnlockedFindNext(find);
 }
 
 CordbBase *CordbHashTable::UnsafeUnlockedFindNext(HASHFIND *find)
 {
-    printFuncName(__FUNCTION__);
     CordbHashEntry *entry = (CordbHashEntry *) FindNextEntry(find);
 
     if (entry == NULL)
@@ -214,7 +204,6 @@ void CordbHashTableEnum::BuildOrThrow(
     const _GUID &id,
     RSInitHolder<CordbHashTableEnum> * pHolder)
 {
-    printFuncName(__FUNCTION__);
     CordbHashTableEnum * pEnum = new CordbHashTableEnum(pOwnerObj, pOwnerList, pTable, id);
     pHolder->Assign(pEnum);
 
@@ -244,7 +233,6 @@ CordbHashTableEnum::CordbHashTableEnum(CordbHashTableEnum *cloneSrc)
     m_count(cloneSrc->m_count),
     m_fCountInit(cloneSrc->m_fCountInit)
 {
-    printFuncName(__FUNCTION__);
     // We can get cloned at any time, so our owner can't manually control us,
     // so we need explicit access to a neuter list.
     _ASSERTE(m_pOwnerNeuterList != NULL);
@@ -278,7 +266,6 @@ CordbHashTableEnum::CordbHashTableEnum(CordbHashTableEnum *cloneSrc)
 
 CordbHashTableEnum::~CordbHashTableEnum()
 {
-    printFuncName(__FUNCTION__);
     _ASSERTE(this->IsNeutered());
 
     _ASSERTE(m_table == NULL);
@@ -288,7 +275,6 @@ CordbHashTableEnum::~CordbHashTableEnum()
 
 void CordbHashTableEnum::Neuter()
 {
-    printFuncName(__FUNCTION__);
     m_table = NULL;
     m_pOwnerObj = NULL;
     m_pOwnerNeuterList = NULL;
@@ -299,7 +285,6 @@ void CordbHashTableEnum::Neuter()
 
 HRESULT CordbHashTableEnum::Reset()
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     m_started = false;
@@ -310,7 +295,6 @@ HRESULT CordbHashTableEnum::Reset()
 
 HRESULT CordbHashTableEnum::Clone(ICorDebugEnum **ppEnum)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     AssertValid();
@@ -355,7 +339,6 @@ LExit:
 
 HRESULT CordbHashTableEnum::GetCount(ULONG *pcelt)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     AssertValid();
@@ -369,7 +352,6 @@ HRESULT CordbHashTableEnum::GetCount(ULONG *pcelt)
 
 HRESULT CordbHashTableEnum::PrepForEnum(CordbBase **pBase)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
 
     if (!m_started)
@@ -387,14 +369,12 @@ HRESULT CordbHashTableEnum::PrepForEnum(CordbBase **pBase)
 
 HRESULT CordbHashTableEnum::SetupModuleEnum(void)
 {
-    printFuncName(__FUNCTION__);
     return S_OK;
 }
 
 
 HRESULT CordbHashTableEnum::AdvancePreAssign(CordbBase **pBase)
 {
-    printFuncName(__FUNCTION__);
     HRESULT hr = S_OK;
     return hr;
 }
@@ -403,7 +383,6 @@ HRESULT CordbHashTableEnum::AdvancePostAssign(CordbBase **pBase,
                                               CordbBase     **b,
                                               CordbBase   **bEnd)
 {
-    printFuncName(__FUNCTION__);
     CordbBase *base;
 
     if (pBase == NULL)
@@ -426,7 +405,6 @@ HRESULT CordbHashTableEnum::Next(ULONG celt,
                                  CordbBase *bases[],
                                  ULONG *pceltFetched)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     AssertValid();
@@ -549,7 +527,6 @@ LError:
 
 HRESULT CordbHashTableEnum::Skip(ULONG celt)
 {
-    printFuncName(__FUNCTION__);
     PUBLIC_REENTRANT_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     AssertValid();
@@ -588,7 +565,6 @@ HRESULT CordbHashTableEnum::Skip(ULONG celt)
 
 HRESULT CordbHashTableEnum::QueryInterface(REFIID id, void **pInterface)
 {
-    printFuncName(__FUNCTION__);
     if (id == IID_ICorDebugEnum)
     {
         ExternalAddRef();
@@ -631,7 +607,6 @@ HRESULT CordbHashTableEnum::QueryInterface(REFIID id, void **pInterface)
 #ifdef _DEBUG
 void CordbHashTableEnum::AssertValid()
 {
-    printFuncName(__FUNCTION__);
     // @todo - Our behavior is undefined when enumerating a collection that changes underneath us.
     // We'd love to just call this situation illegal, but clients could have very reasonably taken a dependency
     // on it. Various APIs (eg, ICDStepper::Deactivate) may remove items from the hash.
