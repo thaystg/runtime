@@ -455,6 +455,7 @@ void LeftSideResourceCleanupList::SweepNeuterLeftSideResources(CordbProcess * pP
  * CordbBase class
  * ------------------------------------------------------------------------- */
 extern void* GetClrModuleBase();
+
 // Do any initialization necessary for both CorPublish and CorDebug
 // This includes enabling logging and adding the SEDebug priv.
 void CordbCommonBase::InitializeCommon()
@@ -476,7 +477,7 @@ void CordbCommonBase::InitializeCommon()
 
         // StressLog will turn on stress logging for the entire runtime.
         // RSStressLog is only used here and only effects just the RS.
-        /*fStressLog =
+        fStressLog =
             (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_StressLog, fStressLog) != 0) ||
             (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_RSStressLog) != 0);
 
@@ -487,13 +488,13 @@ void CordbCommonBase::InitializeCommon()
             unsigned bytesPerThread = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_StressLogSize, STRESSLOG_CHUNK_SIZE * 2);
             unsigned totalBytes = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TotalStressLogSize, STRESSLOG_CHUNK_SIZE * 1024);
             StressLog::Initialize(facilities, level, bytesPerThread, totalBytes, GetClrModuleBase());
-        }*/
+        }
     }
 
 #endif // STRESS_LOG
 
 #ifdef LOGGING
-    //InitializeLogging();
+    InitializeLogging();
 #endif
 
     // Add debug privilege. This will let us call OpenProcess() on anything, regardless of ACL.
@@ -1195,6 +1196,13 @@ HRESULT Cordb::QueryInterface(REFIID id, void **pInterface)
     return S_OK;
 }
 
+
+
+//
+// Initialize -- setup the ICorDebug object by creating any objects
+// that the object needs to operate and starting the two needed IPC
+// threads.
+//
 HRESULT Cordb::Initialize(void)
 {
     HRESULT hr = S_OK;
@@ -2638,4 +2646,3 @@ Error:
 
     return hr;
 }
-
