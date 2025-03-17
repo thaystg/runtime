@@ -1752,20 +1752,19 @@ void EnsureTlsDestructionMonitor()
 }
 
 #ifdef DEBUGGING_SUPPORTED
+#include <dlfcn.h>
 typedef BOOL(__cdecl* PINITREMOTEDEBUGGER)(const char* ip, int port, bool isServer);
 PINITREMOTEDEBUGGER g_pfnInitRemoteDebugger = NULL;
 
 static void InitializeRemoteDebugger(void)
 {
-    while( !::IsDebuggerPresent() )
-        ::Sleep( 100 ); // to avoid 100% CPU load
-    HMODULE hm = LoadLibraryExW(L"C:\\diag\\android_coreclr\\runtime\\artifacts\\tests\\coreclr\\windows.x64.Debug\\Tests\\Core_Root\\remotemscordbitarget.dll", NULL, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS | LOAD_WITH_ALTERED_SEARCH_PATH);
-    g_pfnInitRemoteDebugger = (PINITREMOTEDEBUGGER)GetProcAddress(hm, "InitializeRemoteDebugger");
+    void* hm = dlopen("/home/thtaglia/diag/android_coreclr/runtime/artifacts/tests/coreclr/linux.x64.Debug/Tests/Core_Root/libremotemscordbitarget.so", RTLD_NOW);
+    g_pfnInitRemoteDebugger = (PINITREMOTEDEBUGGER)dlsym(hm, "InitializeRemoteDebugger");
     if (g_pfnInitRemoteDebugger == NULL)
     {
         return;
     }
-    const char* ip = "127.0.0.1";
+    const char* ip = "192.168.15.23";
     int port = 1234;
     bool isServer = false;
     g_pfnInitRemoteDebugger(ip, port, isServer);
