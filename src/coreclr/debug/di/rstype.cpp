@@ -2935,3 +2935,4 @@ HRESULT CordbTypeEnum::Next(ULONG celt, ICorDebugType *values[], ULONG *pceltFet
 
     return hr;
 }
+
