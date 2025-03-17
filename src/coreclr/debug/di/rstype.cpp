@@ -1530,6 +1530,7 @@ HRESULT CordbType::Init(BOOL fForceInit)
 //-----------------------------------------------------------------------------
 HRESULT CordbType::InitInstantiationTypeHandle(BOOL fForceInit)
 {
+
     // Check if we've already done this Init
     if (!fForceInit && !m_typeHandleExact.IsNull())
         return S_OK;
@@ -1978,7 +1979,9 @@ HRESULT CordbType::TypeToBasicTypeData(DebuggerIPCE_BasicTypeData *data)
 //     data - OUT: outgoing ExpandedTypeData to fill in with stats about CordbType.
 //-----------------------------------------------------------------------------
 void CordbType::TypeToExpandedTypeData(DebuggerIPCE_ExpandedTypeData *data)
-{    switch (m_elementType)
+{
+
+    switch (m_elementType)
     {
     case ELEMENT_TYPE_ARRAY:
     case ELEMENT_TYPE_SZARRAY:
@@ -2932,4 +2935,3 @@ HRESULT CordbTypeEnum::Next(ULONG celt, ICorDebugType *values[], ULONG *pceltFet
 
     return hr;
 }
-

@@ -87,7 +87,8 @@ CordbAppDomain::CordbAppDomain(CordbProcess *  pProcess, VMPTR_AppDomain vmAppDo
 */
 
 CordbAppDomain::~CordbAppDomain()
-{    
+{
+
     // We expect to be Neutered before being released. Neutering will release our process ref
     _ASSERTE(IsNeutered());
 }

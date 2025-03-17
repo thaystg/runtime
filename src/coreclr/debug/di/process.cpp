@@ -1483,7 +1483,8 @@ void CordbProcess::CloseIPCHandles()
 //     S_OK on success.
 //-----------------------------------------------------------------------------
 HRESULT ShimProcess::CreateAndStartWin32ET(Cordb * pCordb)
-{    
+{
+
     //
     // Create the win32 event listening thread
     //
@@ -3098,7 +3099,8 @@ void CordbProcess::NeuterChildrenLeftSideResources()
 //   to figure out semantics for freeing left-side resources (especially GC
 //   handles) on detach.
 void CordbProcess::DetachShim()
-{    
+{
+
     HASHFIND hashFind;
     HRESULT hr = S_OK;
 
@@ -9888,7 +9890,8 @@ void CordbProcess::TargetConsistencyCheck(bool fExpression)
 HRESULT CordbRCEventThread::SendIPCEvent(CordbProcess* process,
                                          DebuggerIPCEvent* event,
                                          SIZE_T eventSize)
-{    
+{
+
     _ASSERTE(process != NULL);
     _ASSERTE(event != NULL);
     _ASSERTE(process->GetShim() != NULL);

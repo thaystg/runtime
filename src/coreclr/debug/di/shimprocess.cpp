@@ -506,6 +506,7 @@ void ShimProcess::DefaultEventHandler(
 //
 bool ShimProcess::ContinueStatusChangedData::IsSet()
 {
+
     return m_dwThreadId != 0;
 }
 
