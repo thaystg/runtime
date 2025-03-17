@@ -1483,7 +1483,8 @@ void CordbProcess::CloseIPCHandles()
 //     S_OK on success.
 //-----------------------------------------------------------------------------
 HRESULT ShimProcess::CreateAndStartWin32ET(Cordb * pCordb)
-{    //
+{    
+    //
     // Create the win32 event listening thread
     //
     CordbWin32EventThread * pWin32EventThread = new (nothrow) CordbWin32EventThread(pCordb, this);
@@ -1513,39 +1514,6 @@ HRESULT ShimProcess::CreateAndStartWin32ET(Cordb * pCordb)
     m_pWin32EventThread = pWin32EventThread;
     return ErrWrapper(hr);
 }
-
-/*HRESULT ShimProcess::CreateAndStartRemoteET(Cordb * pCordb)
-{    //
-    // Create the remote event listening thread
-    //
-    CordbRemoteEventThread * pRemoteEventThread = new (nothrow) CordbRemoteEventThread(pCordb, this);
-
-    HRESULT hr = S_OK;
-
-    if (pRemoteEventThread != NULL)
-    {
-        hr = pRemoteEventThread->Init();
-
-        if (SUCCEEDED(hr))
-        {
-            hr = pRemoteEventThread->Start();
-        }
-
-        if (FAILED(hr))
-        {
-            delete pRemoteEventThread;
-            pRemoteEventThread = NULL;
-        }
-    }
-    else
-    {
-        hr = E_OUTOFMEMORY;
-    }
-
-    m_pRemoteEventThread = pRemoteEventThread;
-    return ErrWrapper(hr);
-}*/
-
 
 
 //---------------------------------------------------------------------------------------
@@ -3130,7 +3098,8 @@ void CordbProcess::NeuterChildrenLeftSideResources()
 //   to figure out semantics for freeing left-side resources (especially GC
 //   handles) on detach.
 void CordbProcess::DetachShim()
-{    HASHFIND hashFind;
+{    
+    HASHFIND hashFind;
     HRESULT hr = S_OK;
 
     // If we detach before the CLR is loaded into the debuggee, then we can no-op a lot of work.
@@ -9919,7 +9888,8 @@ void CordbProcess::TargetConsistencyCheck(bool fExpression)
 HRESULT CordbRCEventThread::SendIPCEvent(CordbProcess* process,
                                          DebuggerIPCEvent* event,
                                          SIZE_T eventSize)
-{    _ASSERTE(process != NULL);
+{    
+    _ASSERTE(process != NULL);
     _ASSERTE(event != NULL);
     _ASSERTE(process->GetShim() != NULL);
 
@@ -10759,6 +10729,7 @@ HRESULT CordbRCEventThread::WaitForIPCEventFromProcess(CordbProcess * pProcess,
                                                        CordbAppDomain * pAppDomain,
                                                        DebuggerIPCEvent * pEvent)
 {
+
     CORDBRequireProcessStateOKAndSync(pProcess, pAppDomain);
 
     DWORD dwStatus;

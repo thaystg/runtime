@@ -164,7 +164,7 @@ void CordbThread::Neuter()
 
     ClearStackFrameCache();
 
-    //CordbBase::Neuter();
+    CordbBase::Neuter();
 }
 
 HRESULT CordbThread::QueryInterface(REFIID id, void ** ppInterface)
@@ -8975,6 +8975,8 @@ HRESULT CordbJITILFrame::GetReturnValueForILOffsetImpl(ULONG32 ILoffset, ICorDeb
 
 HRESULT CordbJITILFrame::GetReturnValueForType(CordbType *pType, ICorDebugValue **ppReturnValue)
 {
+
+
 #if defined(TARGET_X86)
     const CorDebugRegister floatRegister = REGISTER_X86_FPSTACK_0;
 #elif defined(TARGET_AMD64)

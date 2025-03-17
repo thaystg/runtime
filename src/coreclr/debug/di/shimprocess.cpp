@@ -505,7 +505,8 @@ void ShimProcess::DefaultEventHandler(
 //    Call code:ShimProcess::ContinueStatusChangedData::Clear to clear the 'IsSet' bit.
 //
 bool ShimProcess::ContinueStatusChangedData::IsSet()
-{    return m_dwThreadId != 0;
+{
+    return m_dwThreadId != 0;
 }
 
 //---------------------------------------------------------------------------------------

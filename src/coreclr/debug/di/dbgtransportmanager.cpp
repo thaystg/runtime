@@ -173,7 +173,8 @@ HRESULT DbgTransportTarget::CreateProcess(LPCWSTR lpApplicationName,
                           LPCWSTR lpCurrentDirectory,
                           LPSTARTUPINFOW lpStartupInfo,
                           LPPROCESS_INFORMATION lpProcessInformation)
-{    BOOL result = WszCreateProcess(lpApplicationName,
+{    
+    BOOL result = WszCreateProcess(lpApplicationName,
                                    lpCommandLine,
                                    lpProcessAttributes,
                                    lpThreadAttributes,

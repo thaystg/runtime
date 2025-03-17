@@ -11,8 +11,6 @@
 #ifndef RSPRIV_H
 #define RSPRIV_H
 
-static void printFuncName(const char* funcName);
-
 #include <winwrap.h>
 #include <windows.h>
 
@@ -177,12 +175,6 @@ private:
 #endif
 
 extern forDbiWorker forDbi;
-
-#include <pthread.h> 
-static void printFuncName(const char* funcName)
-{
-    //printf("%ld - %s\n", pthread_self(), funcName);
-}
 
 // for dbi we just default to new, but we need to have these defined for both dac and dbi
 inline void * operator new(size_t lenBytes, const forDbiWorker &)

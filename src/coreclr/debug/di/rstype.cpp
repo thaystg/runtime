@@ -1529,7 +1529,8 @@ HRESULT CordbType::Init(BOOL fForceInit)
 //   on failure
 //-----------------------------------------------------------------------------
 HRESULT CordbType::InitInstantiationTypeHandle(BOOL fForceInit)
-{    // Check if we've already done this Init
+{
+    // Check if we've already done this Init
     if (!fForceInit && !m_typeHandleExact.IsNull())
         return S_OK;
 

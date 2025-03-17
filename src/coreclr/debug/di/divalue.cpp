@@ -1555,7 +1555,8 @@ void CordbReferenceValue::GetTypedByRefData(CordbProcess *            pProcess,
                                             CorElementType            type,
                                             VMPTR_AppDomain           vmAppDomain,
                                             DebuggerIPCE_ObjectData * pInfo)
-{    // make sure we don't end up with old garbage values since we don't set all the values for TypedByRef objects
+{    
+    // make sure we don't end up with old garbage values since we don't set all the values for TypedByRef objects
     PreInitObjectData(pInfo, CORDB_ADDRESS_TO_PTR(pTypedByRef), type);
 
     // Though pTypedByRef is the value of the object ref represented by an instance of CordbReferenceValue,

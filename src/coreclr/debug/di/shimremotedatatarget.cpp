@@ -272,9 +272,6 @@ ShimRemoteDataTarget::ReadVirtual(
 #ifdef FEATURE_REMOTE_PROC_MEM
     if (m_memoryHandle != UINT32_MAX)
     {
-        /*memcpy((void*)pBuffer, (void*)address, cbRequestSize);
-        *pcbRead = cbRequestSize;
-        return S_OK;*/
         if (!PAL_ReadProcessMemory(m_memoryHandle, (ULONG64)address, pBuffer, cbRequestSize, &read))
         {
             hr = E_FAIL;
