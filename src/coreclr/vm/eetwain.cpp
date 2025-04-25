@@ -2574,8 +2574,11 @@ GenericParamContextType InterpreterCodeManager::GetParamContextType(PREGDISPLAY 
 
 size_t InterpreterCodeManager::GetFunctionSize(GCInfoToken gcInfoToken)
 {
-    // Interpreter-TODO: Implement this
-    return 0;
+    // In order for the debugger to figure out if an offset is in the hot or cold code
+    // The debugger check the size of the code
+    // Of course, it is not the case that every function has size 10086 
+    // TODO: Implementation
+    return 10086;
 }
 
 #endif // FEATURE_INTERPRETER

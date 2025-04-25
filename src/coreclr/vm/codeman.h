@@ -2762,8 +2762,9 @@ public:
 
     virtual DWORD GetFuncletStartOffsets(const METHODTOKEN& MethodToken, DWORD* pStartFuncletOffsets, DWORD dwLength)
     {
-        // Not used for the interpreter
-        _ASSERTE(FALSE);
+        // This function is called by the DebuggerJitInfo, it needs an implementation
+        // Of course, it is not the case that all interpreted function has no funclets
+        // TODO: Implementation
         return 0;
     }
 

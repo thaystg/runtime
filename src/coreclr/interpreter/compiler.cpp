@@ -983,7 +983,7 @@ InterpMethod* InterpCompiler::CompileMethod()
     GenerateCode(m_methodInfo);
 
 #ifdef DEBUG
-    if (m_verbose)
+    if (true)
     {
         printf("\nUnoptimized IR:\n");
         PrintCode();
@@ -995,7 +995,7 @@ InterpMethod* InterpCompiler::CompileMethod()
     EmitCode();
 
 #ifdef DEBUG
-    if (m_verbose)
+    if (true)
     {
         printf("\nCompiled method: ");
         PrintMethodName(m_methodHnd);

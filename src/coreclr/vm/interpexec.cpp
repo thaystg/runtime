@@ -22,12 +22,13 @@ InterpThreadContext::~InterpThreadContext()
     free(pStackStart);
 }
 
-#ifdef DEBUG
-static void InterpBreakpoint()
+static void InterpBreakpoint(const int32_t *ip, InterpMethodContextFrame *pFrame, int8_t *stack)
 {
-
+    printf("Raising exception now\n");
+    fflush(stdout);
+    const ULONG_PTR info[3] = {(const ULONG_PTR)ip, (const ULONG_PTR)pFrame, (const ULONG_PTR)stack};
+    RaiseException(12345, 0, 3, info);
 }
-#endif
 
 #define LOCAL_VAR_ADDR(offset,type) ((type*)(stack + (offset)))
 #define LOCAL_VAR(offset,type) (*LOCAL_VAR_ADDR(offset, type))
@@ -108,18 +109,15 @@ MAIN_LOOP:
             pFrame->ip = (int32_t*)ip;
 
 #ifdef DEBUG
-        // int offset = (int)(ip - (pFrame->startIp + sizeof(InterpMethod*) / sizeof(int32_t)));
-        // printf("Executing %s IR_%04x\n", ((MethodDesc*)pMethod->methodHnd)->GetName(), offset);
+            int offset = (int)(ip - (pFrame->startIp + sizeof(InterpMethod*) / sizeof(int32_t)));
+            printf("Executing %s IR_%04x\n", ((MethodDesc*)pMethod->methodHnd)->GetName(), offset);
 #endif
 
             switch (*ip)
             {
-#ifdef DEBUG
                 case INTOP_BREAKPOINT:
-                    InterpBreakpoint();
-                    ip++;
+                    InterpBreakpoint(ip, pFrame, stack);
                     break;
-#endif
                 case INTOP_INITLOCALS:
                     memset(stack + ip[1], 0, ip[2]);
                     ip += 3;

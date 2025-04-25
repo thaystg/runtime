@@ -13390,8 +13390,22 @@ PCODE UnsafeJitFunction(PrepareCodeConfig* config,
 
     if (useInterpreter)
     {
+        // TODO: I wonder if this will create additional unwanted side effect if the interpreter decide not to translate
+        NativeCodeVersion interpretedVersion;
+        {
+            PrepareCodeConfig *pConfig = GetThread()->GetCurrentPrepareCodeConfig();
+            CodeVersionManager::LockHolder codeVersioningLockHolder;
+            ILCodeVersion ilCodeVersion = pConfig->GetCodeVersion().GetILCodeVersion();
+            ilCodeVersion.AddNativeCodeVersion(pConfig->GetMethodDesc(), NativeCodeVersion::OptimizationTierInterpreted, &interpretedVersion);
+        }
+
         CInterpreterJitInfo interpreterJitInfo(ftn, ILHeader, interpreterMgr, !pJitFlags->IsSet(CORJIT_FLAGS::CORJIT_FLAG_NO_INLINING));
-        ret = UnsafeJitFunctionWorker(interpreterMgr, &interpreterJitInfo, pJitFlags, methodInfo, &cxt, nativeCodeVersion, pSizeOfCode);
+        ret = UnsafeJitFunctionWorker(interpreterMgr, &interpreterJitInfo, pJitFlags, methodInfo, &cxt, interpretedVersion, pSizeOfCode);
+
+        if (ret)
+        {
+            interpretedVersion.SetNativeCodeInterlocked(ret);
+        }
     }
 #endif // FEATURE_INTERPRETER
 

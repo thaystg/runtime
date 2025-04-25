@@ -11887,8 +11887,7 @@ void CordbWin32EventThread::Win32EventLoop()
             break;
         }
 
-        LOG((LF_CORDB, LL_INFO100000, "W32ET::W32EL - got event , ret=%d, has w32 dbg event=%d\n",
-             dwStatus, fEventAvailable));
+        // LOG((LF_CORDB, LL_INFO100000, "W32ET::W32EL - got event , ret=%d, has w32 dbg event=%d\n", dwStatus, fEventAvailable));
 
         // If we haven't timed out, or if it wasn't the thread control event
         // that was set, then a process has

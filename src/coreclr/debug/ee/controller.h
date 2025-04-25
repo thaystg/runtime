@@ -359,7 +359,7 @@ typedef DebuggerFunctionKey1 UNALIGNED DebuggerFunctionKey;
 //
 // NativeUnmanaged: A patch applied to any kind of native code.
 
-enum DebuggerPatchKind { PATCH_KIND_IL_PRIMARY, PATCH_KIND_IL_REPLICA, PATCH_KIND_NATIVE_MANAGED, PATCH_KIND_NATIVE_UNMANAGED };
+enum DebuggerPatchKind { PATCH_KIND_IL_PRIMARY, PATCH_KIND_IL_REPLICA, PATCH_KIND_NATIVE_MANAGED, PATCH_KIND_NATIVE_UNMANAGED, PATCH_KIND_INTERPRETER };
 
 // struct DebuggerControllerPatch:  An entry in the patch (hash) table,
 // this should contain all the info that's needed over the course of a

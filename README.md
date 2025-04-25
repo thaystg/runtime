@@ -1,73 +1,62 @@
-# .NET Runtime
+# Interpreter Debugger Prototype
 
-[![Build Status](https://dev.azure.com/dnceng-public/public/_apis/build/status/dotnet/runtime/runtime?branchName=main)](https://dev.azure.com/dnceng-public/public/_build/latest?definitionId=129&branchName=main)
-[![Help Wanted](https://img.shields.io/github/issues/dotnet/runtime/help%20wanted?style=flat-square&color=%232EA043&label=help%20wanted)](https://github.com/dotnet/runtime/labels/help%20wanted)
-[![Good First Issue](https://img.shields.io/github/issues/dotnet/runtime/good%20first%20issue?style=flat-square&color=%232EA043&label=good%20first%20issue)](https://github.com/dotnet/runtime/labels/good%20first%20issue)
-[![Discord](https://img.shields.io/discord/732297728826277939?style=flat-square&label=Discord&logo=discord&logoColor=white&color=7289DA)](https://aka.ms/dotnet-discord)
+This document talks about my prototype for supporting managed debugging for the interpreter. The document will cover:
 
-* [What is .NET?](#what-is-net)
-* [How can I contribute?](#how-can-i-contribute)
-* [Reporting security issues and security bugs](#reporting-security-issues-and-security-bugs)
-* [Filing issues](#filing-issues)
-* [Useful Links](#useful-links)
-* [.NET Foundation](#net-foundation)
-* [License](#license)
+- Stack walking support (so that we can inspect variables in SOS)
+- Debug info generation using frame pointer based variables
+- Interpreted Tier label for debugger recognition
+- Breakpoint support in MDbg - prototyping - work
+- Inspection support in MDbg - prototyping - work
+- Stepping support in MDbg - does not work
 
-This repo contains the code to build the .NET runtime, libraries and shared host (`dotnet`) installers for
-all supported platforms, as well as the sources to .NET runtime and libraries.
+This is like a status report, but also wanted to spark some discussion on how to handling stepping and its dependency on frame pointer.
 
-## What is .NET?
+## Stackwalking support
 
-Official Starting Page: <https://dotnet.microsoft.com>
+The interpreter needed stack walking regardless for many purposes. To understand stack walking, we can start with understanding the data structures first.
 
-* [How to use .NET](https://learn.microsoft.com/dotnet/core/get-started) (with VS, VS Code, command-line CLI)
-  * [Install official releases](https://dotnet.microsoft.com/download)
-  * [Documentation](https://learn.microsoft.com/dotnet/core) (Get Started, Tutorials, Porting from .NET Framework, API reference, ...)
-    * [Deploying apps](https://learn.microsoft.com/dotnet/core/deploying)
-* [Support](https://github.com/dotnet/core/blob/main/support.md) (Releases, OS Versions, ...)
-* [Roadmap](https://github.com/dotnet/core/blob/main/roadmap.md)
+We have a capital Frame on the thread static as `InterpreterFrame`, whenever start running interpreted code, we push this onto the capital Frame chain.
 
-## How can I contribute?
+When interpreter code executes, internally, it uses a `InterpMethodContextFrame`, this is NOT a capital frame, and it does NOT contain the actual variables, it only has a linked list of these `InterpMethodContextFrame` so that we can call and return.
 
-We welcome contributions! Many people all over the world have helped make this project better.
+On an `InterpMethodContextFrame`, we have a `pStack` pointer that points to an array, that array is where the variables actually lives.
 
-* [Contributing](CONTRIBUTING.md) explains what kinds of contributions we welcome
-* [Workflow Instructions](docs/workflow/README.md) explains how to build and test
-* [Dogfooding .NET](docs/project/dogfooding.md) explains how to get nightly builds of the runtime and its libraries to test them in your own projects.
+Jan Vorlicek implemented the stack walking support using these data structures. It works for handling exceptions (work in progress), GC reporting (work in progress) and "!clrstack -i -a" on SOS.
 
-## Reporting security issues and security bugs
+## Frame pointer based variables
 
-Security issues and bugs should be reported privately, via email, to the Microsoft Security Response Center (MSRC) <secure@microsoft.com>. You should receive a response within 24 hours. If for some reason you do not, please follow up via email to ensure we received your original message. Further information, including the MSRC PGP key, can be found in the [Security TechCenter](https://www.microsoft.com/msrc/faqs-report-an-issue). You can also find these instructions in this repo's [Security doc](SECURITY.md).
+To support "!clrstack -i -a", we need boundaries and vars. This is implemented in the `interpreter\compiler.cpp`. This is a compiler that converts the MSIL (together with some extra info that it queries for) in IR which `interpexec.cpp` interprets. The compilation process is augmented to report the MSIL to IR offset mapping, as well as the life time for the local variables and their offsets from `pStack`.
 
-Also see info about related [Microsoft .NET Bounty Program](https://www.microsoft.com/msrc/bounty-dot-net-core).
+For stack walking purposes, the API reports a `CONTEXT` for each frame, but obviously `InterpMethodContextFrame` doesn't really have a `CONTEXT`, so we are free to report information through it. Right now, we have 
 
-## Filing issues
+```
+IP = pointer to the bytecode to be interpreted
+SP = pointer to InterpMethodContextFrame
+FP = pStack
+```
 
-This repo should contain issues that are tied to the runtime, the class libraries and frameworks, the installation of the `dotnet` binary (sometimes known as the `muxer`) and the installation of the .NET runtime and libraries.
+The variables are stored on `pStack`, that's why the debug info reporting is frame pointer based. Otherwise they are the same as regular jitted code.
 
-For other issues, please file them to their appropriate sibling repos. We have links to many of them on [our new issue page](https://github.com/dotnet/runtime/issues/new/choose).
+## Interpreted Tier label for debugger recognition
 
-## Useful Links
+To make breakpoint works, we need to tell the debugger to "code" that the debugger reports is actually interpreter bytecode, and I chose to do it through the "Tier" in the `NativeCodeVersion`. In particular, I introduced interpreted tier to express the fact that the code is interpreter byte code.
 
-* [.NET source index](https://source.dot.net) / [.NET Framework source index](https://referencesource.microsoft.com)
-* [API Reference docs](https://learn.microsoft.com/dotnet/api)
-* [.NET API Catalog](https://apisof.net) (incl. APIs from daily builds and API usage info)
-* [API docs writing guidelines](https://github.com/dotnet/dotnet-api-docs/wiki) - useful when writing /// comments
-* [.NET Discord Server](https://aka.ms/dotnet-discord) - a place to discuss the development of .NET and its ecosystem
+The implicit nature of the code versioning design made that difficult. What I really wanted is that the code has just one version and it is interpreted, but it looks like I have to create a new version in order to do that. Would love to see if that could be changed.
 
-## .NET Foundation
+## Breakpoint support in MDbg - prototyping - work
 
-.NET Runtime is a [.NET Foundation](https://www.dotnetfoundation.org/projects) project.
+With the tiering label, I am able to react to the debugger's request to set a breakpoint. If the code is not translated yet, we will simply create a patch and the patch table just like it was not jitted yet. Then by the time the code is translated, the normal callback that would tell the debugger to convert the patch will now recognize the code is interpreter byte code, so it change the patch's type to an new patch type, and patch the interpreter opcode to a special debug opcode.
 
-There are many .NET related projects on GitHub.
+When execution reaches the debug opcode, the interpreter will raise a special exception to mimic a true breakpoint, but of course the break location is in native code. With the special code, we had a chance to patch the context so that it looks like what the stack walker would have produced (i.e. ip/sp/fp are all set to interpreter values) and then reuse the existing breakpoint logic.
 
-* [.NET home repo](https://github.com/Microsoft/dotnet) - links to 100s of .NET projects, from Microsoft and the community.
-* [ASP.NET Core home](https://learn.microsoft.com/aspnet/core) - the best place to start learning about ASP.NET Core.
+It works, that will get recognized by the code manager as managed code, and will send the IPC message to tell the debugger we hit a breakpoint.
 
-This project has adopted the code of conduct defined by the [Contributor Covenant](https://contributor-covenant.org) to clarify expected behavior in our community. For more information, see the [.NET Foundation Code of Conduct](https://www.dotnetfoundation.org/code-of-conduct).
+When the debugger send an IPC message to continue the process, we will find the patch, recognizing this is a special type of patch, and it will simply restore the opcode and resume the process from the exception handled.
 
-General .NET OSS discussions: [.NET Foundation Discussions](https://github.com/dotnet-foundation/Home/discussions)
+# Inspection support in MDbg - prototyping - work
 
-## License
+There is nothing special I need to do with this, just like it worked in SOS, it worked here as well.
 
-.NET (including the runtime repo) is licensed under the [MIT](LICENSE.TXT) license.
+# Stepping support in MDbg - does not work
+
+I moved on and tried stepping, but then it appears we have a problem. The stepper really don't like our fake frame pointer.

@@ -20,6 +20,7 @@
 
 #include "../../vm/methoditer.h"
 #include "../../vm/tailcallhelp.h"
+#include "../../interpreter/intopsshared.h"
 
 const char *GetTType( TraceType tt);
 
@@ -1346,6 +1347,16 @@ bool DebuggerController::ApplyPatch(DebuggerControllerPatch *patch)
             return true;
         }
 
+        NativeCodeVersion::OptimizationTier tier = patch->dji->m_nativeCodeVersion.GetOptimizationTier();
+
+        if (tier == NativeCodeVersion::OptimizationTierInterpreted)
+        {
+            patch->kind = PATCH_KIND_INTERPRETER;
+            patch->opcode = CORDbgGetInstruction(patch->address);
+            *(byte*)(patch->address) = INTOP_BREAKPOINT;
+            return true;
+        }
+
 #if _DEBUG
         VerifyExecutableAddress((BYTE*)patch->address);
 #endif
@@ -2553,6 +2564,11 @@ DebuggerPatchSkip *DebuggerController::ActivatePatchSkip(Thread *thread,
         }
 #endif
     }
+    else if (patch != NULL && patch->kind == PATCH_KIND_INTERPRETER)
+    {
+        // For the interpreter, we can simply restore the byte without doing any other tricks.
+        *((byte*)patch->address) = (byte)patch->opcode;
+    }
 
     return skip;
 }
@@ -3062,6 +3078,7 @@ Exit:
 #endif
 
     ActivatePatchSkip(thread, dac_cast<PTR_CBYTE>(GetIP(pCtx)), FALSE
+
 #ifdef OUT_OF_PROCESS_SETTHREADCONTEXT
     , pDebuggerSteppingInfo
 #endif
@@ -4406,8 +4423,34 @@ bool DebuggerController::DispatchNativeException(EXCEPTION_RECORD *pException,
 
         CORDB_ADDRESS_TYPE * ip = dac_cast<PTR_CORDB_ADDRESS_TYPE>(GetIP(pContext));
 
+        bool interpreted = false;
+        CORDB_ADDRESS_TYPE * interpreter_original_ip = nullptr;
+        CORDB_ADDRESS_TYPE * interpreter_original_sp = nullptr;
+        CORDB_ADDRESS_TYPE * interpreter_original_fp = nullptr;
+
         switch (dwCode)
         {
+        case 12345:
+            // This is a special case for the interpreter.  The interpreter will throw a breakpoint exception with this special code
+            LOG(
+                (LF_CORDB, 
+                    LL_INFO1000, 
+                    "DC::DNE Interpreter Breakpoint hit, redirect into breakpoint path ip = %p, pFrame = %p, stack = %p\n",
+                     (void*)pException->ExceptionInformation[0],
+                      (void*)pException->ExceptionInformation[1]
+                      , (void*)pException->ExceptionInformation[2]));
+
+            interpreter_original_ip = ip;
+            interpreter_original_sp = dac_cast<PTR_CORDB_ADDRESS_TYPE>(GetSP(pContext));
+            interpreter_original_fp = dac_cast<PTR_CORDB_ADDRESS_TYPE>(GetFP(pContext));
+
+            ip = (CORDB_ADDRESS_TYPE*)pException->ExceptionInformation[0];
+            SetIP(pContext, (PCODE)ip);
+            SetSP(pContext, pException->ExceptionInformation[1]);
+            SetFP(pContext, pException->ExceptionInformation[2]);
+            interpreted = true;
+            // Fallthrough to the breakpoint case.
+            FALLTHROUGH;
         case EXCEPTION_BREAKPOINT:
             // EIP should be properly set up at this point.
             result = DebuggerController::DispatchPatchOrSingleStep(pCurThread,
@@ -4449,6 +4492,12 @@ bool DebuggerController::DispatchNativeException(EXCEPTION_RECORD *pException,
             break;
         } // end switch
 
+        if (interpreted)
+        {
+            SetIP(pContext, (PCODE)interpreter_original_ip);
+            SetSP(pContext, (TADDR)interpreter_original_sp);
+            SetFP(pContext, (TADDR)interpreter_original_fp);
+        }
     }
 #ifdef _DEBUG
     else
