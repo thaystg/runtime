@@ -70,15 +70,13 @@ namespace System.Linq
             }
 
             return
-#if !OPTIMIZE_FOR_SIZE
-                source is Iterator<TSource> iterator ? iterator.TryGetFirst(out found) :
-#endif
+                !IsSizeOptimized && source is Iterator<TSource> iterator ? iterator.TryGetFirst(out found) :
                 TryGetFirstNonIterator(source, out found);
         }
 
         private static TSource? TryGetFirstNonIterator<TSource>(IEnumerable<TSource> source, out bool found)
         {
-            if (source is IList<TSource> list)
+            if (source is IReadOnlyList<TSource> list)
             {
                 if (list.Count > 0)
                 {
