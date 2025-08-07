@@ -234,6 +234,9 @@ template<class T> void DeleteDbiArrayMemory(T *p, int count)
 //    Must call Destroy to on interface to free its resources.
 //
 //---------------------------------------------------------------------------------------
+#ifdef HOST_ANDROID
+#include <android/log.h>
+#endif
 STDAPI
 DLLEXPORT
 DacDbiInterfaceInstance(
@@ -249,6 +252,27 @@ DacDbiInterfaceInstance(
     SUPPORTS_DAC_HOST_ONLY;
 
     // Since this is public, verify it.
+    if (ppInterface == NULL)
+    {
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "thays", "DacDbiInterfaceInstance 1");
+#endif        
+        return E_INVALIDARG;
+    }
+    if (pTarget == NULL)
+    {
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "thays", "DacDbiInterfaceInstance 2");
+#endif        
+        return E_INVALIDARG;
+    }
+    if (baseAddress == 0)
+    {
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "thays", "DacDbiInterfaceInstance 3");
+#endif        
+        return E_INVALIDARG;
+    }
     if ((ppInterface == NULL) || (pTarget == NULL) || (baseAddress == 0))
     {
         return E_INVALIDARG;
@@ -264,15 +288,26 @@ DacDbiInterfaceInstance(
     {
         return E_OUTOFMEMORY;
     }
-
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "DacDbiInterfaceInstance 3.1");
+#endif    
     HRESULT hrStatus = pDac->Initialize();
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "DacDbiInterfaceInstance 3.2");
+#endif    
 
     if (SUCCEEDED(hrStatus))
     {
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "thays", "DacDbiInterfaceInstance 4");
+#endif        
         *ppInterface = pDac;
     }
     else
     {
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "thays", "DacDbiInterfaceInstance 5");
+#endif        
         delete pDac;
     }
     return hrStatus;

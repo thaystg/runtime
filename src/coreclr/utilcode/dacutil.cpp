@@ -125,7 +125,9 @@ LiveProcDataTarget::GetImageBase(
     //
     return E_FAIL;
 }
-
+#ifdef HOST_ANDROID     
+#include <android/log.h>
+#endif
 HRESULT STDMETHODCALLTYPE
 LiveProcDataTarget::ReadVirtual(
     /* [in] */ CLRDATA_ADDRESS address,
@@ -137,6 +139,9 @@ LiveProcDataTarget::ReadVirtual(
     // region to read does not have read access.  This
     // routine attempts to read the largest valid prefix
     // so it has to break up reads on page boundaries.
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "coreclr", "LiveProcDataTarget::ReadVirtual 1.");
+#endif    
 
     HRESULT status = S_OK;
     ULONG32 totalDone = 0;
@@ -145,6 +150,9 @@ LiveProcDataTarget::ReadVirtual(
 
     while (request > 0)
     {
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "coreclr", "LiveProcDataTarget::ReadVirtual 2.");
+#endif        
         // Calculate bytes to read and don't let read cross
         // a page boundary.
         readSize = GetOsPageSize() - (ULONG32)(address & (GetOsPageSize() - 1));
@@ -153,6 +161,9 @@ LiveProcDataTarget::ReadVirtual(
         if (!ReadProcessMemory(m_process, (PVOID)(ULONG_PTR)address,
                                buffer, readSize, &read))
         {
+#ifdef HOST_ANDROID            
+            __android_log_write(ANDROID_LOG_ERROR, "coreclr", "LiveProcDataTarget::ReadVirtual 3.");
+#endif            
             if (totalDone == 0)
             {
                 // If we haven't read anything indicate failure.
@@ -166,7 +177,9 @@ LiveProcDataTarget::ReadVirtual(
         buffer += read;
         request -= (ULONG32)read;
     }
-
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "coreclr", "LiveProcDataTarget::ReadVirtual 4.");
+#endif    
     *done = totalDone;
     return status;
 }

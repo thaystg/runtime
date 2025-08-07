@@ -255,7 +255,9 @@ ShimRemoteDataTarget::GetPlatform(
 
     return S_OK;
 }
-
+#ifdef HOST_ANDROID
+#include <android/log.h>
+#endif
 // impl of interface method ICorDebugDataTarget::ReadVirtual
 HRESULT STDMETHODCALLTYPE
 ShimRemoteDataTarget::ReadVirtual(
@@ -264,28 +266,52 @@ ShimRemoteDataTarget::ReadVirtual(
     ULONG32 cbRequestSize,
     ULONG32 *pcbRead)
 {
+#ifdef HOST_ANDROID
+    __android_log_write(ANDROID_LOG_ERROR, "coreclr", "ShimRemoteDataTarget::ReadVirtual 1.");
+#endif    
     ReturnFailureIfStateNotOk();
 
     size_t read = cbRequestSize;
     HRESULT hr = S_OK;
-
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "coreclr", "ShimRemoteDataTarget::ReadVirtual 2.");
+#endif    
 #ifdef FEATURE_REMOTE_PROC_MEM
+#ifdef HOST_ANDROID
+    __android_log_write(ANDROID_LOG_ERROR, "coreclr", "ShimRemoteDataTarget::ReadVirtual 2.1.");
+#endif    
     if (m_memoryHandle != UINT32_MAX)
     {
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "coreclr", "ShimRemoteDataTarget::ReadVirtual 2.2.");
+#endif        
         if (!PAL_ReadProcessMemory(m_memoryHandle, (ULONG64)address, pBuffer, cbRequestSize, &read))
         {
+#ifdef HOST_ANDROID            
+            __android_log_write(ANDROID_LOG_ERROR, "coreclr", "ShimRemoteDataTarget::ReadVirtual 2.3.");
+#endif            
             hr = E_FAIL;
         }
     }
     else
 #endif
     {
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "coreclr", "ShimRemoteDataTarget::ReadVirtual 3.");
+#endif        
         hr = m_pTransport->ReadMemory(reinterpret_cast<BYTE *>(CORDB_ADDRESS_TO_PTR(address)), pBuffer, cbRequestSize);
+#ifdef HOST_ANDROID
+        __android_log_write(ANDROID_LOG_ERROR, "coreclr", "ShimRemoteDataTarget::ReadVirtual 4.");
+#endif        
     }
     if (pcbRead != NULL)
     {
         *pcbRead = ULONG32(SUCCEEDED(hr) ? read : 0);
     }
+#ifdef HOST_ANDROID    
+    if (hr != S_OK)
+        __android_log_write(ANDROID_LOG_ERROR, "coreclr", "ShimRemoteDataTarget::ReadVirtual 5.");
+#endif        
     return hr;
 }
 

@@ -1767,7 +1767,9 @@ HRESULT Cordb::DebugActiveProcess(DWORD dwProcessId,
 {
     return DebugActiveProcessCommon(NULL, dwProcessId, fWin32Attach, ppProcess);
 }
-
+#ifdef HOST_ANDROID
+#include <android/log.h>
+#endif
 HRESULT Cordb::DebugActiveProcessCommon(ICorDebugRemoteTarget * pRemoteTarget,
                                         DWORD dwProcessId,
                                         BOOL fWin32Attach,
@@ -1783,18 +1785,27 @@ HRESULT Cordb::DebugActiveProcessCommon(ICorDebugRemoteTarget * pRemoteTarget,
     {
         if (!m_initialized)
         {
+#ifdef HOST_ANDROID            
+            __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcessCommon 1");
+#endif            
             ThrowHR(E_FAIL);
         }
 
         // Must have a managed-callback by now.
         if ((m_managedCallback == NULL) || (m_managedCallback2 == NULL) || (m_managedCallback3 == NULL) || (m_managedCallback4 == NULL))
         {
+#ifdef HOST_ANDROID            
+            __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcessCommon 2");
+#endif            
             ThrowHR(E_FAIL);
         }
 
         // Verify that given process ID, matches the process ID for which the object was created
         if (m_pd.IsInitialized() && m_pd.m_Pid != dwProcessId)
         {
+#ifdef HOST_ANDROID            
+            __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcessCommon 3");
+#endif            
             ThrowHR(E_INVALIDARG);
         }
 
@@ -1812,24 +1823,37 @@ HRESULT Cordb::DebugActiveProcessCommon(ICorDebugRemoteTarget * pRemoteTarget,
 
         if (!fAllowInterop && fWin32Attach)
         {
+#ifdef HOST_ANDROID            
+            __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcessCommon 4");
+#endif            
             ThrowHR(CORDBG_E_INTEROP_NOT_SUPPORTED);
         }
 
     } EX_CATCH_HRESULT(hr)
     if (FAILED(hr))
     {
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcessCommon 5");
+#endif        
         return hr;
     }
-
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcessCommon 6");
+#endif    
     hr = ShimProcess::DebugActiveProcess(
         this,
         pRemoteTarget,
         &m_pd,
         fWin32Attach == TRUE);
-
+#ifdef HOST_ANDROID        
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcessCommon 7");
+#endif    
     // If that worked, then there will be a process object...
     if (SUCCEEDED(hr))
     {
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcessCommon 8");
+#endif        
         LockProcessList();
         CordbProcess * pProcess = GetProcessList()->GetBase(dwProcessId);
 
@@ -1847,6 +1871,9 @@ HRESULT Cordb::DebugActiveProcessCommon(ICorDebugRemoteTarget * pRemoteTarget,
             // before we attemp to retrieve it again from GetBase.
             //
             *ppProcess = NULL;
+#ifdef HOST_ANDROID            
+            __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcessCommon 9");
+#endif            
             return S_FALSE;
         }
 
@@ -1868,7 +1895,9 @@ HRESULT Cordb::DebugActiveProcessCommon(ICorDebugRemoteTarget * pRemoteTarget,
 
         *ppProcess = (ICorDebugProcess*) pProcess;
     }
-
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcessCommon 10");
+#endif    
     return hr;
 }
 

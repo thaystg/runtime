@@ -295,7 +295,9 @@ ShimLocalDataTarget::GetPlatform(
 #endif
     return S_OK;
 }
-
+#ifdef HOST_ANDROID
+#include <android/log.h>
+#endif
 // impl of interface method ICorDebugDataTarget::ReadVirtual
 HRESULT STDMETHODCALLTYPE
 ShimLocalDataTarget::ReadVirtual(
@@ -319,18 +321,29 @@ ShimLocalDataTarget::ReadVirtual(
 
     while (cbRequestSize > 0)
     {
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "coreclr", "ShimLocalDataTarget::ReadVirtual 1.");
+#endif        
         // Calculate bytes to read and don't let read cross
         // a page boundary.
         readSize = GetOsPageSize() - (ULONG32)(address & (GetOsPageSize() - 1));
         readSize = min(cbRequestSize, readSize);
-
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "coreclr", "ShimLocalDataTarget::ReadVirtual 2.");
+#endif        
         if (!ReadProcessMemory(m_hProcess, (PVOID)(ULONG_PTR)address,
                                pBuffer, readSize, &read))
         {
+#ifdef HOST_ANDROID            
+            __android_log_write(ANDROID_LOG_ERROR, "coreclr", "ShimLocalDataTarget::ReadVirtual 3.");
+#endif            
             if (totalDone == 0)
             {
                 // If we haven't read anything indicate failure.
                 hrStatus = HRESULT_FROM_GetLastError();
+#ifdef HOST_ANDROID                
+                __android_log_write(ANDROID_LOG_ERROR, "coreclr", "ShimLocalDataTarget::ReadVirtual 4.");
+#endif                
             }
             break;
         }
@@ -342,6 +355,9 @@ ShimLocalDataTarget::ReadVirtual(
     }
 
     *pcbRead = totalDone;
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "coreclr", "ShimLocalDataTarget::ReadVirtual 5.");
+#endif    
     return hrStatus;
 }
 

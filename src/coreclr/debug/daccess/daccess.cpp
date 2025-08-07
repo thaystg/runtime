@@ -40,6 +40,9 @@ extern TADDR g_ClrModuleBase;
 
 // To include definition of IsThrowableThreadAbortException
 // #include <exstatecommon.h>
+#ifdef HOST_ANDROID
+#include <android/log.h>
+#endif
 
 minipal_mutex g_dacMutex;
 ClrDataAccess* g_dacImpl;
@@ -2904,9 +2907,14 @@ private:
         HRESULT hr = S_OK;
 
         StreamsHeader hdr;
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "thays", "Initialize 1");
+#endif        
         DacReadAll(dac_cast<TADDR>(m_MiniMetaDataBuffAddress),
                    &hdr, sizeof(hdr), true);
-
+#ifdef HOST_ANDROID                           
+        __android_log_write(ANDROID_LOG_ERROR, "thays", "Initialize 2");
+#endif
         // when the DAC looks at a triage dump or minidump generated using
         // a "minimetadata" enabled DAC, buff will point to a serialized
         // representation of a methoddesc->method name hashmap.
@@ -2928,6 +2936,9 @@ private:
         // a liveprocess/full dump
         else
         {
+#ifdef HOST_ANDROID            
+            __android_log_write(ANDROID_LOG_ERROR, "thays", "Initialize 3");
+#endif            
             hr = S_FALSE;
         }
 
@@ -2936,7 +2947,9 @@ private:
                    buff, m_MiniMetaDataBuffSizeMax, true);
 
         m_rawBuffer = buff;
-
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "thays", "Initialize 4");
+#endif        
         return hr;
     }
 
@@ -5459,12 +5472,21 @@ ClrDataAccess::Initialize(void)
 #endif
 
     CorDebugPlatform targetPlatform;
+#ifdef HOST_ANDROID
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "ClrDataAccess::Initialize 1");
+#endif    
     IfFailRet(m_pTarget->GetPlatform(&targetPlatform));
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "ClrDataAccess::Initialize 2");
+#endif    
 
     if (targetPlatform != hostPlatform)
     {
         // DAC fatal error: Platform mismatch - the platform reported by the data target
         // is not what this version of mscordacwks.dll was built for.
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "thays", "ClrDataAccess::Initialize 3");
+#endif        
         return CORDBG_E_INCOMPATIBLE_PLATFORMS;
     }
 
@@ -5480,14 +5502,26 @@ ClrDataAccess::Initialize(void)
         // Caller didn't specify which CLR to debug, we should be using a legacy data target.
         if (m_pLegacyTarget == NULL)
         {
+#ifdef HOST_ANDROID            
+            __android_log_write(ANDROID_LOG_ERROR, "thays", "ClrDataAccess::Initialize 4");
+#endif            
             DacError(E_INVALIDARG);
             UNREACHABLE();
         }
 
         ReleaseHolder<ICLRRuntimeLocator> pRuntimeLocator(NULL);
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "thays", "ClrDataAccess::Initialize 5");
+#endif        
         if (m_pLegacyTarget->QueryInterface(__uuidof(ICLRRuntimeLocator), (void**)&pRuntimeLocator) != S_OK || pRuntimeLocator->GetRuntimeBase(&base) != S_OK)
         {
+#ifdef HOST_ANDROID            
+            __android_log_write(ANDROID_LOG_ERROR, "thays", "ClrDataAccess::Initialize 6");
+#endif            
             IfFailRet(m_pLegacyTarget->GetImageBase(TARGET_MAIN_CLR_DLL_NAME_W, &base));
+#ifdef HOST_ANDROID            
+            __android_log_write(ANDROID_LOG_ERROR, "thays", "ClrDataAccess::Initialize 7");
+#endif            
         }
 
         m_globalBase = TO_TADDR(base);
@@ -5497,15 +5531,30 @@ ClrDataAccess::Initialize(void)
     // multiple initializations as each one will
     // copy the same data into the globals and so
     // cannot interfere with each other.
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "ClrDataAccess::Initialize 8");
+#endif    
     IfFailRet(GetDacGlobalValues());
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "ClrDataAccess::Initialize 9");
+#endif    
     IfFailRet(DacGetHostVtPtrs());
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "ClrDataAccess::Initialize 10");
+#endif    
 
     //
     // DAC is now setup and ready to use
     //
 
     // Do some validation
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "ClrDataAccess::Initialize 11");
+#endif    
     IfFailRet(VerifyDlls());
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "ClrDataAccess::Initialize 12");
+#endif    
 
     // To support EH SxS, utilcode requires the base address of the runtime as part of its initialization
     // so that functions like "WasThrownByUs" work correctly since they use the CLR base address to check
@@ -5515,6 +5564,9 @@ ClrDataAccess::Initialize(void)
     // target process. This is similar to work done in CorDB::SetTargetCLR for mscordbi.
 
     g_ClrModuleBase = m_globalBase; // Base address of the runtime in the target process
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "ClrDataAccess::Initialize 13");
+#endif    
 
     return S_OK;
 }
@@ -6849,19 +6901,44 @@ HRESULT
 ClrDataAccess::GetDacGlobalValues()
 {
     ULONG64 dacTableAddress;
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "GetDacGlobalValues -1");
+#endif    
     HRESULT hr = GetDacTableAddress(m_pTarget, m_globalBase, &dacTableAddress);
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "GetDacGlobalValues 0");
+#endif    
     if (FAILED(hr))
     {
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "thays", "GetDacGlobalValues 1");
+#endif        
         return hr;
     }
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "GetDacGlobalValues 1.1");
+#endif    
     if (FAILED(ReadFromDataTarget(m_pTarget, dacTableAddress, (BYTE*)&m_dacGlobals, sizeof(m_dacGlobals))))
     {
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "thays", "GetDacGlobalValues 2");
+#endif        
         return CORDBG_E_MISSING_DEBUGGER_EXPORTS;
     }
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "GetDacGlobalValues 2.1");
+#endif    
     if (m_dacGlobals.ThreadStore__s_pThreadStore == (TADDR)NULL)
     {
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "thays", "GetDacGlobalValues 3");
+#endif
         return CORDBG_E_UNSUPPORTED;
     }
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "GetDacGlobalValues 3.1");
+    __android_log_write(ANDROID_LOG_ERROR, "thays", "GetDacGlobalValues 4");
+#endif    
     return S_OK;
 }
 

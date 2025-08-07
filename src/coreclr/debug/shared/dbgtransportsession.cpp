@@ -1121,7 +1121,9 @@ DbgTransportSession::Message * DbgTransportSession::RemoveMessageFromSendQueue(D
 #endif
 
 #ifndef RIGHT_SIDE_COMPILE
-
+#ifdef HOST_ANDROID
+#include <android/log.h>
+#endif
 // Check read and optionally write memory access to the specified range of bytes. Used to check
 // ReadProcessMemory and WriteProcessMemory requests.
 HRESULT DbgTransportSession::CheckBufferAccess(_In_reads_(cbBuffer) PBYTE pbBuffer, DWORD cbBuffer, bool fWriteAccess)
@@ -1129,6 +1131,9 @@ HRESULT DbgTransportSession::CheckBufferAccess(_In_reads_(cbBuffer) PBYTE pbBuff
     // check for integer overflow
     if ((pbBuffer + cbBuffer) < pbBuffer)
     {
+#ifdef HOST_ANDROID        
+        __android_log_write(ANDROID_LOG_ERROR, "coreclr", "DbgTransportSession::CheckBufferAccess 1.");
+#endif        
         return HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW);
     }
 
@@ -1146,7 +1151,12 @@ HRESULT DbgTransportSession::CheckBufferAccess(_In_reads_(cbBuffer) PBYTE pbBuff
 
         // The memory must be committed (i.e. have physical pages or backing store).
         if (sMemInfo.State != MEM_COMMIT)
-            return HRESULT_FROM_WIN32(ERROR_INVALID_ADDRESS);
+        {
+#ifdef HOST_ANDROID            
+            __android_log_write(ANDROID_LOG_ERROR, "coreclr", "DbgTransportSession::CheckBufferAccess 1.4.");
+#endif            
+            return HRESULT_FROM_WIN32(ERROR_INVALID_ADDRESS); HRESULT_FROM_WIN32(ERROR_INVALID_ADDRESS);
+        }
 
         // Check for compatible page protections. Lower byte of Protect has these (upper bytes have options we're
         // not interested in, cache modes and the like.
@@ -1154,10 +1164,20 @@ HRESULT DbgTransportSession::CheckBufferAccess(_In_reads_(cbBuffer) PBYTE pbBuff
 
         if (fWriteAccess &&
             ((dwProtect & (PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY | PAGE_READWRITE | PAGE_WRITECOPY)) == 0))
+        {
+#ifdef HOST_ANDROID            
+            __android_log_write(ANDROID_LOG_ERROR, "coreclr", "DbgTransportSession::CheckBufferAccess 2.");
+#endif            
             return HRESULT_FROM_WIN32(ERROR_NOACCESS);
+        }
         else if (!fWriteAccess &&
             ((dwProtect & (PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY | PAGE_READONLY | PAGE_READWRITE | PAGE_WRITECOPY)) == 0))
+        {
+#ifdef HOST_ANDROID            
+            __android_log_write(ANDROID_LOG_ERROR, "coreclr", "DbgTransportSession::CheckBufferAccess 3.");
+#endif            
             return HRESULT_FROM_WIN32(ERROR_NOACCESS);
+        }
 
         // If the requested range is bigger than the region we have queried,
         // we need to continue on to check the next region.
@@ -1182,6 +1202,9 @@ HRESULT DbgTransportSession::CheckBufferAccess(_In_reads_(cbBuffer) PBYTE pbBuff
 #endif
 
     // The specified region has passed all of our checks.
+#ifdef HOST_ANDROID    
+    __android_log_write(ANDROID_LOG_ERROR, "coreclr", "DbgTransportSession::CheckBufferAccess 4.");
+#endif    
     return S_OK;
 }
 
