@@ -28,9 +28,7 @@
 
 #include "readonlydatatargetfacade.h"
 #include "metahost.h"
-#ifdef HOST_ANDROID
-#include <android/log.h>
-#endif
+
 // Keep this around for retail debugging. It's very very useful because
 // it's global state that we can always find, regardless of how many locals the compiler
 // optimizes away ;)
@@ -696,32 +694,17 @@ CordbProcess::CreateDacDbiInterface()
     PFN_DacDbiInterfaceInstance pfnEntry = (PFN_DacDbiInterfaceInstance)GetProcAddress(m_hDacModule, "DacDbiInterfaceInstance");
     if (!pfnEntry)
     {
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateDacDbiInterface 1");
-#endif        
         ThrowLastError();
     }
 
     hrStatus = pfnEntry(m_pDACDataTarget, m_clrInstanceId, pAllocator, pMetaDataLookup, &pInterfacePtr);
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateDacDbiInterface 2");
-#endif    
     IfFailThrow(hrStatus);
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateDacDbiInterface 3");
-#endif    
 
     // We now have a resource, pInterfacePtr, that needs to be freed.
     m_pDacPrimitives = pInterfacePtr;
 
     // Setup DAC target consistency checking based on what we're using for DBI
-#ifdef HOST_ANDROID
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateDacDbiInterface 4");
-#endif    
     m_pDacPrimitives->DacSetTargetConsistencyChecks( m_fAssertOnTargetInconsistency );
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateDacDbiInterface 5");
-#endif    
 }
 
 //---------------------------------------------------------------------------------------
@@ -819,9 +802,6 @@ HRESULT CordbProcess::OpenVirtualProcess(
     CordbProcess ** ppProcess)
 {
     _ASSERTE(pDataTarget != NULL);
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "OpenVirtualProcess 1");
-#endif    
     // In DEBUG builds, verify that we do actually have an ICorDebugDataTarget (i.e. that
     // someone hasn't messed up the COM interop marshalling, etc.).
 #ifdef _DEBUG
@@ -846,19 +826,10 @@ HRESULT CordbProcess::OpenVirtualProcess(
     HRESULT hr = S_OK;
     RSUnsafeExternalSmartPtr<CordbProcess> pProcess;
     pProcess.Assign(new (nothrow) CordbProcess(clrInstanceId, pDataTarget, hDacModule, pCordb, pProcessDescriptor, pShim));
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "OpenVirtualProcess 2");
-#endif    
     if (pProcess == NULL)
     {
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "OpenVirtualProcess 2.1");
-#endif        
         return E_OUTOFMEMORY;
     }
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "OpenVirtualProcess 3");
-#endif    
     ICorDebugProcess * pThis = pProcess;
     (void)pThis; //prevent "unused variable" error from GCC
 
@@ -871,44 +842,25 @@ HRESULT CordbProcess::OpenVirtualProcess(
         _ASSERTE(pShim->GetProcess() == pThis);
         _ASSERTE(pShim->GetWin32EventThread() != NULL);
     }
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "OpenVirtualProcess 4");
-#endif    
     hr = pProcess->Init();
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "OpenVirtualProcess 5");
-#endif    
-
     if (SUCCEEDED(hr))
     {
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "OpenVirtualProcess 5.1");
-#endif        
         *ppProcess = pProcess;
         pProcess->ExternalAddRef();
     }
     else
     {
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "OpenVirtualProcess 6");
-#endif        
         // handle failure path
         pProcess->CleanupHalfBakedLeftSide();
 
         if (pShim != NULL)
         {
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "OpenVirtualProcess 7");
-#endif            
             // Shim still needs to be disposed to clean up other resources.
             pShim->SetProcess(NULL);
         }
 
         // In failure case, pProcess's dtor will do the final release.
     }
-#ifdef HOST_ANDROID
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "OpenVirtualProcess 8");
-#endif    
     return hr;
 }
 
@@ -1234,29 +1186,14 @@ HRESULT ShimProcess::DebugActiveProcess(
 
         // Indicate that this process was attached to, asopposed to being started under the debugger.
         pShim->m_attached = true;
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcess 1");
-#endif        
         hr = pShim->CreateAndStartWin32ET(pCordb);
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcess 2");
-#endif        
         IfFailThrow(hr);
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcess 3");
-#endif        
         // If this succeeds, new CordbProcess will add a ref to the ShimProcess
         hr = pShim->GetWin32EventThread()->SendDebugActiveProcessEvent(pShim->GetMachineInfo(),
                                                                        pProcessDescriptor,
                                                                        fWin32Attach == TRUE,
                                                                        NULL);
-#ifdef HOST_ANDROID                                                                       
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcess 4");
-#endif        
         IfFailThrow(hr);
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcess 5");
-#endif        
         _ASSERTE(SUCCEEDED(hr));
 
 #if !defined(FEATURE_DBGIPC_TRANSPORT_DI)
@@ -1298,9 +1235,6 @@ HRESULT ShimProcess::DebugActiveProcess(
     // If this succeeds, then process takes ownership of thread. Else we need to kill it.
     if (FAILED(hr))
     {
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcess 6");
-#endif        
         if (pShim!= NULL)
         {
             pShim->Dispose();
@@ -1308,9 +1242,6 @@ HRESULT ShimProcess::DebugActiveProcess(
     }
 
     // Always release our ref to ShimProcess. If the Process was created, then it takes a reference.
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "DebugActiveProcess 7");
-#endif    
     return hr;
 }
 
@@ -1612,9 +1543,6 @@ BOOL CordbProcess::TryInitializeDac()
     HRESULT hr = EnsureClrInstanceIdSet();
     if (FAILED(hr))
     {
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "TryInitializeDac 1");
-#endif        
         return FALSE;
     }
 
@@ -1658,14 +1586,8 @@ void CordbProcess::InitializeDac()
     // been initialized, we need to check something else, namely m_pDacPrimitives.
     if (m_pDacPrimitives == NULL)
     {
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "InitializeDac 1");
-#endif        
         LOG((LF_CORDB, LL_INFO1000, "About to load DAC\n"));
         CreateDacDbiInterface(); // throws
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "InitializeDac 2");
-#endif        
     }
     else
     {
@@ -1796,40 +1718,22 @@ HRESULT CordbProcess::Init()
         // See if the data target is mutable, and cache the mutable interface if it is
         // We must initialize this before we try to use the data target to access the memory in the target process.
         m_pMutableDataTarget.Clear();            // if we were called already, release
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 1");
-#endif        
         hr = m_pDACDataTarget->QueryInterface(IID_ICorDebugMutableDataTarget, (void**)&m_pMutableDataTarget);
         if (!SUCCEEDED(hr))
         {
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 2");
-#endif            
             // The data target doesn't support mutation.  We'll fail any requests that require mutation.
             m_pMutableDataTarget.Assign(new ReadOnlyDataTargetFacade());
         }
 
         m_pMetaDataLocator.Clear();
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 3");
-#endif        
         hr = m_pDACDataTarget->QueryInterface(IID_ICorDebugMetaDataLocator, reinterpret_cast<void **>(&m_pMetaDataLocator));
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 4");
-#endif        
         // Get the metadata dispenser.
         hr = CreateMetaDataDispenser(IID_IMetaDataDispenserEx, (void **)&m_pMetaDispenser);
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 5");
-#endif        
 
         // We statically link in the dispenser. We expect it to succeed, except for OOM, which
         // debugger doesn't yet handle.
         SIMPLIFYING_ASSUMPTION_SUCCEEDED(hr);
         IfFailThrow(hr);
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 6");
-#endif        
         _ASSERTE(m_pMetaDispenser != NULL);
 
         // In order to allow users to call the metadata reader from multiple threads we need to set
@@ -1838,14 +1742,7 @@ HRESULT CordbProcess::Init()
         VARIANT optionValue;
         V_VT(&optionValue) = VT_UI4;
         V_UI4(&optionValue) = MDThreadSafetyOn;
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 7");
-#endif        
         m_pMetaDispenser->SetOption(MetaDataThreadSafetyOptions, &optionValue);
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 8");
-#endif        
-
         //
         // Setup internal events.
         // @dbgtodo shim: these events should eventually be in the shim.
@@ -1862,44 +1759,29 @@ HRESULT CordbProcess::Init()
         m_leftSideEventAvailable = CreateEvent(NULL, FALSE, FALSE, NULL);
         if (m_leftSideEventAvailable == NULL)
         {
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 9");
-#endif            
             ThrowLastError();
         }
 
         m_leftSideEventRead = CreateEvent(NULL, FALSE, FALSE, NULL);
         if (m_leftSideEventRead == NULL)
         {
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 10");
-#endif            
             ThrowLastError();
         }
 
         m_stopWaitEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
         if (m_stopWaitEvent == NULL)
         {
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 11");
-#endif            
             ThrowLastError();
         }
 
         if (m_pShim != NULL)
         {
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 12");
-#endif            
             // Get a handle to the debuggee.
             // This is not needed in the V3 pipeline because we don't assume we have a live, local, process.
             m_handle = GetShim()->GetNativePipeline()->GetProcessHandle();
 
             if (m_handle == NULL)
             {
-#ifdef HOST_ANDROID                
-                __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 13");
-#endif                
                 ThrowLastError();
             }
         }
@@ -1925,27 +1807,15 @@ HRESULT CordbProcess::Init()
         // Determines if the LS is started.
 
         {
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 14");
-#endif            
             BOOL fReady = TryInitializeDac();
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 15");
-#endif            
             if (fReady)
             {
-#ifdef HOST_ANDROID                
-                __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 16");
-#endif                
                 // Invoke DAC primitive.
                 _ASSERTE(m_pDacPrimitives != NULL);
                 fIsLSStarted = m_pDacPrimitives->IsLeftSideInitialized();
             }
             else
             {
-#ifdef HOST_ANDROID                
-                __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 17");
-#endif                
                 _ASSERTE(m_pDacPrimitives == NULL);
 
                 // DAC is not yet loaded, so we're at least before phase 2, which is before phase 6.
@@ -1961,9 +1831,6 @@ HRESULT CordbProcess::Init()
 
             if (m_pShim != NULL)
             {
-#ifdef HOST_ANDROID                
-                __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 18");
-#endif                
                 FinishInitializeIPCChannelWorker(); // throws
 
                 // At this point, the control block is complete and all four
@@ -1981,9 +1848,6 @@ HRESULT CordbProcess::Init()
                 // and we consider it initialized.
                 if (IsDacInitialized())
                 {
-#ifdef HOST_ANDROID                    
-                    __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 19");
-#endif                    
                     m_initialized = true;
                 }
             }
@@ -1998,14 +1862,8 @@ HRESULT CordbProcess::Init()
 
     if (FAILED(hr))
     {
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 20");
-#endif        
         CleanupHalfBakedLeftSide();
     }
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "Init 21");
-#endif    
     return hr;
 }
 
@@ -14235,9 +14093,6 @@ void CordbWin32EventThread::CreateProcess()
 #endif
 
     // Have Win32 create the process...
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateProcess");
-#endif    
     hr = m_pNativePipeline->CreateProcessUnderDebugger(
                                       m_actionData.createData.machineInfo,
                                       m_actionData.createData.programName,
@@ -14250,43 +14105,22 @@ void CordbWin32EventThread::CreateProcess()
                                       m_actionData.createData.lpCurrentDirectory,
                                       m_actionData.createData.lpStartupInfo,
                                       m_actionData.createData.lpProcessInformation);
-#ifdef HOST_ANDROID                                      
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateProcess 1");
-#endif    
     if (SUCCEEDED(hr))
     {
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateProcess 2");
-#endif        
         // Process ID is filled in after process is successfully created.
         DWORD dwProcessId = m_actionData.createData.lpProcessInformation->dwProcessId;
         ProcessDescriptor pd = ProcessDescriptor::FromPid(dwProcessId);
 
         RSUnsafeExternalSmartPtr<CordbProcess> pProcess;
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateProcess 3");
-#endif        
         hr = m_pShim->InitializeDataTarget(&pd);
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateProcess 4");
-#endif        
 
         if (SUCCEEDED(hr))
         {
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateProcess 5");
-#endif            
             // To emulate V2 semantics, we pass 0 for the clrInstanceID into
             // OpenVirtualProcess. This will then connect to the first CLR
             // loaded.
             const ULONG64 cFirstClrLoaded = 0;
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateProcess 6");
-#endif            
             hr = CordbProcess::OpenVirtualProcess(cFirstClrLoaded, m_pShim->GetDataTarget(), NULL, m_cordb, &pd, m_pShim, &pProcess);
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateProcess 7");
-#endif            
         }
 
         // Shouldn't happen on a create, only an attach
@@ -14295,29 +14129,14 @@ void CordbWin32EventThread::CreateProcess()
         // Remember the process in the global list of processes.
         if (SUCCEEDED(hr))
         {
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateProcess 8");
-#endif            
             EX_TRY
             {
                 // Mark if we're interop-debugging
                 if (fInteropDebugging)
                 {
-#ifdef HOST_ANDROID                    
-                    __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateProcess 9");
-#endif                    
                     pProcess->EnableInteropDebugging();
-#ifdef HOST_ANDROID                    
-                    __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateProcess 10");
-#endif                    
                 }
-#ifdef HOST_ANDROID                
-               __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateProcess 11"); 
-#endif               
                 m_cordb->AddProcess(pProcess); // will take ref if it succeeds
-#ifdef HOST_ANDROID
-                __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateProcess 12");
-#endif                
             }
             EX_CATCH_HRESULT(hr);
         }
@@ -14327,9 +14146,6 @@ void CordbWin32EventThread::CreateProcess()
         // and resume the process's main thread.
         if (SUCCEEDED(hr))
         {
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateProcess 13");
-#endif            
             _ASSERTE(m_pProcess == NULL);
             m_pProcess.Assign(pProcess);
         }
@@ -14339,9 +14155,6 @@ void CordbWin32EventThread::CreateProcess()
     //
     // Signal the hr to the caller.
     //
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "CreateProcess 14");
-#endif    
     m_actionResult = hr;
     SetEvent(m_actionTakenEvent);
 }
@@ -14382,24 +14195,15 @@ HRESULT CordbWin32EventThread::SendDebugActiveProcessEvent(
 
         if (ret == WAIT_OBJECT_0)
         {
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "SendDebugActiveProcessEvent 1");
-#endif            
             hr = m_actionResult;
         }
         else
         {
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "SendDebugActiveProcessEvent 2");
-#endif            
             hr = HRESULT_FROM_GetLastError();
         }
     }
     else
         {
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "SendDebugActiveProcessEvent 3");
-#endif            
             hr = HRESULT_FROM_GetLastError();
         }
 
@@ -14498,9 +14302,6 @@ void CordbProcess::CleanupHalfBakedLeftSide()
 //---------------------------------------------------------------------------------------
 void CordbWin32EventThread::AttachProcess()
 {
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "AttachProcess 1");
-#endif    
     _ASSERTE(IsWin32EventThread());
 
     RSUnsafeExternalSmartPtr<CordbProcess> pProcess;
@@ -14517,32 +14318,17 @@ void CordbWin32EventThread::AttachProcess()
     // The OS will enforce that only 1 debugger is attached.
     // Common failure paths here would be: access denied, double-attach
     {
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "AttachProcess 2");
-#endif        
         hr = m_pNativePipeline->DebugActiveProcess(m_actionData.attachData.machineInfo,
                                                    processDescriptor);
         if (FAILED(hr))
         {
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "AttachProcess 3");
-#endif            
             goto LExit;
         }
         fNativeAttachSucceeded = true;
     }
-#ifdef HOST_ANDROID
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "AttachProcess 4");
-#endif    
     hr = m_pShim->InitializeDataTarget(&processDescriptor);
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "AttachProcess 5");
-#endif    
     if (FAILED(hr))
     {
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "AttachProcess 6");
-#endif        
         goto LExit;
     }
 
@@ -14551,15 +14337,9 @@ void CordbWin32EventThread::AttachProcess()
     // loaded.
     {
         const ULONG64 cFirstClrLoaded = 0;
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "AttachProcess 7");
-#endif        
         hr = CordbProcess::OpenVirtualProcess(cFirstClrLoaded, m_pShim->GetDataTarget(), NULL, m_cordb, &processDescriptor, m_pShim, &pProcess);
         if (FAILED(hr))
         {
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "AttachProcess 8");
-#endif            
             goto LExit;
         }
     }
@@ -14569,16 +14349,10 @@ void CordbWin32EventThread::AttachProcess()
 
     EX_TRY
     {
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "AttachProcess 9");
-#endif        
         // Don't allow attach if any metadata/IL updates have been applied
         if (pProcess->GetDAC()->MetadataUpdatesApplied())
         {
             hr = CORDBG_E_ASSEMBLY_UPDATES_APPLIED;
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "AttachProcess 10");
-#endif            
             goto LExit;
         }
 
@@ -14600,9 +14374,6 @@ void CordbWin32EventThread::AttachProcess()
     EX_CATCH_HRESULT(hr);
     if (FAILED(hr))
     {
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "AttachProcess 11");
-#endif        
         goto LExit;
     }
 
@@ -14617,9 +14388,6 @@ void CordbWin32EventThread::AttachProcess()
 LExit:
     if (FAILED(hr))
     {
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "AttachProcess 12");
-#endif        
         // If we succeed to do a native-attach, but then failed elsewhere, try to native-detach.
         if (fNativeAttachSucceeded)
         {
@@ -14639,9 +14407,6 @@ LExit:
     //
     // Signal the hr to the caller.
     //
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "AttachProcess 12");
-#endif    
     m_actionResult = hr;
     SetEvent(m_actionTakenEvent);
 }

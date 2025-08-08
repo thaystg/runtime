@@ -113,14 +113,8 @@ STDAPI CreateCordbObject(int iDebuggerVersion, IUnknown ** ppCordb)
 // Notes:
 //    It's inconsistent that this takes a (handle, pid) but hands back an ICorDebug instead of an ICorDebugProcess.
 //    Callers will need to call *ppCordb->DebugActiveProcess(pid).
-#ifdef HOST_ANDROID
-#include <android/log.h>
-#endif
 STDAPI DLLEXPORT CoreCLRCreateCordbObject3(int iDebuggerVersion, DWORD pid, LPCWSTR lpApplicationGroupId, LPCWSTR dacModulePath, HMODULE hmodTargetCLR, IUnknown** ppCordb)
 {
-#ifdef HOST_ANDROID
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "CoreCLRCreateCordbObject3 1");
-#endif    
     if (ppCordb == NULL)
     {
         return E_INVALIDARG;
@@ -136,14 +130,7 @@ STDAPI DLLEXPORT CoreCLRCreateCordbObject3(int iDebuggerVersion, DWORD pid, LPCW
     // Create the ICorDebug object
     //
     RSExtSmartPtr<ICorDebug> pCordb;
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "CoreCLRCreateCordbObject3 2");
-#endif    
     Cordb::CreateObject((CorDebugInterfaceVersion)iDebuggerVersion, pid, lpApplicationGroupId, dacModulePath, IID_ICorDebug, (void **) &pCordb);
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "CoreCLRCreateCordbObject3 3");
-#endif    
-
     //
     // Associate it with the target instance
     //
@@ -181,9 +168,6 @@ STDAPI DLLEXPORT CoreCLRCreateCordbObject3(int iDebuggerVersion, DWORD pid, LPCW
 //    Callers will need to call *ppCordb->DebugActiveProcess(pid).
 STDAPI DLLEXPORT CoreCLRCreateCordbObjectEx(int iDebuggerVersion, DWORD pid, LPCWSTR lpApplicationGroupId, HMODULE hmodTargetCLR, IUnknown ** ppCordb)
 {
-#ifdef HOST_ANDROID    
-    __android_log_write(ANDROID_LOG_ERROR, "thays", "CoreCLRCreateCordbObjectEx");
-#endif    
     return CoreCLRCreateCordbObject3(iDebuggerVersion, pid, lpApplicationGroupId, NULL, hmodTargetCLR, ppCordb);
 }
 
@@ -216,24 +200,12 @@ BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
     // Save off the instance handle for later use.
     switch (dwReason)
     {
-#ifdef HOST_ANDROID        
-        __android_log_write(ANDROID_LOG_ERROR, "thays", "DbgDllMain");
-#endif        
         case DLL_PROCESS_ATTACH:
         {
 #ifdef HOST_UNIX
-#ifdef HOST_ANDROID
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "DbgDllMain 1");
-#endif            
             int err = PAL_InitializeDLL();
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "DbgDllMain 2");
-#endif            
             if(err != 0)
             {
-#ifdef HOST_ANDROID                
-                __android_log_write(ANDROID_LOG_ERROR, "thays", "DbgDllMain 3");
-#endif                
                 return FALSE;
             }
 #endif
@@ -260,32 +232,17 @@ BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 #endif
 
 #if defined(FEATURE_DBGIPC_TRANSPORT_DI)
-#ifdef HOST_ANDROID
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "DbgDllMain 4");
-#endif            
             g_pDbgTransportTarget = new (nothrow) DbgTransportTarget();
             if (g_pDbgTransportTarget == NULL)
             {
-#ifdef HOST_ANDROID                
-                __android_log_write(ANDROID_LOG_ERROR, "thays", "DbgDllMain 4.0");
-#endif                
                 return FALSE;
             }
 
             if (FAILED(g_pDbgTransportTarget->Init()))
             {
-#ifdef HOST_ANDROID                
-                __android_log_write(ANDROID_LOG_ERROR, "thays", "DbgDllMain 4.1");
-#endif                
                 return FALSE;
             }
-#ifdef HOST_ANDROID            
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "DbgDllMain 5");
-#endif            
 #endif // FEATURE_DBGIPC_TRANSPORT_DI
-#ifdef HOST_ANDROID
-            __android_log_write(ANDROID_LOG_ERROR, "thays", "DbgDllMain 6");
-#endif            
         }
         break;
 
