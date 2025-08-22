@@ -94,7 +94,6 @@ bool Compiler::fgHaveSufficientProfileWeights()
             // Assuming we don't synthesize value and class profile data (which we don't currently).
             return fgPgoSingleEdge;
 
-
         case ICorJitInfo::PgoSource::Static:
         {
             // We sometimes call this very early, eg evaluating the prejit root.
@@ -140,10 +139,12 @@ bool Compiler::fgHaveTrustedProfileWeights()
         case ICorJitInfo::PgoSource::Blend:
         case ICorJitInfo::PgoSource::Text:
             return true;
+
         case ICorJitInfo::PgoSource::Synthesis:
             // Single-edge methods with synthetic profile are trustful.
             // Assuming we don't synthesize value and class profile data (which we don't currently).
             return fgPgoSingleEdge;
+
         default:
             return false;
     }

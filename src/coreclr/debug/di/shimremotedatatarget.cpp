@@ -67,7 +67,6 @@ public:
 private:
     DbgTransportTarget  * m_pProxy;
     DbgTransportSession * m_pTransport;
-
 #ifdef FEATURE_REMOTE_PROC_MEM
     DWORD m_memoryHandle;                   // PAL_ReadProcessMemory handle or UINT32_MAX if fallback
 #endif
@@ -269,6 +268,7 @@ ShimRemoteDataTarget::ReadVirtual(
 
     size_t read = cbRequestSize;
     HRESULT hr = S_OK;
+
 #ifdef FEATURE_REMOTE_PROC_MEM
     if (m_memoryHandle != UINT32_MAX)
     {
