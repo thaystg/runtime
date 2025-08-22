@@ -13,6 +13,17 @@
 
 // Prototype for creation functions
 
+
+#ifdef HOST_ANDROID
+#define ThrowHR(hr) { DacSetLastErrorInt(hr); ThrowHR(hr); }
+#endif
+
+#ifdef HOST_ANDROID
+STDAPI DLLEXPORT DacSetLastErrorInt(int v);
+
+STDAPI DLLEXPORT DacGetLastErrorInt(void);
+#endif
+
 STDAPI
 DLLEXPORT
 CLRDataCreateInstance(REFIID iid,

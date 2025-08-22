@@ -23,6 +23,37 @@
 
 #define MAX_EXCEPTION_MSG   200
 
+
+#if defined(HOST_ANDROID)
+#include <dlfcn.h>
+using DacGetFn = HRESULT(*)(void);
+using DacSetFn = HRESULT(*)(HRESULT);
+
+static DacGetFn s_dacGet = nullptr;
+static DacSetFn s_dacSet = nullptr;
+
+static void InitDacFns()
+{
+    if (s_dacGet == nullptr || s_dacSet == nullptr)
+    {
+        s_dacGet = (DacGetFn)dlsym(RTLD_DEFAULT, "DacGetLastErrorInt");
+        s_dacSet = (DacSetFn)dlsym(RTLD_DEFAULT, "DacSetLastErrorInt");
+    }
+}
+
+HRESULT CallDacGetLastErrorInt()
+{
+    InitDacFns();
+    return s_dacGet ? s_dacGet() : S_OK;
+}
+
+void CallDacSetLastErrorInt(HRESULT v)
+{
+    InitDacFns();
+    if (s_dacSet) s_dacSet(v);
+}
+#endif // HOST_ANDROID
+
 // Set if fatal error (like stack overflow or out of memory) occurred in this process.
 GVAL_IMPL_INIT(HRESULT, g_hrFatalError, S_OK);
 
@@ -886,7 +917,15 @@ HRESULT DelegatingException::GetHR()
 
     // If there is a delegate exception, defer to it.  Otherwise,
     //  default to E_FAIL.
-    return pDelegate ? pDelegate->GetHR() : E_FAIL;
+    if (pDelegate != NULL)
+        return pDelegate->GetHR();
+#ifdef HOST_ANDROID
+    //try to get dac error
+    HRESULT dac_error = CallDacGetLastErrorInt();
+    if (dac_error != S_OK)
+        return dac_error;
+#endif        
+    return E_FAIL;
 
 } // HRESULT DelegatingException::GetHR()
 

@@ -4,6 +4,9 @@
 DacDbiInterfaceInstance
 CLRDataCreateInstance
 
+DacGetLastErrorInt
+DacSetLastErrorInt
+
 ; PAL module registration
 DllMain
 PAL_RegisterModule
@@ -132,5 +135,4 @@ nativeStringResourceTable_mscorrc
 #WaitForSingleObjectEx
 #WideCharToMultiByte
 #WriteFile
-
 #GUID_NULL

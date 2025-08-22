@@ -27,6 +27,7 @@
 #endif
 
 
+
 //===========================================================================================
 // These abstractions hide the difference between legacy desktop CLR's (that don't support
 // side-by-side-inproc and rely on a fixed SEH code to identify managed exceptions) and

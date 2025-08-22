@@ -30,6 +30,31 @@
 
 #include "request_common.h"
 
+#ifdef HOST_ANDROID
+#include <android/log.h>
+HRESULT g_dac_last_error = S_OK;
+
+STDAPI
+DLLEXPORT DacSetLastErrorInt(HRESULT v) 
+{
+    __android_log_write (ANDROID_LOG_ERROR, "thays", "set last error\n");
+    if (v == CORDBG_E_CLASS_NOT_LOADED)
+        __android_log_write (ANDROID_LOG_ERROR, "thays", "set last error - CORDBG_E_CLASS_NOT_LOADED\n");
+    g_dac_last_error = v; 
+    return S_OK;
+}
+
+STDAPI
+DLLEXPORT DacGetLastErrorInt(void) 
+{ 
+    HRESULT temp = g_dac_last_error; g_dac_last_error = S_OK; 
+    __android_log_write (ANDROID_LOG_ERROR, "thays", "get last error\n");
+    if (temp == CORDBG_E_CLASS_NOT_LOADED)
+        __android_log_write (ANDROID_LOG_ERROR, "thays", "get last error - CORDBG_E_CLASS_NOT_LOADED\n");
+    return temp;
+}
+#endif
+
 //-----------------------------------------------------------------------------
 // Have standard enter and leave macros at the DacDbi boundary to enforce
 // standard behavior.
