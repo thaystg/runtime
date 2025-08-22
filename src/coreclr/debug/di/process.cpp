@@ -802,6 +802,7 @@ HRESULT CordbProcess::OpenVirtualProcess(
     CordbProcess ** ppProcess)
 {
     _ASSERTE(pDataTarget != NULL);
+
     // In DEBUG builds, verify that we do actually have an ICorDebugDataTarget (i.e. that
     // someone hasn't messed up the COM interop marshalling, etc.).
 #ifdef _DEBUG
@@ -826,10 +827,12 @@ HRESULT CordbProcess::OpenVirtualProcess(
     HRESULT hr = S_OK;
     RSUnsafeExternalSmartPtr<CordbProcess> pProcess;
     pProcess.Assign(new (nothrow) CordbProcess(clrInstanceId, pDataTarget, hDacModule, pCordb, pProcessDescriptor, pShim));
+
     if (pProcess == NULL)
     {
         return E_OUTOFMEMORY;
     }
+
     ICorDebugProcess * pThis = pProcess;
     (void)pThis; //prevent "unused variable" error from GCC
 
@@ -842,7 +845,9 @@ HRESULT CordbProcess::OpenVirtualProcess(
         _ASSERTE(pShim->GetProcess() == pThis);
         _ASSERTE(pShim->GetWin32EventThread() != NULL);
     }
+
     hr = pProcess->Init();
+
     if (SUCCEEDED(hr))
     {
         *ppProcess = pProcess;
@@ -861,6 +866,8 @@ HRESULT CordbProcess::OpenVirtualProcess(
 
         // In failure case, pProcess's dtor will do the final release.
     }
+
+
     return hr;
 }
 
@@ -1162,7 +1169,6 @@ HRESULT ShimProcess::CreateProcess(
 //     dwProcessID - OS process ID to attach to
 //     fWin32Attach - are we interop debugging?
 //-----------------------------------------------------------------------------
-
 HRESULT ShimProcess::DebugActiveProcess(
     Cordb * pCordb,
     ICorDebugRemoteTarget * pRemoteTarget,
@@ -1182,14 +1188,17 @@ HRESULT ShimProcess::DebugActiveProcess(
 
         // Indicate that this process was attached to, asopposed to being started under the debugger.
         pShim->m_attached = true;
+
         hr = pShim->CreateAndStartWin32ET(pCordb);
         IfFailThrow(hr);
+
         // If this succeeds, new CordbProcess will add a ref to the ShimProcess
         hr = pShim->GetWin32EventThread()->SendDebugActiveProcessEvent(pShim->GetMachineInfo(),
                                                                        pProcessDescriptor,
                                                                        fWin32Attach == TRUE,
                                                                        NULL);
         IfFailThrow(hr);
+
         _ASSERTE(SUCCEEDED(hr));
 
 #if !defined(FEATURE_DBGIPC_TRANSPORT_DI)
@@ -1238,6 +1247,7 @@ HRESULT ShimProcess::DebugActiveProcess(
     }
 
     // Always release our ref to ShimProcess. If the Process was created, then it takes a reference.
+
     return hr;
 }
 
@@ -1715,6 +1725,7 @@ HRESULT CordbProcess::Init()
 
         m_pMetaDataLocator.Clear();
         hr = m_pDACDataTarget->QueryInterface(IID_ICorDebugMetaDataLocator, reinterpret_cast<void **>(&m_pMetaDataLocator));
+
         // Get the metadata dispenser.
         hr = CreateMetaDataDispenser(IID_IMetaDataDispenserEx, (void **)&m_pMetaDispenser);
 
@@ -1722,6 +1733,7 @@ HRESULT CordbProcess::Init()
         // debugger doesn't yet handle.
         SIMPLIFYING_ASSUMPTION_SUCCEEDED(hr);
         IfFailThrow(hr);
+
         _ASSERTE(m_pMetaDispenser != NULL);
 
         // In order to allow users to call the metadata reader from multiple threads we need to set
@@ -1731,6 +1743,7 @@ HRESULT CordbProcess::Init()
         V_VT(&optionValue) = VT_UI4;
         V_UI4(&optionValue) = MDThreadSafetyOn;
         m_pMetaDispenser->SetOption(MetaDataThreadSafetyOptions, &optionValue);
+
         //
         // Setup internal events.
         // @dbgtodo shim: these events should eventually be in the shim.
@@ -1796,6 +1809,7 @@ HRESULT CordbProcess::Init()
 
         {
             BOOL fReady = TryInitializeDac();
+
             if (fReady)
             {
                 // Invoke DAC primitive.
@@ -1852,6 +1866,7 @@ HRESULT CordbProcess::Init()
     {
         CleanupHalfBakedLeftSide();
     }
+
     return hr;
 }
 
@@ -14070,6 +14085,7 @@ void CordbWin32EventThread::CreateProcess()
                                       m_actionData.createData.lpCurrentDirectory,
                                       m_actionData.createData.lpStartupInfo,
                                       m_actionData.createData.lpProcessInformation);
+
     if (SUCCEEDED(hr))
     {
         // Process ID is filled in after process is successfully created.
@@ -14101,6 +14117,7 @@ void CordbWin32EventThread::CreateProcess()
                 {
                     pProcess->EnableInteropDebugging();
                 }
+
                 m_cordb->AddProcess(pProcess); // will take ref if it succeeds
             }
             EX_CATCH_HRESULT(hr);
@@ -14159,18 +14176,12 @@ HRESULT CordbWin32EventThread::SendDebugActiveProcessEvent(
         DWORD ret = WaitForSingleObject(m_actionTakenEvent, INFINITE);
 
         if (ret == WAIT_OBJECT_0)
-        {
             hr = m_actionResult;
-        }
         else
-        {
             hr = HRESULT_FROM_GetLastError();
-        }
     }
     else
-        {
-            hr = HRESULT_FROM_GetLastError();
-        }
+        hr = HRESULT_FROM_GetLastError();
 
     UnlockSendToWin32EventThreadMutex();
 
@@ -14291,6 +14302,8 @@ void CordbWin32EventThread::AttachProcess()
         }
         fNativeAttachSucceeded = true;
     }
+
+
     hr = m_pShim->InitializeDataTarget(&processDescriptor);
     if (FAILED(hr))
     {

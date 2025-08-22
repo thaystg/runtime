@@ -166,6 +166,7 @@ LiveProcDataTarget::ReadVirtual(
         buffer += read;
         request -= (ULONG32)read;
     }
+
     *done = totalDone;
     return status;
 }

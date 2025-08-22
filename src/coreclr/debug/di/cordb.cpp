@@ -118,7 +118,6 @@ STDAPI DLLEXPORT CoreCLRCreateCordbObject3(int iDebuggerVersion, DWORD pid, LPCW
     {
         return E_INVALIDARG;
     }
-
     if ((iDebuggerVersion < CorDebugVersion_2_0) ||
         (iDebuggerVersion > CorDebugLatestVersion))
     {
@@ -130,6 +129,7 @@ STDAPI DLLEXPORT CoreCLRCreateCordbObject3(int iDebuggerVersion, DWORD pid, LPCW
     //
     RSExtSmartPtr<ICorDebug> pCordb;
     Cordb::CreateObject((CorDebugInterfaceVersion)iDebuggerVersion, pid, lpApplicationGroupId, dacModulePath, IID_ICorDebug, (void **) &pCordb);
+
     //
     // Associate it with the target instance
     //
@@ -199,6 +199,7 @@ BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
     // Save off the instance handle for later use.
     switch (dwReason)
     {
+
         case DLL_PROCESS_ATTACH:
         {
 #ifdef HOST_UNIX
@@ -233,14 +234,10 @@ BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 #if defined(FEATURE_DBGIPC_TRANSPORT_DI)
             g_pDbgTransportTarget = new (nothrow) DbgTransportTarget();
             if (g_pDbgTransportTarget == NULL)
-            {
                 return FALSE;
-            }
 
             if (FAILED(g_pDbgTransportTarget->Init()))
-            {
                 return FALSE;
-            }
 #endif // FEATURE_DBGIPC_TRANSPORT_DI
         }
         break;

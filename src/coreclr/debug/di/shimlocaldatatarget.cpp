@@ -295,6 +295,7 @@ ShimLocalDataTarget::GetPlatform(
 #endif
     return S_OK;
 }
+
 // impl of interface method ICorDebugDataTarget::ReadVirtual
 HRESULT STDMETHODCALLTYPE
 ShimLocalDataTarget::ReadVirtual(
@@ -322,6 +323,7 @@ ShimLocalDataTarget::ReadVirtual(
         // a page boundary.
         readSize = GetOsPageSize() - (ULONG32)(address & (GetOsPageSize() - 1));
         readSize = min(cbRequestSize, readSize);
+
         if (!ReadProcessMemory(m_hProcess, (PVOID)(ULONG_PTR)address,
                                pBuffer, readSize, &read))
         {

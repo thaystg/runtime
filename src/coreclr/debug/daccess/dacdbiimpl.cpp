@@ -31,15 +31,11 @@
 #include "request_common.h"
 
 #ifdef HOST_ANDROID
-#include <android/log.h>
 HRESULT g_dac_last_error = S_OK;
 
 STDAPI
 DLLEXPORT DacSetLastErrorInt(HRESULT v) 
 {
-    __android_log_write (ANDROID_LOG_ERROR, "thays", "set last error\n");
-    if (v == CORDBG_E_CLASS_NOT_LOADED)
-        __android_log_write (ANDROID_LOG_ERROR, "thays", "set last error - CORDBG_E_CLASS_NOT_LOADED\n");
     g_dac_last_error = v; 
     return S_OK;
 }
@@ -48,9 +44,6 @@ STDAPI
 DLLEXPORT DacGetLastErrorInt(void) 
 { 
     HRESULT temp = g_dac_last_error; g_dac_last_error = S_OK; 
-    __android_log_write (ANDROID_LOG_ERROR, "thays", "get last error\n");
-    if (temp == CORDBG_E_CLASS_NOT_LOADED)
-        __android_log_write (ANDROID_LOG_ERROR, "thays", "get last error - CORDBG_E_CLASS_NOT_LOADED\n");
     return temp;
 }
 #endif
@@ -274,18 +267,6 @@ DacDbiInterfaceInstance(
     SUPPORTS_DAC_HOST_ONLY;
 
     // Since this is public, verify it.
-    if (ppInterface == NULL)
-    {
-        return E_INVALIDARG;
-    }
-    if (pTarget == NULL)
-    {
-        return E_INVALIDARG;
-    }
-    if (baseAddress == 0)
-    {
-        return E_INVALIDARG;
-    }
     if ((ppInterface == NULL) || (pTarget == NULL) || (baseAddress == 0))
     {
         return E_INVALIDARG;
@@ -301,7 +282,7 @@ DacDbiInterfaceInstance(
     {
         return E_OUTOFMEMORY;
     }
- 
+
     HRESULT hrStatus = pDac->Initialize();
 
     if (SUCCEEDED(hrStatus))

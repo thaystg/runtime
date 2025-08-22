@@ -1820,11 +1820,13 @@ HRESULT Cordb::DebugActiveProcessCommon(ICorDebugRemoteTarget * pRemoteTarget,
     {
         return hr;
     }
+
     hr = ShimProcess::DebugActiveProcess(
         this,
         pRemoteTarget,
         &m_pd,
         fWin32Attach == TRUE);
+
     // If that worked, then there will be a process object...
     if (SUCCEEDED(hr))
     {
@@ -1866,6 +1868,7 @@ HRESULT Cordb::DebugActiveProcessCommon(ICorDebugRemoteTarget * pRemoteTarget,
 
         *ppProcess = (ICorDebugProcess*) pProcess;
     }
+
     return hr;
 }
 

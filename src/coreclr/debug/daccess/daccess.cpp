@@ -2906,6 +2906,7 @@ private:
         StreamsHeader hdr;
         DacReadAll(dac_cast<TADDR>(m_MiniMetaDataBuffAddress),
                    &hdr, sizeof(hdr), true);
+
         // when the DAC looks at a triage dump or minidump generated using
         // a "minimetadata" enabled DAC, buff will point to a serialized
         // representation of a methoddesc->method name hashmap.
@@ -2935,6 +2936,7 @@ private:
                    buff, m_MiniMetaDataBuffSizeMax, true);
 
         m_rawBuffer = buff;
+
         return hr;
     }
 
@@ -5504,6 +5506,7 @@ ClrDataAccess::Initialize(void)
 
     // Do some validation
     IfFailRet(VerifyDlls());
+
     // To support EH SxS, utilcode requires the base address of the runtime as part of its initialization
     // so that functions like "WasThrownByUs" work correctly since they use the CLR base address to check
     // if an exception was raised by a given instance of the runtime or not.
