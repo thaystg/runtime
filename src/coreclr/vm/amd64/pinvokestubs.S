@@ -19,7 +19,7 @@ LEAF_ENTRY GenericPInvokeCalliHelper, _TEXT
         //
         // check for existing IL stub
         //
-        mov             rax, [PINVOKE_CALLI_SIGTOKEN_REGISTER + OFFSETOF__VASigCookie__pNDirectILStub]
+        mov             rax, [PINVOKE_CALLI_SIGTOKEN_REGISTER + OFFSETOF__VASigCookie__pPInvokeILStub]
         test            rax, rax
         jz              C_FUNC(GenericPInvokeCalliGenILStub)
 
@@ -81,7 +81,7 @@ LEAF_ENTRY VarargPInvokeStubHelper, _TEXT
         //
         // check for existing IL stub
         //
-        mov             rax, [PINVOKE_CALLI_SIGTOKEN_REGISTER + OFFSETOF__VASigCookie__pNDirectILStub]
+        mov             rax, [PINVOKE_CALLI_SIGTOKEN_REGISTER + OFFSETOF__VASigCookie__pPInvokeILStub]
         test            rax, rax
         jz              C_FUNC(VarargPInvokeGenILStub)
 
@@ -109,11 +109,10 @@ NESTED_ENTRY VarargPInvokeGenILStub, _TEXT, NoHandler
         mov             r13, PINVOKE_CALLI_SIGTOKEN_REGISTER
 
         //
-        // VarargPInvokeStubWorker(TransitionBlock * pTransitionBlock, VASigCookie *pVASigCookie, MethodDesc *pMD)
+        // VarargPInvokeStubWorker(TransitionBlock* pTransitionBlock, VASigCookie* pVASigCookie)
         //
         lea             rdi, [rsp + __PWTB_TransitionBlock]     // pTransitionBlock*
         mov             rsi, PINVOKE_CALLI_SIGTOKEN_REGISTER    // pVASigCookie
-        mov             rdx, METHODDESC_REGISTER                // pMD
         call            C_FUNC(VarargPInvokeStubWorker)
 
         //
