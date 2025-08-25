@@ -1070,6 +1070,17 @@ void DECLSPEC_NORETURN ThrowLastError()
     ThrowWin32(GetLastError());
 }
 
+#ifdef HOST_ANDROID
+void ClearLastDacError()
+{
+    CallDacSetLastErrorInt(S_OK);
+}
+#else
+void ClearLastDacError()
+{
+    
+}
+#endif
 void DECLSPEC_NORETURN ThrowOutOfMemory()
 {
     CONTRACTL

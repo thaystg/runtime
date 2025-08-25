@@ -272,9 +272,28 @@ ShimRemoteDataTarget::ReadVirtual(
 #ifdef FEATURE_REMOTE_PROC_MEM
     if (m_memoryHandle != UINT32_MAX)
     {
-        if (!PAL_ReadProcessMemory(m_memoryHandle, (ULONG64)address, pBuffer, cbRequestSize, &read))
+        if ((DWORD)getpid() == m_processId)
         {
-            hr = E_FAIL;
+            
+            BYTE *src = reinterpret_cast<BYTE*>(CORDB_ADDRESS_TO_PTR(address));
+            // Validate memory before deref to avoid SIGSEGV
+            if (PAL_ProbeMemory(src, cbRequestSize, FALSE))
+            {
+                memcpy(pBuffer, src, cbRequestSize);
+                read = cbRequestSize;
+            }
+            else
+            {
+                hr = E_FAIL;
+                read = 0;
+            }
+        }
+        else
+        {
+            if (!PAL_ReadProcessMemory(m_memoryHandle, (ULONG64)address, pBuffer, cbRequestSize, &read))
+            {
+                hr = E_FAIL;
+            }
         }
     }
     else

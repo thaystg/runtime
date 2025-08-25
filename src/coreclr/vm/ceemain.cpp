@@ -1792,38 +1792,38 @@ void EnsureTlsDestructionMonitor()
 }
 
 #endif
-
+#ifdef HOST_ANDROID
+static bool GetProperty(const char* key, char* out) {
+    int n = __system_property_get(key, out); // returns length or 0 if unset
+    if (n > 0) 
+        return true;
+    return false;
+}
+#endif
 #ifdef DEBUGGING_SUPPORTED
 #ifdef HOST_UNIX
 #include <dlfcn.h>
 #endif // HOST_UNIX
-typedef BOOL(__cdecl* PINITREMOTEDEBUGGER)(const char* ip, int port, bool isServer);
+typedef BOOL(__cdecl* PINITREMOTEDEBUGGER)(const char* libcoreclrname);
 PINITREMOTEDEBUGGER g_pfnInitRemoteDebugger = NULL;
 static void InitializeRemoteDebugger(void)
 {
-#ifdef HOST_ANDROID
-    void* hm = dlopen("libremotemscordbitarget.so"/*getenv("DOTNET_DEBUG_LIBRARY")*/, RTLD_NOW);
+#ifdef HOST_ANDROID    
+    char remotelibrary[120];
+    if (!GetProperty("debug.coreclr.library", remotelibrary)) 
+        return;
+    void* hm = dlopen(remotelibrary, RTLD_NOW);
 #else 
-    void* hm = dlopen("/home/thtaglia/diag/android_coreclr/grpc/dotnet-diagnostics-internal-components/artifacts/bin/linux.x64.Debug/libremotemscordbitarget.so"/*getenv("DOTNET_DEBUG_LIBRARY")*/, RTLD_NOW);
+    void* hm = dlopen(getenv("debug_coreclr_library"), RTLD_NOW);
 #endif
 #ifdef HOST_UNIX
     g_pfnInitRemoteDebugger = (PINITREMOTEDEBUGGER)dlsym(hm, "InitializeRemoteDebugger");
-#else
-    HMODULE hm = LoadLibraryA(getenv("DOTNET_DEBUG_LIBRARY"));
-    g_pfnInitRemoteDebugger = (PINITREMOTEDEBUGGER)GetProcAddress(hm, "InitializeRemoteDebugger");
 #endif    
     if (g_pfnInitRemoteDebugger == NULL)
     {
         return;
     }
-#ifdef HOST_ANDROID        
-    const char* ip = "10.0.2.2";
-#else    
-    const char* ip = "192.168.15.23";
-#endif
-    int port = 1234;
-    bool isServer = false;
-    g_pfnInitRemoteDebugger(ip, port, isServer);
+    g_pfnInitRemoteDebugger("libcoreclr.so");
 }
 //
 // InitializeDebugger initialized the Runtime-side CLR Debugging Services

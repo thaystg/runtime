@@ -808,6 +808,7 @@ Exception *ExThrowWithInnerHelper(Exception *inner);
         {                                                                               \
             PAL_CPP_TRY                                                                 \
             {                                                                           \
+                ClearLastDacError();                                                    \
                 CAutoTryCleanup<STATETYPE> __autoCleanupTry(__state);                   \
                 {                                                                       \
                     EX_TRY_HOLDER                                                       \
@@ -1288,6 +1289,7 @@ void DECLSPEC_NORETURN ThrowWin32(DWORD err);
 void DECLSPEC_NORETURN ThrowLastError();
 void DECLSPEC_NORETURN ThrowOutOfMemory();
 void DECLSPEC_NORETURN ThrowStackOverflow();
+void ClearLastDacError();
 
 #undef IfFailThrow
 inline HRESULT IfFailThrow(HRESULT hr)
