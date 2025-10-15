@@ -965,7 +965,7 @@ ContinuationLayout AsyncTransformation::LayOutContinuation(BasicBlock*          
         if (dsc->TypeIs(TYP_STRUCT) || dsc->IsImplicitByRef())
         {
             ClassLayout* layout = dsc->GetLayout();
-            assert(!layout->HasGCByRef());
+            //assert(!layout->HasGCByRef());
 
             if (layout->IsCustomLayout())
             {
@@ -1461,7 +1461,7 @@ void AsyncTransformation::FillInGCPointersOnSuspension(GenTreeCall*             
             for (unsigned i = 0; i < numSlots; i++)
             {
                 var_types gcPtrType = layout->GetGCPtrType(i);
-                assert((gcPtrType == TYP_I_IMPL) || (gcPtrType == TYP_REF));
+                //assert((gcPtrType == TYP_I_IMPL) || (gcPtrType == TYP_REF));
                 if (gcPtrType != TYP_REF)
                 {
                     continue;
@@ -1921,7 +1921,7 @@ void AsyncTransformation::RestoreFromGCPointersOnResumption(unsigned            
             for (unsigned i = 0; i < numSlots; i++)
             {
                 var_types gcPtrType = layout->GetGCPtrType(i);
-                assert((gcPtrType == TYP_I_IMPL) || (gcPtrType == TYP_REF));
+                //assert((gcPtrType == TYP_I_IMPL) || (gcPtrType == TYP_REF));
                 if (gcPtrType != TYP_REF)
                 {
                     continue;

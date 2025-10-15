@@ -2803,7 +2803,7 @@ TypeHandle ClassLoader::PublishType(const TypeKey *pTypeKey, TypeHandle typeHnd)
             CONSISTENCY_CHECK(pMD != NULL && pMD->GetMethodTable() == pMT);
             // For {Task-returning, Async} variants of the same definition
             // we associate the methoddef with the Task-returning variant since it
-            // matches the methadata signature.
+            // matches the metadata signature.
             if (!pMD->IsUnboxingStub() && !pMD->IsAsyncVariantMethod())
             {
                 pModule->EnsuredStoreMethodDef(pMD->GetMemberDef(), pMD);
