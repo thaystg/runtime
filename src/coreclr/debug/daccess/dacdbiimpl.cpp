@@ -754,6 +754,16 @@ HRESULT DacDbiInterfaceImpl::SetCompilerFlags(VMPTR_DomainAssembly vmDomainAssem
 } // DacDbiInterfaceImpl::SetCompilerFlags
 
 
+int DacDbiInterfaceImpl::GetIsAsyncV2(VMPTR_MethodDesc  vmMethodDesc)
+{
+    DD_ENTER_MAY_THROW;
+
+    _ASSERTE(!vmMethodDesc.IsNull());
+
+    MethodDesc * pMD = vmMethodDesc.GetDacPtr();
+    return pMD->IsAsyncMethod() ? 1 : 0;
+}
+
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // sequence points and var info
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -865,7 +875,11 @@ void DacDbiInterfaceImpl::GetNativeVarData(MethodDesc *    pMethodDesc,
     request.InitFromStartingAddr(pMethodDesc, CORDB_ADDRESS_TO_TADDR(startAddr));
 
     ULONG32 entryCount;
-
+    if (pMethodDesc->IsAsyncThunkMethod())
+    {
+        pVarInfo->InitVarDataList(NULL, (int)0, (int)0);
+        return;        
+    }
     BOOL success = DebugInfoManager::GetBoundariesAndVars(request,
                                                 InfoStoreNew, NULL, // allocator
                                                 BoundsType::Instrumented,
@@ -919,6 +933,11 @@ void DacDbiInterfaceImpl::GetSequencePoints(MethodDesc *     pMethodDesc,
                                                       BoundsType::Uninstrumented,
                                                       &entryCount, &mapCopy,
                                                       NULL, NULL);
+    if (pMethodDesc->IsAsyncThunkMethod())
+    {
+        pSeqPoints->InitSequencePoints(0);
+        return;
+    }                                                      
     if (!success)
         ThrowHR(E_FAIL);
 

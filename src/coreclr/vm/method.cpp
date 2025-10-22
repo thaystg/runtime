@@ -466,7 +466,7 @@ void MethodDesc::GetSig(PCCOR_SIGNATURE *ppSig, DWORD *pcSig)
     if (IsAsyncVariantMethod())
     {
         Signature sig = GetAddrOfAsyncMethodData()->sig;
-        *ppSig = sig.GetRawSig();
+        *ppSig = (PCCOR_SIGNATURE)PTR_READ((TADDR)sig.GetRawSig(), sig.GetRawSigLen());
         *pcSig = sig.GetRawSigLen();
         return;
     }
