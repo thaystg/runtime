@@ -4546,7 +4546,7 @@ bool DebuggerController::DispatchNativeException(EXCEPTION_RECORD *pException,
         // This is what would disable the ss-flag when single-stepping over an AV.
         if (g_patchTableValid && (dwCode != EXCEPTION_SINGLE_STEP))
         {
-            LOG((LF_CORDB, LL_INFO1000, "DC::DNE non-single-step exception; check if any controller has ss turned on\n"));
+            LOG((LF_CORDB, LL_INFO1000, "DC::DNE non-single-step exception; check if any controller has ss turned on - %d\n", dwCode));
 
             ControllerLockHolder lockController;
             for (DebuggerController* p = g_controllers; p != NULL; p = p->m_next)
@@ -5870,6 +5870,13 @@ static bool IsTailCall(const BYTE * ip, ControllerStackInfo* info, TailCallFunct
 bool DebuggerStepper::TrapStep(ControllerStackInfo *info, bool in)
 {
     LOG((LF_CORDB,LL_INFO10000,"DS::TS: this:%p\n", this));
+    if (info->m_activeFrame.md != NULL)
+    {
+        LOG((LF_CORDB,LL_INFO10000,"OLHA THAYS - TrapStep :%p (%s::%s)\n",
+             info->m_activeFrame.md,
+             info->m_activeFrame.md->m_pszDebugClassName,
+             info->m_activeFrame.md->m_pszDebugMethodName));
+    }
     if (!info->m_activeFrame.managed)
     {
         //
@@ -7408,8 +7415,15 @@ TP_RESULT DebuggerStepper::TriggerPatch(DebuggerControllerPatch *patch,
     LOG((LF_CORDB,LL_INFO10000, "DS: m_fp:0x%p, activeFP:0x%p fpExc:0x%p\n",
         m_fp.GetSPValue(), info.m_activeFrame.fp.GetSPValue(), m_fpException.GetSPValue()));
 
-    if (IsInRange(offset, m_range, m_rangeCount, &info) ||
-        ShouldContinueStep( &info, offset))
+    bool isInRange = IsInRange(offset, m_range, m_rangeCount, &info);
+    bool shouldContinueStep = ShouldContinueStep(&info, offset);
+    LOG((LF_CORDB,LL_INFO10000, "Olha Thays Trigger Patch - %s - %s - %s - IsAsyncMethod = %d - IsTaskReturningMethod = %d - IsAsyncVariantMethod = %d - IsAsyncThunkMethod = %d\n",
+        info.m_activeFrame.md!=NULL?info.m_activeFrame.md->m_pszDebugMethodName:"Unknown", isInRange ? "InRange" : "NotInRange", shouldContinueStep ? "ShouldContinue" : "ShouldNotContinue",
+        info.m_activeFrame.md!=NULL?info.m_activeFrame.md->IsAsyncMethod():0,
+        info.m_activeFrame.md!=NULL?info.m_activeFrame.md->IsTaskReturningMethod():0,
+        info.m_activeFrame.md!=NULL?info.m_activeFrame.md->IsAsyncVariantMethod():0,
+        info.m_activeFrame.md!=NULL?info.m_activeFrame.md->IsAsyncThunkMethod():0));
+    if (isInRange || shouldContinueStep)
     {
         LOG((LF_CORDB, LL_INFO10000,
              "Intermediate step patch hit at 0x%x\n", offset));
@@ -7647,9 +7661,15 @@ bool DebuggerStepper::TriggerSingleStep(Thread *thread, const BYTE *ip)
     {
         return false;
     }
-
-    if (IsInRange(offset, m_range, m_rangeCount, &info) ||
-        ShouldContinueStep( &info, offset))
+    bool isInRange = IsInRange(offset, m_range, m_rangeCount, &info);
+    bool shouldContinueStep = ShouldContinueStep( &info, offset);
+    LOG((LF_CORDB,LL_INFO10000, "Olha Thays - %s - %s - %s - IsAsyncMethod=%d - IsTaskReturningMethod=%d - IsAsyncVariantMethod=%d - IsAsyncThunkMethod=%d\n",
+        fd->m_pszDebugMethodName, isInRange ? "InRange" : "NotInRange", shouldContinueStep ? "ShouldContinue" : "ShouldNotContinue",
+        fd->IsAsyncMethod(),
+        fd->IsTaskReturningMethod(),
+        fd->IsAsyncVariantMethod(),
+        fd->IsAsyncThunkMethod()));
+    if (isInRange || shouldContinueStep)
     {
         if (!TrapStep(&info, m_stepIn))
             TrapStepNext(&info);

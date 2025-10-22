@@ -1035,7 +1035,6 @@ BOOL PrecodeStubManager::DoTraceStub(PCODE stubStartAddress,
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        FORBID_FAULT;
     }
     CONTRACTL_END
 
@@ -1124,16 +1123,41 @@ BOOL PrecodeStubManager::DoTraceStub(PCODE stubStartAddress,
     // MethodDesc. If, however, this is an IL method, then we are at risk to have another thread backpatch the call
     // here, so we'd miss if we patched the prestub. Therefore, we go right to the IL method and patch IL offset 0
     // by using TRACE_UNJITTED_METHOD.
+#if !defined(DACCESS_COMPILE)
+    EX_TRY
+    {
+        LOG((LF_CORDB, LL_INFO10000, "OLHA THAYS DoTraceStub - %s - IsAsyncMethod = %d - IsTaskReturningMethod = %d - IsAsyncVariantMethod = %d - IsAsyncThunkMethod = %d\n", pMD->m_pszDebugMethodName,
+            pMD->IsAsyncMethod(), pMD->IsTaskReturningMethod(), pMD->IsAsyncVariantMethod(), pMD->IsAsyncThunkMethod()));
+        if (pMD->IsAsyncThunkMethod())
+        {
+            pMD = pMD->GetAsyncOtherVariantNoCreate();
+            if (pMD)
+            {
+                LOG((LF_CORDB, LL_INFO10000, "OLHA THAYS GetAsyncOtherVariantNoCreate - %s - IsAsyncMethod = %d - IsTaskReturningMethod = %d - IsAsyncVariantMethod = %d - IsAsyncThunkMethod = %d\n", pMD->m_pszDebugMethodName,
+                    pMD->IsAsyncMethod(), pMD->IsTaskReturningMethod(), pMD->IsAsyncVariantMethod(), pMD->IsAsyncThunkMethod()));
+                trace->InitForUnjittedMethod(pMD);
+                return TRUE;
+            }
+        }
+    }
+    EX_CATCH
+    {
+        LOG((LF_CORDB, LL_INFO10000, "OLHA THAYS DoTraceStub - EX_CATCH\n"));
+    }
+    EX_END_CATCH
+#endif    
     if (!pMD->IsIL() && !pMD->IsILStub())
     {
+        LOG((LF_CORDB, LL_INFO10000, "OLHA THAYS - !pMD->IsIL() && !pMD->IsILStub()\n"));
         trace->InitForStub(GetPreStubEntryPoint());
     }
     else
     {
+        LOG((LF_CORDB, LL_INFO10000, "InitForUnjittedMethod\n"));
         trace->InitForUnjittedMethod(pMD);
     }
 
-    LOG_TRACE_DESTINATION(trace, stubStartAddress, "PrecodeStubManager::DoTraceStub - prestub");
+    LOG_TRACE_DESTINATION(trace, stubStartAddress, "OLHA THAYS - PrecodeStubManager::DoTraceStub - prestub");
     return TRUE;
 }
 

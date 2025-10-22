@@ -4779,8 +4779,12 @@ HRESULT Debugger::MapAndBindFunctionPatches(DebuggerJitInfo *djiNew,
     
     if (fd->IsAsyncThunkMethod())
     {
-        LOG((LF_CORDB,LL_INFO10000,"D::MABFP: Do not bind the breakpoint to the async thunk method: %x\n",
-            md));
+        LOG((LF_CORDB,LL_INFO10000,"D::MABFP: Do not bind the breakpoint to the async thunk method: %x - IsAsyncThunkMethod=%d - IsAsyncMethod=%d - IsTaskReturningMethod=%d - IsAsyncVariantMethod=%d\n",
+            md,
+            fd->IsAsyncThunkMethod(),
+            fd->IsAsyncMethod(),
+            fd->IsTaskReturningMethod(),
+            fd->IsAsyncVariantMethod()));
         return S_OK;
     }
 
@@ -10401,7 +10405,8 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
             }
 
             LOG((LF_CORDB,LL_INFO10000,"\tBP Add: BPTOK:"
-                "0x%x, tok=0x%08x, offset=0x%x, isIL=%d dm=0x%x m=0x%x\n",
+                "MD=0x%x, BP=0x%x, tok=0x%08x, offset=0x%x, isIL=%d dm=0x%x m=0x%x\n",
+                 pMethodDesc,
                  pDebuggerBP,
                  pEvent->BreakpointData.funcMetadataToken,
                  pEvent->BreakpointData.offset,

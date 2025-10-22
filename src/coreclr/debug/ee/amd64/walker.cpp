@@ -64,6 +64,10 @@ void NativeWalker::Decode()
         // Lock
         case 0xf0:
 
+        // VEX prefixes
+        case 0xc4:
+        case 0xc5:
+
         // String REP prefixes
         case 0xf2: // REPNE/REPNZ
         case 0xf3:
