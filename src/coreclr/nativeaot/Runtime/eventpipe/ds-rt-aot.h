@@ -12,6 +12,7 @@
 #include "ep-rt-aot.h"
 #include <eventpipe/ds-process-protocol.h>
 #include <eventpipe/ds-profiler-protocol.h>
+#include <eventpipe/ds-debugger-protocol.h>
 #include <eventpipe/ds-dump-protocol.h>
 
 #include <RhConfig.h>
@@ -221,6 +222,20 @@ ds_rt_profiler_startup (DiagnosticsStartupProfilerCommandPayload *payload)
     return hr;
 }
 #endif // PROFILING_SUPPORTED
+
+static
+uint32_t
+ds_rt_debugger_load_inproc_debugger (DiagnosticsLoadInprocDebuggerCommandPayload *payload, DiagnosticsIpcStream *stream)
+{
+    return DS_IPC_E_NOTSUPPORTED;
+}
+
+static
+uint32_t
+ds_rt_debugger_enable_debugger (void)
+{
+    return DS_IPC_E_NOTSUPPORTED;
+}
 
 static
 uint32_t

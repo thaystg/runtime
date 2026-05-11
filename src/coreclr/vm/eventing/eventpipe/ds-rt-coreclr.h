@@ -14,6 +14,7 @@
 #include <minipal/log.h>
 #include <eventpipe/ds-process-protocol.h>
 #include <eventpipe/ds-profiler-protocol.h>
+#include <eventpipe/ds-debugger-protocol.h>
 #include <eventpipe/ds-dump-protocol.h>
 #ifdef FEATURE_PERFMAP
 #include "perfmap.h"
@@ -95,7 +96,8 @@ ds_rt_config_value_get_ports (void)
 	STATIC_CONTRACT_NOTHROW;
 
 	CLRConfigStringHolder value(CLRConfig::GetConfigValue (CLRConfig::EXTERNAL_DOTNET_DiagnosticPorts));
-	return ep_rt_utf16_to_utf8_string (reinterpret_cast<ep_char16_t *>(static_cast<LPWSTR>(value)));
+	ep_char8_t *ports = ep_rt_utf16_to_utf8_string (reinterpret_cast<ep_char16_t *>(static_cast<LPWSTR>(value)));
+	return ports;
 }
 
 static
@@ -221,6 +223,55 @@ ds_rt_profiler_startup (DiagnosticsStartupProfilerCommandPayload *payload)
 	return hr;
 }
 #endif // PROFILING_SUPPORTED
+
+static
+uint32_t
+ds_rt_debugger_load_inproc_debugger (DiagnosticsLoadInprocDebuggerCommandPayload *payload, DiagnosticsIpcStream *stream)
+{
+	STATIC_CONTRACT_NOTHROW;
+
+	if (!payload)
+		return DS_IPC_E_BAD_ENCODING;
+
+	const ep_char16_t *library_name = ds_load_inproc_debugger_command_payload_get_library_name (payload);
+	if (!library_name)
+		return DS_IPC_E_BAD_ENCODING;
+
+	HRESULT hr = S_OK;
+	NATIVE_LIBRARY_HANDLE hModule = PAL_LoadLibraryDirect (reinterpret_cast<LPCWSTR>(library_name));
+	if (hModule == NULL)
+		return E_FAIL;
+
+	const ep_char16_t *entry_point_utf16 = ds_load_inproc_debugger_command_payload_get_entry_point_name (payload);
+	if (entry_point_utf16 != NULL)
+	{
+		char entry_point_narrow[256] = {0};
+		const ep_char16_t *p = entry_point_utf16;
+		int i = 0;
+		while (*p && i < 255) { entry_point_narrow[i++] = (char)(*p & 0xFF); p++; }
+
+		typedef HRESULT (STDMETHODCALLTYPE *InitFunc)(int dsSocketFd);
+		InitFunc initFunc = (InitFunc)PAL_GetProcAddressDirect (hModule, entry_point_narrow);
+		if (initFunc != NULL)
+		{
+			int32_t socketFd = ds_ipc_stream_detach_handle_int32_t (stream);
+			hr = initFunc (socketFd);
+		}
+	}
+
+	return hr;
+}
+
+static
+uint32_t
+ds_rt_debugger_enable_debugger (void)
+{
+	STATIC_CONTRACT_NOTHROW;
+
+	// Implemented in debugger.cpp where g_pDebugger is accessible.
+	extern HRESULT ds_rt_coreclr_enable_debugger ();
+	return ds_rt_coreclr_enable_debugger ();
+}
 
 static
 uint32_t

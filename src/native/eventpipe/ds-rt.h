@@ -78,6 +78,18 @@ uint32_t
 ds_rt_profiler_startup (DiagnosticsStartupProfilerCommandPayload *payload);
 
 /*
+* DiagnosticsDebugger.
+*/
+
+static
+uint32_t
+ds_rt_debugger_load_inproc_debugger (DiagnosticsLoadInprocDebuggerCommandPayload *payload, DiagnosticsIpcStream *stream);
+
+static
+uint32_t
+ds_rt_debugger_enable_debugger (void);
+
+/*
 * Environment variables
 */
 

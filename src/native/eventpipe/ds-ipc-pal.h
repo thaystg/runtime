@@ -99,6 +99,12 @@ ds_ipc_to_string (
 int32_t
 ds_ipc_stream_get_handle_int32_t (DiagnosticsIpcStream *ipc_stream);
 
+// Detach the underlying socket from the stream without closing it.
+// Returns the socket handle. After this call, ds_ipc_stream_free
+// will not close the socket.
+int32_t
+ds_ipc_stream_detach_handle_int32_t (DiagnosticsIpcStream *ipc_stream);
+
 IpcStream *
 ds_ipc_stream_get_stream_ref (DiagnosticsIpcStream *ipc_stream);
 

@@ -11,7 +11,9 @@
 #include "ds-eventpipe-protocol.h"
 #include "ds-dump-protocol.h"
 #include "ds-profiler-protocol.h"
+#include "ds-debugger-protocol.h"
 #include "ds-rt.h"
+#include <minipal/log.h>
 
 /*
  * Globals and volatile access functions.
@@ -142,7 +144,7 @@ static size_t server_loop_tick (void* data) {
 
 	DS_LOG_INFO_2 ("DiagnosticServer - received IPC message with command set (%d) and command id (%d)", ds_ipc_header_get_commandset (ds_ipc_message_get_header_ref (&message)), ds_ipc_header_get_commandid (ds_ipc_message_get_header_ref (&message)));
 
-	switch ((DiagnosticsServerCommandSet)ds_ipc_header_get_commandset (ds_ipc_message_get_header_ref (&message))) {
+	switch((DiagnosticsServerCommandSet)ds_ipc_header_get_commandset (ds_ipc_message_get_header_ref (&message))) {
 	case DS_SERVER_COMMANDSET_DUMP:
 		ds_dump_protocol_helper_handle_ipc_message (&message, stream);
 		break;
@@ -154,6 +156,9 @@ static size_t server_loop_tick (void* data) {
 		break;
 	case DS_SERVER_COMMANDSET_PROCESS:
 		ds_process_protocol_helper_handle_ipc_message (&message, stream);
+		break;
+	case DS_SERVER_COMMANDSET_DEBUGGER:
+		ds_debugger_protocol_helper_handle_ipc_message (&message, stream);
 		break;
 	default:
 		server_protocol_helper_unknown_command (&message, stream);
@@ -197,8 +202,9 @@ ds_server_init (void)
 	if (!ds_ipc_stream_factory_init ())
 		return false;
 
-	if (_server_disabled || !ds_rt_config_value_get_enable ())
+	if (_server_disabled || !ds_rt_config_value_get_enable ()) {
 		return true;
+	}
 
 	bool result = false;
 

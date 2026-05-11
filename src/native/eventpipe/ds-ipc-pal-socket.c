@@ -1540,6 +1540,14 @@ ds_ipc_stream_get_handle_int32_t (DiagnosticsIpcStream *ipc_stream)
 	return (int32_t)ipc_stream->client_socket;
 }
 
+int32_t
+ds_ipc_stream_detach_handle_int32_t (DiagnosticsIpcStream *ipc_stream)
+{
+	int32_t handle = (int32_t)ipc_stream->client_socket;
+	ipc_stream->client_socket = DS_IPC_INVALID_SOCKET;
+	return handle;
+}
+
 void
 ds_ipc_stream_free (DiagnosticsIpcStream *ipc_stream)
 {

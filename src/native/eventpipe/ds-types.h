@@ -21,6 +21,7 @@ typedef struct _DiagnosticsConnectPort DiagnosticsConnectPort;
 typedef struct _DiagnosticsEnvironmentInfoPayload DiagnosticsEnvironmentInfoPayload;
 typedef struct _DiagnosticsGenerateCoreDumpCommandPayload DiagnosticsGenerateCoreDumpCommandPayload;
 typedef struct _DiagnosticsGenerateCoreDumpResponsePayload DiagnosticsGenerateCoreDumpResponsePayload;
+typedef struct _DiagnosticsLoadInprocDebuggerCommandPayload DiagnosticsLoadInprocDebuggerCommandPayload;
 typedef struct _DiagnosticsSetEnvironmentVariablePayload DiagnosticsSetEnvironmentVariablePayload;
 typedef struct _DiagnosticsGetEnvironmentVariablePayload DiagnosticsGetEnvironmentVariablePayload;
 typedef struct _DiagnosticsEnablePerfmapPayload DiagnosticsEnablePerfmapPayload;
@@ -54,6 +55,7 @@ typedef enum {
 	DS_SERVER_COMMANDSET_EVENTPIPE = 0x02,
 	DS_SERVER_COMMANDSET_PROFILER = 0x03,
 	DS_SERVER_COMMANDSET_PROCESS = 0x04,
+	DS_SERVER_COMMANDSET_DEBUGGER = 0x05,
 	DS_SERVER_COMMANDSET_SERVER = 0xFF
 } DiagnosticsServerCommandSet;
 
@@ -84,6 +86,13 @@ typedef enum {
 	DS_PROFILER_COMMANDID_STARTUP_PROFILER = 0x02,
 	// future
 } DiagnosticsProfilerCommandId;
+
+// The debugger command set is 0x05
+typedef enum {
+	DS_DEBUGGER_COMMANDID_RESERVED = 0x00,
+	DS_DEBUGGER_COMMANDID_LOAD_INPROC_DEBUGGER = 0x01,
+	// future
+} DiagnosticsDebuggerCommandId;
 
 // The process command set is 0x04
 typedef enum {
