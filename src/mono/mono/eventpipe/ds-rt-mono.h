@@ -171,6 +171,27 @@ ds_rt_profiler_startup (DiagnosticsStartupProfilerCommandPayload *payload)
 }
 
 /*
+* DiagnosticsDebugger.
+*/
+
+static
+inline
+uint32_t
+ds_rt_debugger_load_inproc_debugger (DiagnosticsLoadInprocDebuggerCommandPayload *payload, DiagnosticsIpcStream *stream)
+{
+	// TODO: Implement.
+	return DS_IPC_E_NOTSUPPORTED;
+}
+
+static
+inline
+uint32_t
+ds_rt_debugger_enable_debugger (void)
+{
+	return DS_IPC_E_NOTSUPPORTED;
+}
+
+/*
 * Environment variables
 */
 

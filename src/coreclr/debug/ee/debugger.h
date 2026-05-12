@@ -1919,6 +1919,10 @@ public:
     //
     HRESULT Startup(void);
 
+    // Deferred debugger initialization: creates DebuggerRCThread + transport.
+    // Called from the ENABLE_DEBUGGER diagnostic server command on mobile.
+    HRESULT EnableDebugger();
+
     HRESULT StartupPhase2(Thread * pThread);
 
     void CleanupTransportSocket();

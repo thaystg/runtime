@@ -11,6 +11,7 @@ endif (NOT DEFINED SHARED_EVENTPIPE_CONFIG_HEADER_PATH)
 add_library(dn-diagnosticserver INTERFACE)
 
 target_sources(dn-diagnosticserver INTERFACE
+    ds-debugger-protocol.c
     ds-dump-protocol.c
     ds-eventpipe-protocol.c
     ds-ipc.c

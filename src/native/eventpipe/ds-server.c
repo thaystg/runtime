@@ -11,7 +11,9 @@
 #include "ds-eventpipe-protocol.h"
 #include "ds-dump-protocol.h"
 #include "ds-profiler-protocol.h"
+#include "ds-debugger-protocol.h"
 #include "ds-rt.h"
+#include <minipal/log.h>
 
 /*
  * Globals and volatile access functions.
@@ -154,6 +156,9 @@ static size_t server_loop_tick (void* data) {
 		break;
 	case DS_SERVER_COMMANDSET_PROCESS:
 		ds_process_protocol_helper_handle_ipc_message (&message, stream);
+		break;
+	case DS_SERVER_COMMANDSET_DEBUGGER:
+		ds_debugger_protocol_helper_handle_ipc_message (&message, stream);
 		break;
 	default:
 		server_protocol_helper_unknown_command (&message, stream);
