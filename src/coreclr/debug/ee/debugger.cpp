@@ -1860,22 +1860,47 @@ HRESULT Debugger::Startup(void)
             return S_OK;
         }
 
-#if defined(HOST_ANDROID) || defined(HOST_IOS) || defined(HOST_TVOS) || defined(HOST_MACCATALYST)
-        // On mobile, defer RC thread creation unless the diagnostic server
-        // already received an EnableDebugger/LoadInprocDebugger command
-        // while we were suspended (before Startup was called).
-        {
-            extern bool ds_rt_coreclr_is_debugger_enable_requested ();
-            if (!ds_rt_coreclr_is_debugger_enable_requested ())
-            {
-                LOG((LF_CORDB, LL_INFO10, "Debugger RC thread deferred on mobile.\n"));
-                return S_OK;
-            }
-            LOG((LF_CORDB, LL_INFO10, "Debugger RC thread requested by diagnostic server.\n"));
-        }
-#endif
+        // Create the runtime controller thread, a.k.a, the debug helper thread.
+        // Don't use the interop-safe heap b/c we don't want to lazily create it.
+        m_pRCThread = new DebuggerRCThread(this);
+        _ASSERTE(m_pRCThread != NULL); // throws on oom
+        TRACE_ALLOC(m_pRCThread);
 
-        hr = EnableDebugger();
+        hr = m_pRCThread->Init();
+        _ASSERTE(SUCCEEDED(hr)); // throws on error
+
+#if defined(FEATURE_DBGIPC_TRANSPORT_VM)
+         // Create transport session and initialize it.
+        g_pDbgTransport = new DbgTransportSession();
+        hr = g_pDbgTransport->Init(m_pRCThread->GetDCB());
+        if (FAILED(hr))
+        {
+            ShutdownTransport();
+            STRESS_LOG0(LF_CORDB, LL_ERROR, "D::S: The debugger pipe failed to initialize in /tmp or $TMPDIR.\n");
+            return S_OK; // we do not want debugger IPC to block runtime initialization
+        }
+#endif // FEATURE_DBGIPC_TRANSPORT_VM
+
+        startup.RaiseStartupNotification();
+
+        // See if we need to spin up the helper thread now, rather than later.
+        DebuggerIPCControlBlock* pIPCControlBlock = m_pRCThread->GetDCB();
+        (void)pIPCControlBlock; //prevent "unused variable" error from GCC
+
+        _ASSERTE(pIPCControlBlock != NULL);
+        _ASSERTE(!pIPCControlBlock->m_rightSideShouldCreateHelperThread);
+        {
+            // Create the win32 thread for the helper and let it run free.
+            hr = m_pRCThread->Start();
+
+            // convert failure to exception as with old contract
+            if (FAILED(hr))
+            {
+                ThrowHR(hr);
+            }
+
+            LOG((LF_CORDB, LL_EVERYTHING, "Start was successful\n"));
+        }
 
     }
 
@@ -1886,110 +1911,6 @@ HRESULT Debugger::Startup(void)
     // even if we're a guest account.
 
     return hr;
-}
-
-//---------------------------------------------------------------------------------------
-// Deferred debugger initialization.
-// Creates the DebuggerRCThread, transport session, and starts the helper thread.
-// Called from the ENABLE_DEBUGGER diagnostic server command or from the
-// LoadInprocDebugger handler to lazily create the RC thread on mobile.
-//---------------------------------------------------------------------------------------
-HRESULT Debugger::EnableDebugger()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-
-    // Already initialized — nothing to do.
-    if (m_pRCThread != NULL)
-        return S_OK;
-
-    // Create the runtime controller thread, a.k.a, the debug helper thread.
-    m_pRCThread = new DebuggerRCThread(this);
-    _ASSERTE(m_pRCThread != NULL); // throws on oom
-    TRACE_ALLOC(m_pRCThread);
-
-    hr = m_pRCThread->Init();
-    _ASSERTE(SUCCEEDED(hr)); // throws on error
-
-#if defined(FEATURE_DBGIPC_TRANSPORT_VM)
-    // Create transport session and initialize it.
-    g_pDbgTransport = new DbgTransportSession();
-    hr = g_pDbgTransport->Init(m_pRCThread->GetDCB());
-    if (FAILED(hr))
-    {
-        ShutdownTransport();
-        STRESS_LOG0(LF_CORDB, LL_ERROR, "D::EnableDebugger: The debugger pipe failed to initialize.\n");
-        return hr;
-    }
-#endif // FEATURE_DBGIPC_TRANSPORT_VM
-
-    // Mark the left side as initialized so the right side (DBI/DAC) knows
-    // the debugger infrastructure is ready. Equivalent to
-    // DebuggerStartUp::RaiseStartupNotification() which used to be called
-    // from Startup() before the RC-thread setup was extracted here.
-    InterlockedIncrement(&m_fLeftSideInitialized);
-
-#ifndef FEATURE_DBGIPC_TRANSPORT_VM
-    // If we are remote debugging, don't send the event now if a debugger is not attached.
-    // No one will be listening, and we will fail. However, we still want the
-    // InterlockedIncrement above so the right side can detect we initialized.
-    {
-        DebuggerIPCEvent startupEvent;
-        InitIPCEvent(&startupEvent, DB_IPCE_LEFTSIDE_STARTUP, NULL);
-        SendRawEvent(&startupEvent);
-        // RS will set flags from OOP while we're stopped at the event if it wants to attach.
-    }
-#endif // !FEATURE_DBGIPC_TRANSPORT_VM
-
-    // Sanity-check the IPC control block before spinning up the helper thread.
-    {
-        DebuggerIPCControlBlock* pIPCControlBlock = m_pRCThread->GetDCB();
-        (void)pIPCControlBlock; // prevent "unused variable" error from GCC
-        _ASSERTE(pIPCControlBlock != NULL);
-        _ASSERTE(!pIPCControlBlock->m_rightSideShouldCreateHelperThread);
-    }
-
-    // Start the helper thread.
-    hr = m_pRCThread->Start();
-    if (FAILED(hr))
-    {
-        STRESS_LOG1(LF_CORDB, LL_ERROR, "D::EnableDebugger: RC thread Start failed, hr=0x%08x\n", hr);
-        // Convert failure to exception as with the old contract in Startup().
-        ThrowHR(hr);
-    }
-
-    LOG((LF_CORDB, LL_INFO10, "D::EnableDebugger: Debugger RC thread started successfully.\n"));
-    return S_OK;
-}
-
-// Called from the diagnostic server's ENABLE_DEBUGGER command handler
-// (ds-rt-coreclr.h) where g_pDebugger is not directly accessible.
-// When g_pDebugger is NULL (DS command arrived before Debugger::Startup),
-// we set a flag so Startup() will call EnableDebugger() instead of deferring.
-static volatile bool s_debuggerEnableRequested = false;
-
-bool ds_rt_coreclr_is_debugger_enable_requested ()
-{
-    return s_debuggerEnableRequested;
-}
-
-HRESULT ds_rt_coreclr_enable_debugger ()
-{
-    if (g_pDebugger == NULL)
-    {
-        // The DS command arrived before Debugger::Startup() — flag it
-        // so Startup() calls EnableDebugger() when it runs.
-        s_debuggerEnableRequested = true;
-        return S_OK;
-    }
-
-    return g_pDebugger->EnableDebugger ();
 }
 
 //---------------------------------------------------------------------------------------
