@@ -1930,15 +1930,38 @@ HRESULT Debugger::EnableDebugger()
 #endif // FEATURE_DBGIPC_TRANSPORT_VM
 
     // Mark the left side as initialized so the right side (DBI/DAC) knows
-    // the debugger infrastructure is ready.
+    // the debugger infrastructure is ready. Equivalent to
+    // DebuggerStartUp::RaiseStartupNotification() which used to be called
+    // from Startup() before the RC-thread setup was extracted here.
     InterlockedIncrement(&m_fLeftSideInitialized);
+
+#ifndef FEATURE_DBGIPC_TRANSPORT_VM
+    // If we are remote debugging, don't send the event now if a debugger is not attached.
+    // No one will be listening, and we will fail. However, we still want the
+    // InterlockedIncrement above so the right side can detect we initialized.
+    {
+        DebuggerIPCEvent startupEvent;
+        InitIPCEvent(&startupEvent, DB_IPCE_LEFTSIDE_STARTUP, NULL);
+        SendRawEvent(&startupEvent);
+        // RS will set flags from OOP while we're stopped at the event if it wants to attach.
+    }
+#endif // !FEATURE_DBGIPC_TRANSPORT_VM
+
+    // Sanity-check the IPC control block before spinning up the helper thread.
+    {
+        DebuggerIPCControlBlock* pIPCControlBlock = m_pRCThread->GetDCB();
+        (void)pIPCControlBlock; // prevent "unused variable" error from GCC
+        _ASSERTE(pIPCControlBlock != NULL);
+        _ASSERTE(!pIPCControlBlock->m_rightSideShouldCreateHelperThread);
+    }
 
     // Start the helper thread.
     hr = m_pRCThread->Start();
     if (FAILED(hr))
     {
         STRESS_LOG1(LF_CORDB, LL_ERROR, "D::EnableDebugger: RC thread Start failed, hr=0x%08x\n", hr);
-        return hr;
+        // Convert failure to exception as with the old contract in Startup().
+        ThrowHR(hr);
     }
 
     LOG((LF_CORDB, LL_INFO10, "D::EnableDebugger: Debugger RC thread started successfully.\n"));
