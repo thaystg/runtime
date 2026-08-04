@@ -24,6 +24,14 @@ internal sealed class DebugInfo_1(Target target) : IDebugInfo
     private readonly Target _target = target;
     private readonly IExecutionManager _eman = target.Contracts.ExecutionManager;
 
+    bool IDebugInfo.HasDebugInfo(TargetCodePointer pCode)
+    {
+        if (_eman.GetCodeBlockHandle(pCode) is not CodeBlockHandle cbh)
+            return false;
+
+        return _eman.GetDebugInfo(cbh, out _) != TargetPointer.Null;
+    }
+
     IEnumerable<OffsetMapping> IDebugInfo.GetMethodNativeMap(TargetCodePointer pCode, bool preferUninstrumented, out uint codeOffset)
     {
         // Get the method's DebugInfo
@@ -31,8 +39,11 @@ internal sealed class DebugInfo_1(Target target) : IDebugInfo
             throw new InvalidOperationException($"No CodeBlockHandle found for native code {pCode}.");
         TargetPointer debugInfo = _eman.GetDebugInfo(cbh, out bool hasFlagByte);
 
-        TargetCodePointer nativeCodeStart = _eman.GetStartAddress(cbh);
-        codeOffset = (uint)(CodePointerUtils.AddressFromCodePointer(pCode, _target) - CodePointerUtils.AddressFromCodePointer(nativeCodeStart, _target));
+        TargetPointer nativeCodeStart = _eman.GetStartAddress(cbh);
+        codeOffset = (uint)(CodePointerUtils.AddressFromCodePointer(pCode, _target) - nativeCodeStart);
+
+        if (debugInfo == TargetPointer.Null)
+            return [];
 
         return RestoreBoundaries(debugInfo, hasFlagByte, preferUninstrumented);
     }
@@ -48,8 +59,7 @@ internal sealed class DebugInfo_1(Target target) : IDebugInfo
             {
                 Data.PatchpointInfo patchpointInfo = _target.ProcessedData.GetOrAdd<Data.PatchpointInfo>(debugInfo);
 
-                if (_target.GetTypeInfo(DataType.PatchpointInfo).Size is not uint patchpointSize)
-                    throw new InvalidOperationException("PatchpointInfo type size is not defined.");
+                uint patchpointSize = Data.PatchpointInfo.GetSize(_target);
                 debugInfo += patchpointSize + (patchpointInfo.LocalCount * sizeof(uint));
 
                 flagByte &= ~ExtraDebugInfoFlags_1.EXTRA_DEBUG_INFO_PATCHPOINT;

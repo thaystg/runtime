@@ -4,6 +4,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;
+using TestLibrary;
 
 public class Program
 {
@@ -33,6 +34,8 @@ public class Program
     private struct Oper4<T> {}
     private struct Oper5<T> {}
     
+    [ActiveIssue("These tests are not supposed to be run with mono.", TestRuntimes.Mono)]
+    [ActiveIssue("https://github.com/dotnet/runtime/issues/131767", typeof(PlatformDetection), nameof(PlatformDetection.IsBrowser), nameof(PlatformDetection.IsCoreCLR))]
     [Fact]
     public static void BreadthTest()
     {

@@ -805,26 +805,6 @@ STRINGREF StringObject::NewString(LPCUTF8 psz, int cBytes)
 STRINGREF* StringObject::EmptyStringRefPtr = NULL;
 bool StringObject::EmptyStringIsFrozen = false;
 
-//The special string helpers are used as flag bits for weird strings that have bytes
-//after the terminating 0.  The only case where we use this right now is the VB BSTR as
-//byte array which is described in MakeStringAsByteArrayFromBytes.
-#define SPECIAL_STRING_VB_BYTE_ARRAY 0x100
-
-FORCEINLINE BOOL MARKS_VB_BYTE_ARRAY(WCHAR x)
-{
-    return static_cast<BOOL>(x & SPECIAL_STRING_VB_BYTE_ARRAY);
-}
-
-FORCEINLINE WCHAR MAKE_VB_TRAIL_BYTE(BYTE x)
-{
-    return static_cast<WCHAR>(x) | SPECIAL_STRING_VB_BYTE_ARRAY;
-}
-
-FORCEINLINE BYTE GET_VB_TRAIL_BYTE(WCHAR x)
-{
-    return static_cast<BYTE>(x & 0xFF);
-}
-
 
 /*==============================InitEmptyStringRefPtr============================
 **Action:  Gets an empty string refptr, cache the result.
@@ -839,7 +819,7 @@ STRINGREF* StringObject::InitEmptyStringRefPtr() {
 
     GCX_COOP();
 
-    EEStringData data(0, W(""), TRUE);
+    EEStringData data(0, W(""));
     void* pinnedStr = nullptr;
     EmptyStringRefPtr = SystemDomain::System()->DefaultDomain()->GetLoaderAllocator()->GetStringObjRefPtrFromUnicodeString(&data, &pinnedStr);
     EmptyStringIsFrozen = pinnedStr != nullptr;
@@ -1188,35 +1168,6 @@ OBJECTREF& OBJECTREF::operator=(TADDR nul)
     return *this;
 }
 #endif  // DEBUG
-
-#ifdef _DEBUG
-
-void* __cdecl GCSafeMemCpy(void * dest, const void * src, size_t len)
-{
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_FORBID_FAULT;
-
-    if (!(((*(BYTE**)&dest) <  g_lowest_address ) ||
-          ((*(BYTE**)&dest) >= g_highest_address)))
-    {
-        Thread* pThread = GetThreadNULLOk();
-
-        // GCHeapUtilities::IsHeapPointer has race when called in preemptive mode. It walks the list of segments
-        // that can be modified by GC. Do the check below only if it is safe to do so.
-        if (pThread != NULL && pThread->PreemptiveGCDisabled())
-        {
-            // Note there is memcpyNoGCRefs which will allow you to do a memcpy into the GC
-            // heap if you really know you don't need to call the write barrier
-
-            _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsHeapPointer((BYTE *) dest) ||
-                     !"using memcpy to copy into the GC heap, use CopyValueClass");
-        }
-    }
-    return memcpyNoGCRefs(dest, src, len);
-}
-
-#endif // _DEBUG
 
 // This function clears a piece of memory in a GC safe way.  It makes the guarantee
 // that it will clear memory in at least pointer sized chunks whenever possible.

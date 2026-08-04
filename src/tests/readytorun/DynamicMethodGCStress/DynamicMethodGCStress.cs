@@ -7,9 +7,12 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
 using Xunit;
+using TestLibrary;
 
 public static class Program
 {
+    [ActiveIssue("timeout", TestPlatforms.Any)]
+    [ActiveIssue("https://github.com/dotnet/runtime/issues/131767", typeof(PlatformDetection), nameof(PlatformDetection.IsBrowser), nameof(PlatformDetection.IsCoreCLR))]
     [Fact]
     public static void TestEntryPoint()
     {
