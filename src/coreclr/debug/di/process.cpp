@@ -2187,6 +2187,10 @@ HRESULT CordbProcess::QueryInterface(REFIID id, void **pInterface)
     {
         *pInterface = static_cast<ICorDebugProcess11*>(this);
     }
+    else if (id == IID_ICorDebugProcess13)
+    {
+        *pInterface = static_cast<ICorDebugProcess13*>(this);
+    }
     else if (id == IID_IUnknown)
     {
         *pInterface = static_cast<IUnknown*>(static_cast<ICorDebugProcess*>(this));
@@ -2571,6 +2575,270 @@ COM_METHOD CordbProcess::EnumerateLoaderHeapMemoryRegions(ICorDebugMemoryRangeEn
         }
     }
     PUBLIC_API_END(hr);
+    return hr;
+}
+
+//-----------------------------------------------------------
+// ICorDebugProcess13
+//-----------------------------------------------------------
+
+//
+// LookupCachedModuleByImageBase
+//
+// Walks the cached CordbModule tables (no DAC prepopulation) looking for
+// a module whose PE image base address matches imageBase. Used by
+// SetExceptionFilter to translate the host-supplied
+// ICorDebugModule::GetBaseAddress value into the EE's PTR_Module identifier
+// expected by the runtime-side filter matcher.
+//
+// Returns S_OK and *ppModule on a unique match, S_FALSE and *ppModule==NULL
+// when no cached module matches, and E_INVALIDARG when two or more cached
+// modules report the same image base. Caller must hold the process lock.
+//
+HRESULT CordbProcess::LookupCachedModuleByImageBase(CORDB_ADDRESS imageBase, CordbModule ** ppModule)
+{
+    _ASSERTE(ThreadHoldsProcessLock());
+    _ASSERTE(ppModule != NULL);
+
+    *ppModule = NULL;
+    if (imageBase == 0)
+    {
+        return S_FALSE;
+    }
+
+    CordbModule * pFound = NULL;
+
+    HASHFIND hashFindAppDomain;
+    for (CordbAppDomain * pAppDomain = m_appDomains.FindFirst(&hashFindAppDomain);
+         pAppDomain != NULL;
+         pAppDomain = m_appDomains.FindNext(&hashFindAppDomain))
+    {
+        HASHFIND hashFindModule;
+        for (CordbModule * pModule = pAppDomain->m_modules.FindFirst(&hashFindModule);
+             pModule != NULL;
+             pModule = pAppDomain->m_modules.FindNext(&hashFindModule))
+        {
+            if (pModule->GetPEImageBaseAddress() != imageBase)
+            {
+                continue;
+            }
+
+            // Same module surfacing through multiple appdomains is normal
+            // (e.g. CoreLib in legacy multi-domain hosts): we only consider
+            // it ambiguous when the underlying VM Module differs.
+            if (pFound != NULL && pFound->GetRuntimeModule() != pModule->GetRuntimeModule())
+            {
+                return E_INVALIDARG;
+            }
+            pFound = pModule;
+        }
+    }
+
+    if (pFound == NULL)
+    {
+        return S_FALSE;
+    }
+
+    *ppModule = pFound;
+    return S_OK;
+}
+
+//
+// SetExceptionFilter
+//
+// Replaces the runtime-side exception filter set used by the EE to
+// short-circuit first-chance exception callbacks before they cross the OOP
+// debugger boundary. Validates the entries on the right side, then chunks
+// them into one-or-more DB_IPCE_SET_EXCEPTION_FILTER IPC events tagged with
+// a fresh monotonically-increasing generation id. The EE accumulates chunks
+// of the same generation into a staging table and atomically publishes the
+// new snapshot only after receiving the final chunk. Mid-update first-chance
+// exceptions continue to observe the previous snapshot.
+//
+COM_METHOD CordbProcess::SetExceptionFilter(ULONG32 cEntries, COR_DEBUG_EXCEPTION_FILTER_ENTRY entries[])
+{
+    if (cEntries > 0 && entries == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    FAIL_IF_NEUTERED(this);
+
+    HRESULT hr = S_OK;
+    // Use NO_LOCK_BEGIN so the stop-go lock can be acquired before the
+    // process lock (the only legal acquisition order). The translation block
+    // below briefly takes the process lock under the stop-go lock, which
+    // matches the ordering enforced by RSLock level numbers.
+    PUBLIC_API_NO_LOCK_BEGIN(this);
+    {
+        // Fast non-blocking precheck. If the process isn't currently in a
+        // state where we can safely send an IPC event, bail out with
+        // E_NOT_VALID_STATE. We deliberately do NOT attempt a
+        // StartSyncFromWin32Stop here — Concord re-pushes the filter on
+        // every trigger change, including ones that occur during process
+        // teardown, and a blocking sync attempt would deadlock waiting for
+        // a runtime that's already exiting. Hosts treat E_NOT_VALID_STATE
+        // as "try again later"; the previously installed filter remains.
+        if (!IsSafeToSendEvents() || m_exiting)
+        {
+            ThrowHR(E_NOT_VALID_STATE);
+        }
+
+        // Acquire the stop-go lock (level 5) before any other lock per the
+        // RSLock ordering rules. SendIPCEvent requires this lock held.
+        RSLockHolder stopGoLock(GetStopGoLock());
+
+        // Re-check under the stop-go lock; state may have transitioned
+        // (process exit, detach, …) while we were waiting for the lock.
+        // GetSynchronized is also required by SendIPCEvent's internal
+        // consistency check for non-async IPC events.
+        if (!IsSafeToSendEvents() || m_exiting || !GetSynchronized())
+        {
+            ThrowHR(E_NOT_VALID_STATE);
+        }
+
+        // Validate every entry up-front so partial chunked sends never publish a malformed filter.
+        for (ULONG32 i = 0; i < cEntries; i++)
+        {
+            const COR_DEBUG_EXCEPTION_FILTER_ENTRY& e = entries[i];
+
+            // At least one of CAUGHT / UNCAUGHT must be set or the entry can never match.
+            const ULONG32 caughtMask = COR_DEBUG_EXCEPTION_FILTER_CAUGHT | COR_DEBUG_EXCEPTION_FILTER_UNCAUGHT;
+            if ((e.flags & caughtMask) == 0)
+            {
+                ThrowHR(E_INVALIDARG);
+            }
+
+            // EVERYTHING_ELSE entries are the catch-all bucket; a typeDef/moduleAddress would be ambiguous.
+            if ((e.flags & COR_DEBUG_EXCEPTION_FILTER_EVERYTHING_ELSE) != 0)
+            {
+                if (e.typeDef != 0 || e.moduleAddress != 0)
+                {
+                    ThrowHR(E_INVALIDARG);
+                }
+            }
+            else
+            {
+                // Non-catch-all entries must specify a typeDef. moduleAddress
+                // is allowed to be 0, which means "match any module with this
+                // typeDef" — useful for hosts that add an exception type by
+                // name before the module has been resolved.
+                if (e.typeDef == 0)
+                {
+                    ThrowHR(E_INVALIDARG);
+                }
+            }
+        }
+
+        // The host passes moduleAddress as the value returned by
+        // ICorDebugModule::GetBaseAddress (PE image base address in the
+        // target process). The EE matcher however compares against the
+        // runtime PTR_Module identifier (the VM Module* TADDR). Translate
+        // each non-catch-all entry's moduleAddress here so the EE hot path
+        // stays a simple integer compare with no per-throw lookup. We
+        // operate on a local copy so the caller-supplied [in] array is
+        // never mutated.
+        NewArrayHolder<COR_DEBUG_EXCEPTION_FILTER_ENTRY> translatedEntries;
+        const COR_DEBUG_EXCEPTION_FILTER_ENTRY * pEntriesToSend = entries;
+        if (cEntries > 0)
+        {
+            translatedEntries = new COR_DEBUG_EXCEPTION_FILTER_ENTRY[cEntries];
+            memcpy(translatedEntries, entries, cEntries * sizeof(COR_DEBUG_EXCEPTION_FILTER_ENTRY));
+
+            {
+                RSLockHolder lockHolder(GetProcessLock());
+
+                for (ULONG32 i = 0; i < cEntries; i++)
+                {
+                    COR_DEBUG_EXCEPTION_FILTER_ENTRY& e = translatedEntries[i];
+
+                    if ((e.flags & COR_DEBUG_EXCEPTION_FILTER_EVERYTHING_ELSE) != 0)
+                    {
+                        continue;
+                    }
+
+                    if (e.moduleAddress == 0)
+                    {
+                        // Host explicitly opted into "match any module with
+                        // this typeDef". The EE side recognises 0 as the
+                        // any-module sentinel.
+                        continue;
+                    }
+
+                    CordbModule * pModule = NULL;
+                    HRESULT hrLookup = LookupCachedModuleByImageBase(e.moduleAddress, &pModule);
+                    if (hrLookup != S_OK)
+                    {
+                        // The PE image base did not resolve to a unique
+                        // cached CordbModule (S_FALSE means none, E_INVALIDARG
+                        // means more than one). Both are transient: a missing
+                        // module may still be loading, and an ambiguous match
+                        // can be triggered by mid-update load/unload races.
+                        // Tell the host to try again later — the previously
+                        // installed filter remains live.
+                        ThrowHR(E_NOT_VALID_STATE);
+                    }
+
+                    VMPTR_Module vmModule = pModule->GetRuntimeModule();
+                    e.moduleAddress = (CORDB_ADDRESS)VmPtrToCookie(vmModule);
+                }
+            }
+
+            pEntriesToSend = translatedEntries;
+        }
+
+        ULONG32 generationId = ++m_exceptionFilterGenerationId;
+
+        const ULONG32 maxPerChunk = SET_EXCEPTION_FILTER_MAX_ENTRIES_PER_CHUNK;
+        const ULONG32 chunkCount = (cEntries == 0) ? 1 : ((cEntries + maxPerChunk - 1) / maxPerChunk);
+
+        for (ULONG32 chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++)
+        {
+            const ULONG32 entriesAlreadySent = chunkIndex * maxPerChunk;
+            const ULONG32 entriesInThisChunk = (cEntries - entriesAlreadySent) > maxPerChunk
+                                                 ? maxPerChunk
+                                                 : (cEntries - entriesAlreadySent);
+
+            DebuggerIPCEvent event;
+            InitIPCEvent(&event,
+                         DB_IPCE_SET_EXCEPTION_FILTER,
+                         true,
+                         VMPTR_AppDomain::NullPtr());
+
+            event.SetExceptionFilter.generationId = generationId;
+            event.SetExceptionFilter.chunkIndex = chunkIndex;
+            event.SetExceptionFilter.chunkCount = chunkCount;
+            event.SetExceptionFilter.cTotalEntries = cEntries;
+            event.SetExceptionFilter.cEntriesInChunk = entriesInThisChunk;
+
+            if (entriesInThisChunk > 0)
+            {
+                memcpy(event.SetExceptionFilter.entries,
+                       &pEntriesToSend[entriesAlreadySent],
+                       entriesInThisChunk * sizeof(COR_DEBUG_EXCEPTION_FILTER_ENTRY));
+            }
+
+            hr = SendIPCEvent(&event, sizeof(DebuggerIPCEvent));
+            if (FAILED(hr))
+            {
+                ThrowHR(E_NOT_VALID_STATE);
+            }
+
+            _ASSERTE(event.type == DB_IPCE_SET_EXCEPTION_FILTER_RESULT);
+        }
+    }
+    PUBLIC_API_END(hr);
+
+    // Map "process is not in a state where IPC events can be sent" errors
+    // (still running between stops, not yet initialized, etc.) to the
+    // dedicated "try again later" HRESULT. Hosts already special-case this
+    // value and will re-push the filter on the next trigger change once the
+    // process synchronises. Any previously-installed filter remains live.
+    if (hr == CORDBG_E_PROCESS_NOT_SYNCHRONIZED || hr == CORDBG_E_NOTREADY)
+    {
+        hr = E_NOT_VALID_STATE;
+    }
+
     return hr;
 }
 

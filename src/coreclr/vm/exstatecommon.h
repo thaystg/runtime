@@ -331,6 +331,21 @@ public:
 
     BOOL DebuggerInterceptInfo()    { LIMITED_METHOD_DAC_CONTRACT; return m_flags & Ex_DebuggerInterceptInfo; }
     void SetDebuggerInterceptInfo() { LIMITED_METHOD_DAC_CONTRACT; AssertIfReadOnly(); m_flags |= Ex_DebuggerInterceptInfo; }
+
+    // Set when the runtime-side exception filter installed via
+    // ICorDebugProcess13::SetExceptionFilter caused Debugger::SendException
+    // to suppress the first-chance / user-first-chance callback for this
+    // exception. Used by Debugger::ShouldSendCatchHandlerFound to also
+    // suppress the matching CHF callback so the debugger never sees a
+    // "catch handler found" for an exception whose first-chance it never
+    // received. Distinct from SentDebugFirstChance / SentDebugUserFirstChance
+    // so existing code that reads those flags as "the debugger saw the
+    // exception" stays correct.
+    BOOL RuntimeFilteredFirstChance()    { LIMITED_METHOD_CONTRACT; return m_flags & Ex_RuntimeFilteredFirstChance; }
+    void SetRuntimeFilteredFirstChance() { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags |= Ex_RuntimeFilteredFirstChance; }
+
+    BOOL RuntimeFilteredUserFirstChance()    { LIMITED_METHOD_CONTRACT; return m_flags & Ex_RuntimeFilteredUserFirstChance; }
+    void SetRuntimeFilteredUserFirstChance() { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags |= Ex_RuntimeFilteredUserFirstChance; }
 #endif
 
     BOOL WasThrownByUs()      { LIMITED_METHOD_CONTRACT; return m_flags & Ex_WasThrownByUs; }
@@ -358,6 +373,8 @@ private:
         Ex_DebuggerInterceptInfo        = 0x00000200,
         Ex_DebuggerInterceptNotPossible = 0x00000400,
         Ex_IsUnhandled                  = 0x00000800,
+        Ex_RuntimeFilteredFirstChance       = 0x00008000,
+        Ex_RuntimeFilteredUserFirstChance   = 0x00010000,
 #endif
         // Unused                       = 0x00001000,
 

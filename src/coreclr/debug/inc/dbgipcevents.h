@@ -189,6 +189,13 @@ struct MSLAYOUT DebuggerIPCRuntimeOffsets
 #define CorDBIPC_BUFFER_SIZE 4016 // (4016 + 6) * 2 + 148 = 8192 (two (DebuggerIPCEvent + alignment padding) + other fields = page size)
 #endif // TARGET_X86 || TARGET_ARM
 
+// Maximum number of COR_DEBUG_EXCEPTION_FILTER_ENTRY items in a single
+// DB_IPCE_SET_EXCEPTION_FILTER IPC event. Each entry is ~20 bytes;
+// 64 entries is ~1.3KB, well within the CorDBIPC_BUFFER_SIZE limit on all
+// platforms. In practice Concord pushes 5-20 entries (one per user-customized
+// exception type + one EVERYTHING_ELSE catch-all).
+#define SET_EXCEPTION_FILTER_MAX_ENTRIES_PER_CHUNK 64
+
 //
 // DebuggerIPCControlBlock describes the layout of the shared memory shared between the Left Side and the Right
 // Side. This includes error information, handles for the IPC channel, and space for the send/receive buffers.
@@ -2383,6 +2390,21 @@ struct MSLAYOUT DebuggerIPCEvent
             void * pMetadataStart;
             ULONG nMetadataSize;
         } MetadataUpdateRequest;
+
+        // R->L: replaces the runtime-side exception filter set used by
+        // ICorDebugProcess13::SetExceptionFilter. The entire filter set is
+        // sent as a single-chunk IPC event (chunkIndex=0, chunkCount=1).
+        // The struct retains the chunking fields for ABI stability even
+        // though only one chunk is ever sent.
+        struct MSLAYOUT
+        {
+            ULONG32 generationId;
+            ULONG32 chunkIndex;
+            ULONG32 chunkCount;
+            ULONG32 cTotalEntries;
+            ULONG32 cEntriesInChunk;
+            COR_DEBUG_EXCEPTION_FILTER_ENTRY entries[SET_EXCEPTION_FILTER_MAX_ENTRIES_PER_CHUNK];
+        } SetExceptionFilter;
     };
 };
 

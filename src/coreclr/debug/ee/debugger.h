@@ -2902,6 +2902,31 @@ private:
     // send first chance/handler found callbacks for exceptions outside of JMC to the LS
     Volatile<BOOL>  m_sendExceptionsOutsideOfJMC;
 
+    //
+    // Runtime-side exception filter installed via
+    // ICorDebugProcess13::SetExceptionFilter. Chunked IPC events carry
+    // entries from the right-side host; the EE accumulates chunks into
+    // a staging buffer and atomically publishes the snapshot when the
+    // final chunk arrives.
+    //
+    class ExceptionFilterTable* m_pExceptionFilter;
+    COR_DEBUG_EXCEPTION_FILTER_ENTRY* m_pStagingFilterEntries;
+    ULONG32 m_cStagingFilterEntries;
+    ULONG32 m_cStagingFilterEntriesCapacity;
+    ULONG32 m_stagingFilterGeneration;
+    ULONG32 m_stagingFilterChunksReceived;
+    ULONG32 m_stagingFilterChunksExpected;
+
+public:
+    BOOL ShouldSendExceptionToDebugger(class Thread* pThread, BOOL fCaught);
+
+    void ResetExceptionFilter();
+
+private:
+    void HandleSetExceptionFilterChunk(const DebuggerIPCEvent* pEvent);
+
+private:
+
     // represents different thead redirection functions recognized by the debugger
     enum HijackFunction
     {

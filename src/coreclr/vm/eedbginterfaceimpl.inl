@@ -29,6 +29,11 @@ class EEToDebuggerExceptionInterfaceWrapper
         CONTRACTL_END;
 
         ThreadExceptionState* pExState = pThread->GetExceptionState();
+        if (pExState->GetFlags()->RuntimeFilteredFirstChance())
+        {
+            return false;
+        }
+
         pExState->SetDebuggerIndicatedFramePointer((LPVOID)currentSP);
 
         if (CORDebuggerAttached())

@@ -32,6 +32,7 @@ set(CORDBEE_SOURCES_WKS
   shared.cpp
   frameinfo.cpp
   dactable.cpp
+  exceptionfilter.cpp
   ${ARCH_SOURCES_DIR}/primitives.cpp
 )
 
@@ -39,6 +40,7 @@ set(CORDBEE_HEADERS_WKS
   ${CORDBEE_HEADERS_DAC_AND_WKS}
   canary.h
   frameinfo.h
+  exceptionfilter.h
 )
 
 set(CORDBEE_SOURCES_DAC

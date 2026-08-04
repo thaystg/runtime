@@ -387,6 +387,13 @@ typedef interface ICorDebugProcess11 ICorDebugProcess11;
 #endif  /* __ICorDebugProcess11_FWD_DEFINED__ */
 
 
+#ifndef __ICorDebugProcess13_FWD_DEFINED__
+#define __ICorDebugProcess13_FWD_DEFINED__
+typedef interface ICorDebugProcess13 ICorDebugProcess13;
+
+#endif  /* __ICorDebugProcess13_FWD_DEFINED__ */
+
+
 #ifndef __ICorDebugModuleDebugEvent_FWD_DEFINED__
 #define __ICorDebugModuleDebugEvent_FWD_DEFINED__
 typedef interface ICorDebugModuleDebugEvent ICorDebugModuleDebugEvent;
@@ -8561,6 +8568,119 @@ EXTERN_C const IID IID_ICorDebugProcess11;
 
 
 #endif  /* __ICorDebugProcess11_INTERFACE_DEFINED__ */
+
+
+/* interface __MIDL_itf_cordebug_0000_0093 */
+/* [local] */
+
+typedef
+enum CorDebugExceptionFilterFlags
+    {
+        COR_DEBUG_EXCEPTION_FILTER_NONE         = 0,
+        COR_DEBUG_EXCEPTION_FILTER_CAUGHT       = 0x1,
+        COR_DEBUG_EXCEPTION_FILTER_UNCAUGHT     = 0x2,
+        COR_DEBUG_EXCEPTION_FILTER_SUBCLASSES   = 0x4,
+        COR_DEBUG_EXCEPTION_FILTER_NOT_FILTERED = 0x8,
+        COR_DEBUG_EXCEPTION_FILTER_EVERYTHING_ELSE  = 0x10,
+        COR_DEBUG_EXCEPTION_FILTER_EXCLUDE          = 0x20
+    } CorDebugExceptionFilterFlags;
+
+typedef struct _COR_DEBUG_EXCEPTION_FILTER_ENTRY
+    {
+    CORDB_ADDRESS moduleAddress;
+    mdTypeDef typeDef;
+    CorDebugExceptionFilterFlags flags;
+    } COR_DEBUG_EXCEPTION_FILTER_ENTRY;
+
+
+
+extern RPC_IF_HANDLE __MIDL_itf_cordebug_0000_0093_v0_0_c_ifspec;
+extern RPC_IF_HANDLE __MIDL_itf_cordebug_0000_0093_v0_0_s_ifspec;
+
+#ifndef __ICorDebugProcess13_INTERFACE_DEFINED__
+#define __ICorDebugProcess13_INTERFACE_DEFINED__
+
+/* interface ICorDebugProcess13 */
+/* [unique][uuid][local][object] */
+
+
+EXTERN_C const IID IID_ICorDebugProcess13;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+
+    MIDL_INTERFACE("8BC6A7D9-76C2-4E06-AAAF-B04CC09B8BBC")
+    ICorDebugProcess13 : public IUnknown
+    {
+    public:
+        virtual HRESULT STDMETHODCALLTYPE SetExceptionFilter(
+            /* [in] */ ULONG32 cEntries,
+            /* [size_is][in] */ COR_DEBUG_EXCEPTION_FILTER_ENTRY entries[  ]) = 0;
+
+    };
+
+
+#else   /* C style interface */
+
+    typedef struct ICorDebugProcess13Vtbl
+    {
+        BEGIN_INTERFACE
+
+        DECLSPEC_XFGVIRT(IUnknown, QueryInterface)
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )(
+            ICorDebugProcess13 * This,
+            /* [in] */ REFIID riid,
+            /* [annotation][iid_is][out] */
+            _COM_Outptr_  void **ppvObject);
+
+        DECLSPEC_XFGVIRT(IUnknown, AddRef)
+        ULONG ( STDMETHODCALLTYPE *AddRef )(
+            ICorDebugProcess13 * This);
+
+        DECLSPEC_XFGVIRT(IUnknown, Release)
+        ULONG ( STDMETHODCALLTYPE *Release )(
+            ICorDebugProcess13 * This);
+
+        DECLSPEC_XFGVIRT(ICorDebugProcess13, SetExceptionFilter)
+        HRESULT ( STDMETHODCALLTYPE *SetExceptionFilter )(
+            ICorDebugProcess13 * This,
+            /* [in] */ ULONG32 cEntries,
+            /* [size_is][in] */ COR_DEBUG_EXCEPTION_FILTER_ENTRY entries[  ]);
+
+        END_INTERFACE
+    } ICorDebugProcess13Vtbl;
+
+    interface ICorDebugProcess13
+    {
+        CONST_VTBL struct ICorDebugProcess13Vtbl *lpVtbl;
+    };
+
+
+
+#ifdef COBJMACROS
+
+
+#define ICorDebugProcess13_QueryInterface(This,riid,ppvObject)  \
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) )
+
+#define ICorDebugProcess13_AddRef(This) \
+    ( (This)->lpVtbl -> AddRef(This) )
+
+#define ICorDebugProcess13_Release(This)    \
+    ( (This)->lpVtbl -> Release(This) )
+
+
+#define ICorDebugProcess13_SetExceptionFilter(This,cEntries,entries)    \
+    ( (This)->lpVtbl -> SetExceptionFilter(This,cEntries,entries) )
+
+#endif /* COBJMACROS */
+
+
+#endif  /* C style interface */
+
+
+
+
+#endif  /* __ICorDebugProcess13_INTERFACE_DEFINED__ */
 
 
 #ifndef __ICorDebugModuleDebugEvent_INTERFACE_DEFINED__

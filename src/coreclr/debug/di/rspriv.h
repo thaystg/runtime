@@ -2945,6 +2945,7 @@ class CordbProcess :
     public ICorDebugProcess7,
     public ICorDebugProcess8,
     public ICorDebugProcess11,
+    public ICorDebugProcess13,
     public IDacDbiInterface::IAllocator,
     public IDacDbiInterface::IMetaDataLookup,
     public IProcessShimHooks
@@ -3161,6 +3162,11 @@ public:
     // ICorDebugProcess11
     //-----------------------------------------------------------
     COM_METHOD EnumerateLoaderHeapMemoryRegions(ICorDebugMemoryRangeEnum **ppRanges);
+
+    //-----------------------------------------------------------
+    // ICorDebugProcess13
+    //-----------------------------------------------------------
+    COM_METHOD SetExceptionFilter(ULONG32 cEntries, COR_DEBUG_EXCEPTION_FILTER_ENTRY entries[]);
 
     //-----------------------------------------------------------
     // Methods not exposed via a COM interface.
@@ -3457,7 +3463,8 @@ public:
                  type == DB_IPCE_INTERCEPT_EXCEPTION ||
                  type == DB_IPCE_GET_NGEN_COMPILER_FLAGS ||
                  type == DB_IPCE_SET_NGEN_COMPILER_FLAGS ||
-                 type == DB_IPCE_SET_VALUE_CLASS);
+                 type == DB_IPCE_SET_VALUE_CLASS ||
+                 type == DB_IPCE_SET_EXCEPTION_FILTER);
 
         ipce->type = type;
         ipce->hr = S_OK;
@@ -3474,6 +3481,14 @@ public:
     CordbClass * LookupClass(ICorDebugAppDomain * pAppDomain, VMPTR_DomainAssembly vmDomainAssembly, mdTypeDef classToken);
 
     CordbModule * LookupOrCreateModule(VMPTR_DomainAssembly vmDomainAssembly);
+
+    // Walks the cached CordbModule tables (no DAC prepopulation) looking for
+    // a module whose PE image base address (as returned by
+    // ICorDebugModule::GetBaseAddress) equals imageBase. Returns S_OK and
+    // *ppModule when exactly one match is found, S_FALSE when no match is
+    // found, or E_INVALIDARG when more than one cached module reports the
+    // same image base. Caller must hold the process lock.
+    HRESULT LookupCachedModuleByImageBase(CORDB_ADDRESS imageBase, CordbModule ** ppModule);
 
 #ifdef FEATURE_INTEROP_DEBUGGING
     CordbUnmanagedThread *GetUnmanagedThread(DWORD dwThreadId)
@@ -4129,6 +4144,10 @@ private:
     // controls how metadata updated in the target is handled
     WriteableMetadataUpdateMode m_writableMetadataUpdateMode;
 
+    // Monotonically increasing generation id assigned to each
+    // ICorDebugProcess13::SetExceptionFilter call.
+    ULONG32 m_exceptionFilterGenerationId = 0;
+
     COM_METHOD GetObjectInternal(CORDB_ADDRESS addr, ICorDebugObjectValue **pObject);
 
 #ifdef OUT_OF_PROCESS_SETTHREADCONTEXT
@@ -4378,6 +4397,15 @@ public:
     const VMPTR_Module GetRuntimeModule()
     {
         return m_vmModule;
+    }
+
+    // Returns the PE image base address for this module (the value
+    // ICorDebugModule::GetBaseAddress reports). Non-COM internal accessor;
+    // does not enter the public-API guard so it is safe to call while
+    // holding the process lock.
+    CORDB_ADDRESS GetPEImageBaseAddress()
+    {
+        return m_PEBuffer.pAddress;
     }
 
     // Get symbol stream for in-memory modules.
