@@ -47,6 +47,7 @@
 
 #include "canary.h"
 #include "cdacdata.h"
+#include "exceptionfilter.h"
 
 #undef ASSERT
 #define CRASH(x)  _ASSERTE(!(x))
@@ -2845,7 +2846,13 @@ private:
     ULONG32 m_stagingFilterChunksExpected;
 
 public:
-    BOOL ShouldSendExceptionToDebugger(class Thread* pThread, BOOL fCaught);
+    ExceptionNotificationAction GetExceptionNotificationAction(
+        class Thread* pThread,
+        CorDebugExceptionNotificationStage stage);
+    void SendExceptionNotification(
+        class Thread* pThread,
+        SIZE_T currentIP,
+        CorDebugExceptionNotificationStage stage);
 
     void ResetExceptionFilter();
 

@@ -1025,6 +1025,24 @@ void DebuggerController::CancelOutstandingThreadStarter(Thread * pThread)
 
 }
 
+bool DebuggerController::HasActiveStepper(Thread* pThread)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    ControllerLockHolder lockController;
+    for (DebuggerController* pController = g_controllers;
+         pController != nullptr;
+         pController = pController->m_next)
+    {
+        if (pController->IsStepperDCType() &&
+            (pController->GetThread() == nullptr || pController->GetThread() == pThread))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 //void DebuggerController::Initialize()   Sets up the static
 // variables for the static DebuggerController class.
 // How: initializes the critical section

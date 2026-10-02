@@ -33,6 +33,10 @@ ExceptionFilterTable* ExceptionFilterTable::Create(const COR_DEBUG_EXCEPTION_FIL
     size_t bytes = sizeof(ExceptionFilterTable);
     if (cEntries > 1)
     {
+        if (cEntries - 1 > (SIZE_MAX - bytes) / sizeof(COR_DEBUG_EXCEPTION_FILTER_ENTRY))
+        {
+            ThrowOutOfMemory();
+        }
         bytes += (cEntries - 1) * sizeof(COR_DEBUG_EXCEPTION_FILTER_ENTRY);
     }
 
@@ -47,32 +51,14 @@ ExceptionFilterTable* ExceptionFilterTable::Create(const COR_DEBUG_EXCEPTION_FIL
     return pTable;
 }
 
-bool ExceptionFilterTable::EntryMatchesType(const COR_DEBUG_EXCEPTION_FILTER_ENTRY& entry,
-                                            MethodTable* pExceptionMT,
-                                            BOOL fCaught) const
+ULONG32 ExceptionFilterTable::GetTypeMatchDepth(
+    const COR_DEBUG_EXCEPTION_FILTER_ENTRY& entry,
+    MethodTable* pExceptionMT) const
 {
-    // Caught / uncaught gate. An entry with neither bit set was rejected by
-    // CordbProcess::SetExceptionFilter validation, but be defensive.
-    if (fCaught)
+    if ((entry.flags & (COR_DEBUG_EXCEPTION_FILTER_MODULE_DEFAULT |
+                        COR_DEBUG_EXCEPTION_FILTER_PROCESS_DEFAULT)) != 0)
     {
-        if ((entry.flags & COR_DEBUG_EXCEPTION_FILTER_CAUGHT) == 0)
-        {
-            return false;
-        }
-    }
-    else
-    {
-        if ((entry.flags & COR_DEBUG_EXCEPTION_FILTER_UNCAUGHT) == 0)
-        {
-            return false;
-        }
-    }
-
-    // EVERYTHING_ELSE has its typeDef ignored; it's matched separately by Match()
-    // as the "no specific entry matched" bucket.
-    if ((entry.flags & COR_DEBUG_EXCEPTION_FILTER_EVERYTHING_ELSE) != 0)
-    {
-        return false;
+        return ULONG_MAX;
     }
 
     // Walk the MethodTable's type identity. Concord pushes
@@ -81,132 +67,104 @@ bool ExceptionFilterTable::EntryMatchesType(const COR_DEBUG_EXCEPTION_FILTER_ENT
     // PTR_Module value Concord obtained via the ICorDebugModule mapping.
     if (pExceptionMT == nullptr)
     {
-        return false;
+        return ULONG_MAX;
     }
 
     MethodTable* pCurrentMT = pExceptionMT;
     bool includeSubclasses = (entry.flags & COR_DEBUG_EXCEPTION_FILTER_SUBCLASSES) != 0;
+    ULONG32 depth = 0;
 
     do
     {
         Module* pCurrentModule = pCurrentMT->GetModule();
-        // moduleAddress == 0 is "match any module" — useful for hosts that
-        // add an exception type by name before the module has been resolved
-        // to a specific address (matches Mono's behavior where the agent
-        // identifies types by class id, not by module).
-        //
-        // Otherwise, moduleAddress is the EE-internal PTR_Module identifier
-        // produced by the DBI right side (CordbProcess::SetExceptionFilter
-        // translates the PE image base value the host passes through
-        // ICorDebugProcess13::SetExceptionFilter into this Module* TADDR).
-        bool moduleMatches = (entry.moduleAddress == 0) ||
-            (pCurrentModule != nullptr &&
-             entry.moduleAddress == (CORDB_ADDRESS)(SIZE_T)PTR_TO_TADDR(pCurrentModule));
+        bool moduleMatches = pCurrentModule != nullptr &&
+            entry.moduleAddress == static_cast<CORDB_ADDRESS>(PTR_TO_TADDR(pCurrentModule));
         if (moduleMatches && entry.typeDef == pCurrentMT->GetCl())
         {
-            return true;
+            return depth;
         }
 
         if (!includeSubclasses)
         {
-            return false;
+            return ULONG_MAX;
         }
 
         pCurrentMT = pCurrentMT->GetParentMethodTable();
+        depth++;
     } while (pCurrentMT != nullptr);
 
-    return false;
+    return ULONG_MAX;
 }
 
-BOOL ExceptionFilterTable::Match(MethodTable* pExceptionMT, BOOL fCaught) const
+ExceptionNotificationAction ExceptionFilterTable::GetEntryAction(
+    const COR_DEBUG_EXCEPTION_FILTER_ENTRY& entry,
+    CorDebugExceptionNotificationStage stage) const
 {
-    // Empty table = no filter installed = back-compat behavior (always notify).
+    ULONG32 stageMask = static_cast<ULONG32>(stage);
+    if ((entry.stoppingMask & stageMask) != 0)
+    {
+        return ExceptionNotificationAction::Stop;
+    }
+    if ((entry.notificationMask & stageMask) != 0)
+    {
+        return ExceptionNotificationAction::Notify;
+    }
+    return ExceptionNotificationAction::Ignore;
+}
+
+ExceptionNotificationAction ExceptionFilterTable::GetAction(
+    MethodTable* pExceptionMT,
+    CorDebugExceptionNotificationStage stage) const
+{
     if (m_cEntries == 0)
     {
-        return TRUE;
+        return ExceptionNotificationAction::Stop;
     }
 
-    // Two passes:
-    //   Pass 1: any EXCLUDE entry that matches the (type, caught) immediately
-    //           wins — the runtime suppresses the callback. This lets hosts
-    //           express "break on everything EXCEPT these types" via an
-    //           EVERYTHING_ELSE bucket plus per-type EXCLUDE entries.
-    //   Pass 2: mirrors the Mono not_filtered_feature evaluation (debugger-
-    //           agent.c lines 3403-3436): a specific entry that matches the
-    //           type + caught flavor wins, otherwise EVERYTHING_ELSE /
-    //           NOT_FILTERED buckets decide.
+    const COR_DEBUG_EXCEPTION_FILTER_ENTRY* pModuleDefault = nullptr;
+    const COR_DEBUG_EXCEPTION_FILTER_ENTRY* pProcessDefault = nullptr;
+    const COR_DEBUG_EXCEPTION_FILTER_ENTRY* pBestTypeMatch = nullptr;
+    ULONG32 bestTypeMatchDepth = ULONG_MAX;
+    Module* pExceptionModule = pExceptionMT == nullptr ? nullptr : pExceptionMT->GetModule();
+    CORDB_ADDRESS exceptionModuleAddress = pExceptionModule == nullptr
+        ? 0
+        : static_cast<CORDB_ADDRESS>(PTR_TO_TADDR(pExceptionModule));
 
     for (ULONG32 i = 0; i < m_cEntries; i++)
     {
         const COR_DEBUG_EXCEPTION_FILTER_ENTRY& entry = m_entries[i];
-        if ((entry.flags & COR_DEBUG_EXCEPTION_FILTER_EXCLUDE) == 0)
+        if ((entry.flags & COR_DEBUG_EXCEPTION_FILTER_PROCESS_DEFAULT) != 0)
         {
+            pProcessDefault = &entry;
             continue;
         }
-        // Exclude entries are always specific (no EVERYTHING_ELSE blanket
-        // exclude — that would be equivalent to "install no filter").
-        if (EntryMatchesType(entry, pExceptionMT, fCaught))
+        if ((entry.flags & COR_DEBUG_EXCEPTION_FILTER_MODULE_DEFAULT) != 0)
         {
-            return FALSE;
+            if (entry.moduleAddress == exceptionModuleAddress)
+            {
+                pModuleDefault = &entry;
+            }
+            continue;
+        }
+        ULONG32 matchDepth = GetTypeMatchDepth(entry, pExceptionMT);
+        if (matchDepth < bestTypeMatchDepth)
+        {
+            pBestTypeMatch = &entry;
+            bestTypeMatchDepth = matchDepth;
         }
     }
 
-    bool anySpecificMatchedCaughtFlavor = false;
-    bool hasEverythingElseMatchingCaughtFlavor = false;
-    bool hasNotFilteredMatchingCaughtFlavor = false;
-
-    for (ULONG32 i = 0; i < m_cEntries; i++)
+    if (pBestTypeMatch != nullptr)
     {
-        const COR_DEBUG_EXCEPTION_FILTER_ENTRY& entry = m_entries[i];
-
-        // EXCLUDE entries already handled in pass 1.
-        if ((entry.flags & COR_DEBUG_EXCEPTION_FILTER_EXCLUDE) != 0)
-        {
-            continue;
-        }
-
-        const ULONG32 caughtBit = fCaught
-                                    ? COR_DEBUG_EXCEPTION_FILTER_CAUGHT
-                                    : COR_DEBUG_EXCEPTION_FILTER_UNCAUGHT;
-        const bool entryCoversFlavor = (entry.flags & caughtBit) != 0;
-
-        if (!entryCoversFlavor)
-        {
-            continue;
-        }
-
-        if ((entry.flags & COR_DEBUG_EXCEPTION_FILTER_EVERYTHING_ELSE) != 0)
-        {
-            hasEverythingElseMatchingCaughtFlavor = true;
-            continue;
-        }
-
-        if ((entry.flags & COR_DEBUG_EXCEPTION_FILTER_NOT_FILTERED) != 0)
-        {
-            hasNotFilteredMatchingCaughtFlavor = true;
-            continue;
-        }
-
-        // Specific (typeDef, moduleAddress) entry.
-        if (EntryMatchesType(entry, pExceptionMT, fCaught))
-        {
-            anySpecificMatchedCaughtFlavor = true;
-            // Early out: a specific match in the matching caught flavor is
-            // sufficient.
-            return TRUE;
-        }
+        return GetEntryAction(*pBestTypeMatch, stage);
     }
-
-    // No specific match. Apply buckets.
-    if (hasEverythingElseMatchingCaughtFlavor)
+    if (pModuleDefault != nullptr)
     {
-        return TRUE;
+        return GetEntryAction(*pModuleDefault, stage);
     }
-
-    if (hasNotFilteredMatchingCaughtFlavor && !anySpecificMatchedCaughtFlavor)
+    if (pProcessDefault != nullptr)
     {
-        return TRUE;
+        return GetEntryAction(*pProcessDefault, stage);
     }
-
-    return FALSE;
+    return ExceptionNotificationAction::Ignore;
 }

@@ -1858,6 +1858,14 @@ struct MSLAYOUT DebuggerIPCEvent
 
         struct MSLAYOUT
         {
+            Portable<CORDB_ADDRESS> moduleAddress;
+            Portable<mdTypeDef> typeDef;
+            Portable<CORDB_ADDRESS> instructionAddress;
+            Portable<CorDebugExceptionNotificationStage> stage;
+        } ExceptionNotification;
+
+        struct MSLAYOUT
+        {
             Portable<CorDebugExceptionUnwindCallbackType> eventType;
             Portable<DWORD> dwFlags;
         } ExceptionUnwind;

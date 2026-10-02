@@ -7242,6 +7242,11 @@ void Debugger::SendExceptionEventsWorker(
         }
     }
 
+    if (pDebugMethodInfo != nullptr && pDebugMethodInfo->IsJMCFunction())
+    {
+        pExState->GetFlags()->SetRuntimeTraversedUserCode();
+    }
+
     DebuggerIPCEvent* ipce = m_pRCThread->GetIPCEventSendBuffer();
 
     if (fFirstChance)
@@ -7254,22 +7259,43 @@ void Debugger::SendExceptionEventsWorker(
         //
         // Send the first chance exception if we have not already and if it is not suppressed
         //
-        if (m_sendExceptionsOutsideOfJMC && !pExState->GetFlags()->SentDebugFirstChance())
+        if (!pExState->GetFlags()->SentDebugFirstChance())
         {
-            // Apply the runtime-side exception filter installed via
-            // ICorDebugProcess13::SetExceptionFilter. At first-chance time the
-            // EH machinery has not yet decided whether the exception has a
-            // handler in scope, so we treat the exception as "caught" from the
-            // filter's perspective (matches Mono's MOD_KIND_EXCEPTION_ONLY
-            // convention). The DEBUG_EXCEPTION_UNHANDLED callback is sent via
-            // a separate code path below and is never suppressed.
-            // Marking the exception with RuntimeFilteredFirstChance ensures
-            // Debugger::ShouldSendCatchHandlerFound also suppresses the
-            // matching CHF callback later.
-            if (!ShouldSendExceptionToDebugger(pThread, /* fCaught */ TRUE))
+            ExceptionNotificationAction action = GetExceptionNotificationAction(
+                pThread,
+                COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE);
+            if (action == ExceptionNotificationAction::Notify)
+            {
+                if (!pExState->GetFlags()->RuntimeExceptionNotificationSent(
+                        COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE))
+                {
+                    SendExceptionNotification(
+                        pThread,
+                        reinterpret_cast<SIZE_T>(ip),
+                        COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE);
+                    pExState->GetFlags()->SetRuntimeExceptionNotificationSent(
+                        COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE);
+                }
+                pExState->GetFlags()->SetRuntimeFilteredFirstChance();
+            }
+            else if (action == ExceptionNotificationAction::Ignore)
             {
                 pExState->GetFlags()->SetRuntimeFilteredFirstChance();
-                LOG((LF_CORDB, LL_INFO10000, "D::SE: first-chance suppressed by runtime exception filter\n"));
+            }
+            else if (!m_sendExceptionsOutsideOfJMC)
+            {
+                // With JMC enabled, thrown stops are represented by user-first-chance.
+                if (!pExState->GetFlags()->RuntimeExceptionNotificationSent(
+                        COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE))
+                {
+                    SendExceptionNotification(
+                        pThread,
+                        reinterpret_cast<SIZE_T>(ip),
+                        COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE);
+                    pExState->GetFlags()->SetRuntimeExceptionNotificationSent(
+                        COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE);
+                }
+                pExState->GetFlags()->SetRuntimeFilteredFirstChance();
             }
             else
             {
@@ -7321,10 +7347,26 @@ void Debugger::SendExceptionEventsWorker(
             // code; the filter then decides if the user actually wants to break
             // on this specific type. At first-chance time the exception is
             // treated as caught (see comment above for the JMC-bypass branch).
-            if (!ShouldSendExceptionToDebugger(pThread, /* fCaught */ TRUE))
+            ExceptionNotificationAction action = GetExceptionNotificationAction(
+                pThread,
+                COR_DEBUG_EXCEPTION_STAGE_USER_FIRST_CHANCE);
+            if (action == ExceptionNotificationAction::Notify)
+            {
+                if (!pExState->GetFlags()->RuntimeExceptionNotificationSent(
+                        COR_DEBUG_EXCEPTION_STAGE_USER_FIRST_CHANCE))
+                {
+                    SendExceptionNotification(
+                        pThread,
+                        reinterpret_cast<SIZE_T>(ip),
+                        COR_DEBUG_EXCEPTION_STAGE_USER_FIRST_CHANCE);
+                    pExState->GetFlags()->SetRuntimeExceptionNotificationSent(
+                        COR_DEBUG_EXCEPTION_STAGE_USER_FIRST_CHANCE);
+                }
+                pExState->GetFlags()->SetRuntimeFilteredUserFirstChance();
+            }
+            else if (action == ExceptionNotificationAction::Ignore)
             {
                 pExState->GetFlags()->SetRuntimeFilteredUserFirstChance();
-                LOG((LF_CORDB, LL_INFO10000, "D::SE: user-first-chance suppressed by runtime exception filter\n"));
             }
             else
             {
@@ -7349,7 +7391,14 @@ void Debugger::SendExceptionEventsWorker(
                 TrapAllRuntimeThreads();
             }
 
-            pExState->GetFlags()->SetSentDebugUserFirstChance();
+            // The debugger may reclassify the stopping method as non-user
+            // code while handling the callback. In that case, leave the flag
+            // clear so the next JMC frame can produce another user-first-
+            // chance callback.
+            if (pDebugMethodInfo->IsJMCFunction())
+            {
+                pExState->GetFlags()->SetSentDebugUserFirstChance();
+            }
 
             // Let other Runtime threads handle their events.
             SENDIPCEVENT_END;
@@ -7366,12 +7415,27 @@ void Debugger::SendExceptionEventsWorker(
         //   to read GetFlags() from the exception state.
         // else if there is an exception in progress we only want to send the notification if
         //   we did not already send a CHF, previous unhandled, or unwind begin notification
-        BOOL sendNotification = TRUE;
+        ExceptionNotificationAction action = pThread->IsExceptionInProgress()
+            ? GetExceptionNotificationAction(pThread, COR_DEBUG_EXCEPTION_STAGE_UNHANDLED)
+            : ExceptionNotificationAction::Stop;
+        BOOL sendNotification = action == ExceptionNotificationAction::Stop;
         if(pThread->IsExceptionInProgress())
         {
             sendNotification = !pExState->GetFlags()->DebugCatchHandlerFound() &&
                                !pExState->GetFlags()->SentDebugUnhandled() &&
-                               !pExState->GetFlags()->SentDebugUnwindBegin();
+                               !pExState->GetFlags()->SentDebugUnwindBegin() &&
+                               action == ExceptionNotificationAction::Stop;
+            if (action == ExceptionNotificationAction::Notify &&
+                !pExState->GetFlags()->RuntimeExceptionNotificationSent(
+                    COR_DEBUG_EXCEPTION_STAGE_UNHANDLED))
+            {
+                SendExceptionNotification(
+                    pThread,
+                    0,
+                    COR_DEBUG_EXCEPTION_STAGE_UNHANDLED);
+                pExState->GetFlags()->SetRuntimeExceptionNotificationSent(
+                    COR_DEBUG_EXCEPTION_STAGE_UNHANDLED);
+            }
         }
 
         if(sendNotification)
@@ -7658,32 +7722,34 @@ bool Debugger::FirstChanceManagedException(Thread *pThread, SIZE_T currentIP, SI
 
     ThreadExceptionState* pExState = pThread->GetExceptionState();
 
-    // This callback runs once per managed frame. Once this exception has
-    // been filtered, reuse that decision for the rest of the stack walk.
-    if (pExState->GetFlags()->RuntimeFilteredFirstChance())
+    ExceptionNotificationAction firstChanceAction = GetExceptionNotificationAction(
+        pThread,
+        COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE);
+    ExceptionNotificationAction userFirstChanceAction = GetExceptionNotificationAction(
+        pThread,
+        COR_DEBUG_EXCEPTION_STAGE_USER_FIRST_CHANCE);
+    ExceptionNotificationAction catchHandlerFoundAction = GetExceptionNotificationAction(
+        pThread,
+        COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND);
+
+    if (firstChanceAction == ExceptionNotificationAction::Notify &&
+        !pExState->GetFlags()->RuntimeExceptionNotificationSent(
+            COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE))
     {
-        return false;
+        SendExceptionNotification(
+            pThread,
+            currentIP,
+            COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE);
+        pExState->GetFlags()->SetRuntimeExceptionNotificationSent(
+            COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE);
     }
 
-    // Early runtime-side exception-filter check. When the host installed
-    // a filter via ICorDebugProcess13::SetExceptionFilter that suppresses
-    // first-chance callbacks for this exception type, short-circuit here
-    // and skip ALL of SendException's per-throw setup (frame walking,
-    // metadata lookup, IPC-event preparation, etc.). The match itself is
-    // a few pointer-walks against an immutable snapshot under a brief
-    // lock and is cheap enough to run inline on the throw hot path.
-    //
-    // The RuntimeFilteredFirstChance / RuntimeFilteredUserFirstChance
-    // flags are set so downstream notifications (catch-handler-found,
-    // unhandled, …) know the first-chance event was deliberately
-    // suppressed and behave consistently with the in-SendException
-    // filter check that still gates the slower fallback paths.
-    if (!ShouldSendExceptionToDebugger(pThread, /* fCaught */ TRUE))
+    if (firstChanceAction != ExceptionNotificationAction::Stop &&
+        userFirstChanceAction == ExceptionNotificationAction::Ignore &&
+        catchHandlerFoundAction != ExceptionNotificationAction::Stop)
     {
         pExState->GetFlags()->SetRuntimeFilteredFirstChance();
         pExState->GetFlags()->SetRuntimeFilteredUserFirstChance();
-        LOG((LF_CORDB, LL_INFO10000,
-             "D::FCE: first-chance suppressed by runtime exception filter (early hoist)\n"));
         return false;
     }
 
@@ -7732,66 +7798,40 @@ void Debugger::FirstChanceManagedExceptionCatcherFound(Thread *pThread,
         return;
     }
 
-    // Runtime-side exception-filter fast path. If FirstChanceManagedException
-    // already suppressed this throw via the host-installed filter
-    // (RuntimeFilteredFirstChance flag is set), there is no debugger state
-    // upstream that would consume a catch-handler-found event — except for
-    // explicit DB_IPCE_FORCE_CATCH_HANDLER_FOUND entries the host added for
-    // a specific throwable. Skip the GetJitInfo lookup (which walks the
-    // debugger JIT-info tables and is the dominant per-throw cost on this
-    // path under a debugger) when no force-CHF entry exists for this
-    // exception. Without this hoist every filtered throw still paid for
-    // a full GetJitInfo lookup, dwarfing the IPC saving from
-    // FirstChanceManagedException's early return.
-    {
-        ThreadExceptionState* pExState = pThread->GetExceptionState();
-        if (pExState->GetFlags()->RuntimeFilteredFirstChance())
-        {
-            bool hasForceCHF = false;
-            {
-                GCX_COOP_EEINTERFACE();
-                OBJECTHANDLE objHandle = pThread->GetThrowableAsHandle();
-                if (objHandle != NULL)
-                {
-                    hasForceCHF = m_pForceCatchHandlerFoundEventsTable->Lookup(objHandle) != NULL;
-                }
-            }
-            if (!hasForceCHF)
-            {
-                LOG((LF_CORDB, LL_INFO10000,
-                     "D::FCMECF: catch-handler-found suppressed by runtime exception filter (early hoist)\n"));
-                return;
-            }
-        }
-    }
-
-    // Compute the offset
-
-    DWORD nOffset = (DWORD)(SIZE_T)ICorDebugInfo::NO_MAPPING;
-    DebuggerMethodInfo *pDebugMethodInfo = NULL;
-    DebuggerJitInfo *pDebugJitInfo = NULL;
-    bool isInJMCFunction = false;
-
-    if (pMD != NULL)
-    {
-        _ASSERTE(!pMD->IsDiagnosticsHidden());
-
-        pDebugJitInfo = GetJitInfo(pMD, (const BYTE *) pMethodAddr, &pDebugMethodInfo);
-        if (pDebugMethodInfo != NULL)
-        {
-            isInJMCFunction = pDebugMethodInfo->IsJMCFunction();
-        }
-    }
-
     BOOL forceSendCatchHandlerFound = FALSE;
     {
         GCX_COOP_EEINTERFACE();
         forceSendCatchHandlerFound = ShouldSendCatchHandlerFound(pThread);
     }
-    // Here we check if debugger opted-out of receiving exception related events from outside of JMC methods
-    // or this exception ever crossed JMC frame (in this case we have already sent user first chance event)
-    if (isInJMCFunction || forceSendCatchHandlerFound)
+    ThreadExceptionState* pExState = pThread->GetExceptionState();
+    ExceptionNotificationAction catchHandlerFoundAction = GetExceptionNotificationAction(
+        pThread,
+        COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND);
+    bool shouldStopForCatchHandler =
+        catchHandlerFoundAction == ExceptionNotificationAction::Stop &&
+        (pExState->GetFlags()->RuntimeTraversedUserCode() ||
+         DebuggerController::HasActiveStepper(pThread) ||
+         forceSendCatchHandlerFound);
+    if (catchHandlerFoundAction == ExceptionNotificationAction::Notify &&
+        !pExState->GetFlags()->RuntimeExceptionNotificationSent(
+            COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND))
     {
+        SendExceptionNotification(
+            pThread,
+            static_cast<SIZE_T>(pMethodAddr),
+            COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND);
+        pExState->GetFlags()->SetRuntimeExceptionNotificationSent(
+            COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND);
+    }
+    if (shouldStopForCatchHandler)
+    {
+        DWORD nOffset = (DWORD)(SIZE_T)ICorDebugInfo::NO_MAPPING;
+        DebuggerJitInfo* pDebugJitInfo = nullptr;
+        if (pMD != nullptr)
+        {
+            _ASSERTE(!pMD->IsDiagnosticsHidden());
+            pDebugJitInfo = GetJitInfo(pMD, reinterpret_cast<const BYTE*>(pMethodAddr), nullptr);
+        }
         if (pDebugJitInfo != NULL)
         {
             CorDebugMappingResult mapResult;
@@ -7819,7 +7859,7 @@ void Debugger::FirstChanceManagedExceptionCatcherFound(Thread *pThread,
 
     // flag that we catch handler found so that we won't send other mutually exclusive events
     // such as unwind begin or unhandled
-    pThread->GetExceptionState()->GetFlags()->SetDebugCatchHandlerFound();
+    pExState->GetFlags()->SetDebugCatchHandlerFound();
 }
 
 // Filter to trigger CHF callback
@@ -7912,12 +7952,17 @@ LONG Debugger::NotifyOfCHFFilter(EXCEPTION_POINTERS* pExceptionPointers, PVOID p
         // suppressing this exception type, skip the SendException
         // setup entirely and mark the exception state so downstream
         // notifications stay consistent.
-        if (!ShouldSendExceptionToDebugger(pThread, /* fCaught */ TRUE))
+        ExceptionNotificationAction firstChanceAction = GetExceptionNotificationAction(
+            pThread,
+            COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE);
+        ExceptionNotificationAction userFirstChanceAction = GetExceptionNotificationAction(
+            pThread,
+            COR_DEBUG_EXCEPTION_STAGE_USER_FIRST_CHANCE);
+        if (firstChanceAction != ExceptionNotificationAction::Stop &&
+            userFirstChanceAction == ExceptionNotificationAction::Ignore)
         {
             pExState->GetFlags()->SetRuntimeFilteredFirstChance();
             pExState->GetFlags()->SetRuntimeFilteredUserFirstChance();
-            LOG((LF_CORDB, LL_INFO10000,
-                 "D::NotifyOfCHFFilter: first-chance suppressed by runtime exception filter (early hoist)\n"));
         }
         else
         {
@@ -7941,7 +7986,24 @@ LONG Debugger::NotifyOfCHFFilter(EXCEPTION_POINTERS* pExceptionPointers, PVOID p
 
     // Here we check if debugger opted-out of receiving exception related events from outside of JMC methods
     // or this exception ever crossed JMC frame (in this case we have already sent user first chance event)
-    if (forceSendCatchHandlerFound)
+    ExceptionNotificationAction catchHandlerFoundAction = GetExceptionNotificationAction(
+        pThread,
+        COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND);
+    if (catchHandlerFoundAction == ExceptionNotificationAction::Notify &&
+        !pExState->GetFlags()->RuntimeExceptionNotificationSent(
+            COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND))
+    {
+        SendExceptionNotification(
+            pThread,
+            static_cast<SIZE_T>(GetIP(pExceptionPointers->ContextRecord)),
+            COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND);
+        pExState->GetFlags()->SetRuntimeExceptionNotificationSent(
+            COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND);
+    }
+    if (catchHandlerFoundAction == ExceptionNotificationAction::Stop &&
+        (pExState->GetFlags()->RuntimeTraversedUserCode() ||
+         DebuggerController::HasActiveStepper(pThread) ||
+         forceSendCatchHandlerFound))
     {
         SendCatchHandlerFound(pThread, fp, offset, dwFlags);
     }
@@ -7992,7 +8054,7 @@ BOOL Debugger::ShouldSendCatchHandlerFound(Thread* pThread)
         !pExState->GetFlags()->SentDebugFirstChance() &&
         !pExState->GetFlags()->SentDebugUserFirstChance())
     {
-        OBJECTHANDLE objHandle = pThread->GetThrowableAsHandle();
+        OBJECTHANDLE objHandle = pThread->GetThrowableAsPseudoHandle();
         OBJECTHANDLE retrievedHandle = m_pForceCatchHandlerFoundEventsTable->Lookup(objHandle);
         if (retrievedHandle == NULL)
         {
@@ -8035,7 +8097,9 @@ BOOL Debugger::ShouldSendCatchHandlerFound(Thread* pThread)
 // briefly takes m_mutex only to AddRef the immutable snapshot pointer,
 // then walks the entries lock-free against the exception's MethodTable.
 //
-BOOL Debugger::ShouldSendExceptionToDebugger(Thread* pThread, BOOL fCaught)
+ExceptionNotificationAction Debugger::GetExceptionNotificationAction(
+    Thread* pThread,
+    CorDebugExceptionNotificationStage stage)
 {
     CONTRACTL
     {
@@ -8047,7 +8111,7 @@ BOOL Debugger::ShouldSendExceptionToDebugger(Thread* pThread, BOOL fCaught)
 
     if (pThread == nullptr)
     {
-        return TRUE;
+        return ExceptionNotificationAction::Stop;
     }
 
     ExceptionFilterTable* pSnapshot = nullptr;
@@ -8063,10 +8127,10 @@ BOOL Debugger::ShouldSendExceptionToDebugger(Thread* pThread, BOOL fCaught)
     if (pSnapshot == nullptr)
     {
         // No filter installed. Back-compat: notify on every exception.
-        return TRUE;
+        return ExceptionNotificationAction::Stop;
     }
 
-    BOOL result = TRUE;
+    ExceptionNotificationAction result = ExceptionNotificationAction::Stop;
     {
         GCX_COOP_EEINTERFACE();
         EX_TRY
@@ -8074,13 +8138,13 @@ BOOL Debugger::ShouldSendExceptionToDebugger(Thread* pThread, BOOL fCaught)
             OBJECTHANDLE handle = g_pEEInterface->GetThreadException(pThread);
             OBJECTREF throwable = (handle != NULL) ? ObjectFromHandle(handle) : NULL;
             MethodTable* pMT = (throwable != NULL) ? throwable->GetMethodTable() : nullptr;
-            result = pSnapshot->Match(pMT, fCaught);
+            result = pSnapshot->GetAction(pMT, stage);
         }
         EX_CATCH
         {
             // On any exception during matching, default to notify so we don't
             // accidentally drop events because of a transient lookup failure.
-            result = TRUE;
+            result = ExceptionNotificationAction::Stop;
         }
         EX_END_CATCH
     }
@@ -8089,235 +8153,47 @@ BOOL Debugger::ShouldSendExceptionToDebugger(Thread* pThread, BOOL fCaught)
     return result;
 }
 
-//
-// HandleSetExceptionFilterChunk
-//
-// Helper-thread side of DB_IPCE_SET_EXCEPTION_FILTER. Accumulates one chunk
-// into the staging buffer and atomically publishes the new snapshot when
-// the final chunk arrives.
-//
-void Debugger::HandleSetExceptionFilterChunk(const DebuggerIPCEvent* pEvent)
+void Debugger::SendExceptionNotification(
+    Thread* pThread,
+    SIZE_T currentIP,
+    CorDebugExceptionNotificationStage stage)
 {
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
 
-    const ULONG32 generationId      = pEvent->SetExceptionFilter.generationId;
-    const ULONG32 chunkIndex        = pEvent->SetExceptionFilter.chunkIndex;
-    const ULONG32 chunkCount        = pEvent->SetExceptionFilter.chunkCount;
-    const ULONG32 cTotalEntries     = pEvent->SetExceptionFilter.cTotalEntries;
-    const ULONG32 cEntriesInChunk   = pEvent->SetExceptionFilter.cEntriesInChunk;
-
-    if (chunkCount == 0 || chunkIndex >= chunkCount ||
-        cEntriesInChunk > SET_EXCEPTION_FILTER_MAX_ENTRIES_PER_CHUNK ||
-        cEntriesInChunk > cTotalEntries)
-    {
-        return;
-    }
-
-    ExceptionFilterTable* pNewSnapshot = nullptr;
-    ExceptionFilterTable* pOldSnapshot = nullptr;
-
-    {
-        CrstHolderWithState ch(&m_mutex);
-
-        if (chunkIndex == 0 || generationId != m_stagingFilterGeneration)
-        {
-            if (m_pStagingFilterEntries != nullptr)
-            {
-                delete[] m_pStagingFilterEntries;
-                m_pStagingFilterEntries = nullptr;
-            }
-            m_cStagingFilterEntries = 0;
-            m_cStagingFilterEntriesCapacity = 0;
-            m_stagingFilterGeneration = generationId;
-            m_stagingFilterChunksReceived = 0;
-            m_stagingFilterChunksExpected = chunkCount;
-
-            if (cTotalEntries > 0)
-            {
-                m_pStagingFilterEntries = new COR_DEBUG_EXCEPTION_FILTER_ENTRY[cTotalEntries];
-                m_cStagingFilterEntriesCapacity = cTotalEntries;
-            }
-
-            if (chunkIndex != 0)
-            {
-                if (m_pStagingFilterEntries != nullptr)
-                {
-                    delete[] m_pStagingFilterEntries;
-                    m_pStagingFilterEntries = nullptr;
-                }
-                m_cStagingFilterEntries = 0;
-                m_cStagingFilterEntriesCapacity = 0;
-                return;
-            }
-        }
-        else
-        {
-            if (chunkIndex != m_stagingFilterChunksReceived ||
-                chunkCount != m_stagingFilterChunksExpected ||
-                cTotalEntries != m_cStagingFilterEntriesCapacity)
-            {
-                if (m_pStagingFilterEntries != nullptr)
-                {
-                    delete[] m_pStagingFilterEntries;
-                    m_pStagingFilterEntries = nullptr;
-                }
-                m_cStagingFilterEntries = 0;
-                m_cStagingFilterEntriesCapacity = 0;
-                m_stagingFilterChunksReceived = 0;
-                m_stagingFilterChunksExpected = 0;
-                return;
-            }
-        }
-
-        if (cEntriesInChunk > 0 && m_pStagingFilterEntries != nullptr)
-        {
-            if (m_cStagingFilterEntries + cEntriesInChunk > m_cStagingFilterEntriesCapacity)
-            {
-                delete[] m_pStagingFilterEntries;
-                m_pStagingFilterEntries = nullptr;
-                m_cStagingFilterEntries = 0;
-                m_cStagingFilterEntriesCapacity = 0;
-                return;
-            }
-
-            memcpy(&m_pStagingFilterEntries[m_cStagingFilterEntries],
-                   pEvent->SetExceptionFilter.entries,
-                   cEntriesInChunk * sizeof(COR_DEBUG_EXCEPTION_FILTER_ENTRY));
-            m_cStagingFilterEntries += cEntriesInChunk;
-        }
-
-        m_stagingFilterChunksReceived++;
-
-        if (m_stagingFilterChunksReceived == m_stagingFilterChunksExpected)
-        {
-            pNewSnapshot = ExceptionFilterTable::Create(m_pStagingFilterEntries, m_cStagingFilterEntries);
-            pOldSnapshot = m_pExceptionFilter;
-            m_pExceptionFilter = pNewSnapshot;
-
-            if (m_pStagingFilterEntries != nullptr)
-            {
-                delete[] m_pStagingFilterEntries;
-                m_pStagingFilterEntries = nullptr;
-            }
-            m_cStagingFilterEntries = 0;
-            m_cStagingFilterEntriesCapacity = 0;
-            m_stagingFilterChunksReceived = 0;
-            m_stagingFilterChunksExpected = 0;
-        }
-    }
-
-    if (pOldSnapshot != nullptr)
-    {
-        pOldSnapshot->Release();
-    }
-}
-
-//
-// ResetExceptionFilter
-//
-// Drops both the live snapshot and any in-flight staging buffer. Called
-// from DB_IPCE_DETACH_FROM_PROCESS so a fresh attach starts with no filter
-// installed and the host re-pushes the user's exception settings.
-//
-void Debugger::ResetExceptionFilter()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    ExceptionFilterTable* pToRelease = nullptr;
-    {
-        CrstHolderWithState ch(&m_mutex);
-
-        pToRelease = m_pExceptionFilter;
-        m_pExceptionFilter = nullptr;
-    }
-
-    if (pToRelease != nullptr)
-    {
-        pToRelease->Release();
-    }
-}
-
-//
-// ShouldSendExceptionToDebugger
-//
-// Consults the runtime-side exception filter snapshot (installed via
-// ICorDebugProcess13::SetExceptionFilter) to decide whether a first-chance
-// or user-first-chance callback should be forwarded to the debugger.
-//
-// Returns TRUE if the debugger should be notified, FALSE if the runtime
-// should suppress the callback. When no filter has ever been installed,
-// or after the filter is reset on detach, this always returns TRUE so
-// hosts that don't use the new API see legacy behavior.
-//
-// This is the perf-critical path: every first-chance managed exception
-// passes through here while the debugger is attached. The implementation
-// briefly takes m_mutex only to AddRef the immutable snapshot pointer,
-// then walks the entries lock-free against the exception's MethodTable.
-//
-BOOL Debugger::ShouldSendExceptionToDebugger(Thread* pThread, BOOL fCaught)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if (pThread == nullptr)
-    {
-        return TRUE;
-    }
-
-    ExceptionFilterTable* pSnapshot = nullptr;
-    {
-        CrstHolderWithState ch(&m_mutex);
-        if (m_pExceptionFilter != nullptr)
-        {
-            pSnapshot = m_pExceptionFilter;
-            pSnapshot->AddRef();
-        }
-    }
-
-    if (pSnapshot == nullptr)
-    {
-        // No filter installed. Back-compat: notify on every exception.
-        return TRUE;
-    }
-
-    BOOL result = TRUE;
+    CORDB_ADDRESS moduleAddress = 0;
+    mdTypeDef typeDef = mdTypeDefNil;
     {
         GCX_COOP_EEINTERFACE();
-        EX_TRY
+        OBJECTHANDLE handle = g_pEEInterface->GetThreadException(pThread);
+        OBJECTREF throwable = handle != nullptr ? ObjectFromHandle(handle) : nullptr;
+        MethodTable* pMT = throwable != nullptr ? throwable->GetMethodTable() : nullptr;
+        if (pMT != nullptr)
         {
-            OBJECTHANDLE handle = g_pEEInterface->GetThreadException(pThread);
-            OBJECTREF throwable = (handle != NULL) ? ObjectFromHandle(handle) : NULL;
-            MethodTable* pMT = (throwable != NULL) ? throwable->GetMethodTable() : nullptr;
-            result = pSnapshot->Match(pMT, fCaught);
+            Module* pModule = pMT->GetModule();
+            if (pModule != nullptr && pModule->GetPEAssembly()->HasLoadedPEImage())
+            {
+                moduleAddress = PTR_TO_CORDB_ADDRESS(pModule->GetPEAssembly()->GetLoadedLayout()->GetBase());
+            }
+            typeDef = pMT->GetCl();
         }
-        EX_CATCH
-        {
-            // On any exception during matching, default to notify so we don't
-            // accidentally drop events because of a transient lookup failure.
-            result = TRUE;
-        }
-        EX_END_CATCH
     }
 
-    pSnapshot->Release();
-    return result;
+    SENDIPCEVENT_BEGIN(this, pThread);
+    DebuggerIPCEvent* pEvent = m_pRCThread->GetIPCEventSendBuffer();
+    InitIPCEvent(pEvent, DB_IPCE_EXCEPTION_NOTIFICATION, pThread);
+    pEvent->ExceptionNotification.moduleAddress = moduleAddress;
+    pEvent->ExceptionNotification.typeDef = typeDef;
+    pEvent->ExceptionNotification.instructionAddress =
+        static_cast<CORDB_ADDRESS>(currentIP);
+    pEvent->ExceptionNotification.stage = stage;
+    m_pRCThread->SendIPCEvent();
+    SENDIPCEVENT_END;
 }
 
 //

@@ -1399,6 +1399,38 @@ interface ICorDebugManagedCallback4 : IUnknown
     HRESULT DataBreakpoint([in] ICorDebugProcess* pProcess, [in] ICorDebugThread* pThread, [in] BYTE* pContext, [in] ULONG32 contextSize);
 }
 
+typedef enum CorDebugExceptionNotificationStage
+{
+    COR_DEBUG_EXCEPTION_STAGE_NONE                = 0x00,
+    COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE        = 0x01,
+    COR_DEBUG_EXCEPTION_STAGE_USER_FIRST_CHANCE   = 0x02,
+    COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND = 0x04,
+    COR_DEBUG_EXCEPTION_STAGE_UNHANDLED           = 0x08
+} CorDebugExceptionNotificationStage;
+
+[
+    object,
+    local,
+    uuid(0D3E6E77-7A0D-4C4A-97F8-7A4B56A50D13),
+    pointer_default(unique)
+]
+
+interface ICorDebugManagedCallback5 : IUnknown
+{
+    /*
+     * Reports an exception without synchronizing or stopping the debuggee.
+     * The callback is informational only: the receiver must not inspect live
+     * process state or call Continue from this callback.
+     */
+    HRESULT ExceptionNotification(
+        [in] ICorDebugProcess* pProcess,
+        [in] ICorDebugThread* pThread,
+        [in] CORDB_ADDRESS moduleAddress,
+        [in] mdTypeDef typeDef,
+        [in] CORDB_ADDRESS instructionAddress,
+        [in] CorDebugExceptionNotificationStage stage);
+}
+
 #pragma warning(disable:28718)	/* disable warning 28718 for interface ICorDebugManagedCallback2 */
 
 /*
@@ -3332,56 +3364,35 @@ interface ICorDebugProcess12 : IUnknown
     HRESULT GetAsyncStack([in] CORDB_ADDRESS continuationAddress, [out] ICorDebugStackWalk** ppStackWalk);
 }
 
-/*
- * Flags applied to a single COR_DEBUG_EXCEPTION_FILTER_ENTRY. Combine with bitwise OR.
- *
- * Semantics mirror the Mono soft-debugger's MOD_KIND_EXCEPTION_ONLY modifier so a single
- * filter shape works for both runtimes:
- *   - CAUGHT / UNCAUGHT control whether the entry matches caught (first-chance with a
- *     handler in scope) and/or uncaught (no handler) exceptions.
- *   - SUBCLASSES makes the entry match the listed type AND any derived types.
- *   - NOT_FILTERED inverts the per-entry decision: the entry matches when the exception
- *     would otherwise NOT be matched by any sibling entry. This is the "not-filtered"
- *     bucket VS uses to suppress a handful of types while breaking on everything else.
- *   - EVERYTHING_ELSE is the catch-all bucket. The entry's typeDef/moduleAddress are
- *     ignored; the entry matches any exception of the requested caught/uncaught flavor
- *     that no other entry matched. Used for "Common Language Runtime Exceptions" and
- *     for covering pending name-only entries Concord has not yet resolved to a type.
- */
 typedef enum CorDebugExceptionFilterFlags
 {
-    COR_DEBUG_EXCEPTION_FILTER_NONE              = 0x00,
-    COR_DEBUG_EXCEPTION_FILTER_CAUGHT            = 0x01,
-    COR_DEBUG_EXCEPTION_FILTER_UNCAUGHT          = 0x02,
-    COR_DEBUG_EXCEPTION_FILTER_SUBCLASSES        = 0x04,
-    COR_DEBUG_EXCEPTION_FILTER_NOT_FILTERED      = 0x08,
-    COR_DEBUG_EXCEPTION_FILTER_EVERYTHING_ELSE   = 0x10,
-        COR_DEBUG_EXCEPTION_FILTER_EXCLUDE          = 0x20
+    COR_DEBUG_EXCEPTION_FILTER_NONE            = 0x00,
+    COR_DEBUG_EXCEPTION_FILTER_SUBCLASSES      = 0x01,
+    COR_DEBUG_EXCEPTION_FILTER_MODULE_DEFAULT  = 0x02,
+    COR_DEBUG_EXCEPTION_FILTER_PROCESS_DEFAULT = 0x04
 } CorDebugExceptionFilterFlags;
 
 /*
  * A single entry in the runtime-side exception filter set installed via
  * ICorDebugProcess13::SetExceptionFilter.
  *
- * typeDef/moduleAddress identify the managed exception type; both must be 0 when the
- * EVERYTHING_ELSE flag is set. Concord (or any other ICorDebug host) is responsible
- * for resolving exception type names to (moduleAddress, mdTypeDef) before pushing the
- * filter; entries whose type is not yet loaded must remain on the host side and be
- * temporarily covered by an EVERYTHING_ELSE entry.
+ * Specific entries identify a managed exception type by moduleAddress and typeDef.
+ * MODULE_DEFAULT entries set typeDef to 0 and apply only when no specific entry
+ * matches an exception whose runtime type is defined by moduleAddress.
+ * PROCESS_DEFAULT entries set moduleAddress and typeDef to 0 and apply when no
+ * specific or module-default entry matches.
  *
- * moduleAddress must be the PE image base address as reported by
- * ICorDebugModule::GetBaseAddress for the module that defines the exception type, or
- * 0 to match any module that defines typeDef. The DBI translates the PE image base
- * into the internal module identifier the runtime uses before forwarding the filter
- * to the EE; if the PE image base does not correspond to any module the DBI currently
- * tracks, SetExceptionFilter fails with E_INVALIDARG and the previously installed
- * filter is left unchanged.
+ * notificationMask selects the stages for which a lightweight notification is
+ * required. stoppingMask must be a subset of notificationMask and selects the
+ * stages that synchronize and stop the debuggee.
  */
 typedef struct _COR_DEBUG_EXCEPTION_FILTER_ENTRY
 {
     CORDB_ADDRESS                   moduleAddress;
     mdTypeDef                       typeDef;
     CorDebugExceptionFilterFlags    flags;
+    ULONG32                         notificationMask;
+    ULONG32                         stoppingMask;
 } COR_DEBUG_EXCEPTION_FILTER_ENTRY;
 
 [
@@ -3393,22 +3404,14 @@ typedef struct _COR_DEBUG_EXCEPTION_FILTER_ENTRY
 interface ICorDebugProcess13 : IUnknown
 {
     /*
-     * Replaces the runtime-side exception filter set used to short-circuit first-chance
-     * exception callbacks before they cross the OOP debugger boundary.
+     * Replaces the runtime-side exception notification policy atomically.
+     * Specific type entries override module defaults, and module defaults override
+     * the process default. This permits a host to stop for selected types in modules
+     * A and B while stopping for every type in all other modules.
      *
-     * The runtime evaluates each first-chance / user-first-chance exception against the
-     * supplied entries using the same algorithm as the Mono soft-debugger's
-     * MOD_KIND_EXCEPTION_ONLY: an exception is reported to the debugger only if at least
-     * one entry matches the (type, caught/uncaught) combination after taking
-     * NOT_FILTERED and EVERYTHING_ELSE into account.
-     *
-     * Composition with other exception suppression mechanisms:
-     *   - ICorDebugProcess8::EnableExceptionCallbacksOutsideOfMyCode (JMC) is evaluated
-     *     FIRST. If JMC would suppress the callback, the filter installed via this API
-     *     is not consulted.
-     *   - DEBUG_EXCEPTION_CATCH_HANDLER_FOUND callbacks are sent only for exceptions
-     *     whose first-chance callback was actually delivered (i.e. matched the filter).
-     *   - DEBUG_EXCEPTION_UNHANDLED callbacks are ALWAYS sent regardless of the filter.
+     * A notification-only first-chance event carries the exception type and throw
+     * instruction address through ICorDebugManagedCallback5 without stopping the
+     * debuggee. A stopping event continues to use ICorDebugManagedCallback2.
      *
      * Calling this API replaces the entire filter set atomically; readers in flight
      * continue to observe the previous snapshot until the replacement publishes.
@@ -3419,8 +3422,8 @@ interface ICorDebugProcess13 : IUnknown
      *
      * Returns:
      *   S_OK             - the filter was accepted and installed.
-     *   E_INVALIDARG     - an entry combines EVERYTHING_ELSE with a non-zero typeDef
-     *                      or moduleAddress, or sets neither CAUGHT nor UNCAUGHT.
+     *   E_INVALIDARG     - an entry has an invalid default shape, stoppingMask contains
+     *                      bits not present in notificationMask, or an unknown stage bit.
      *   CORDBG_E_*       - other process-state errors (process exited, etc.).
      */
     HRESULT SetExceptionFilter(

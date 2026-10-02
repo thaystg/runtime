@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- This is a manual debugger-attached benchmark. -->
+    <OutputType>Exe</OutputType>
+    <CLRTestKind>BuildOnly</CLRTestKind>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildProjectName).cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <CMakeProjectReference Include="driver\CMakeLists.txt" />
+  </ItemGroup>
+</Project>

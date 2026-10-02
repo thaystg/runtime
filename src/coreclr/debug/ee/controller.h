@@ -1185,6 +1185,7 @@ class DebuggerController
     // Thread-Starters normally delete themselves when they fire. But if the EE
     // destroys the thread before it fires, then we'd still have an active DTS.
     static void CancelOutstandingThreadStarter(Thread * pThread);
+    static bool HasActiveStepper(Thread* pThread);
 
     static void AddRefPatch(DebuggerControllerPatch *patch);
     static void ReleasePatch(DebuggerControllerPatch *patch);

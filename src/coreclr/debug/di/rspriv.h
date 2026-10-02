@@ -3341,7 +3341,8 @@ public:
         ICorDebugManagedCallback *  pCallback1,
         ICorDebugManagedCallback2 * pCallback2,
         ICorDebugManagedCallback3 * pCallback3,
-        ICorDebugManagedCallback4 * pCallback4);
+        ICorDebugManagedCallback4 * pCallback4,
+        ICorDebugManagedCallback5 * pCallback5);
 
     void MarkAllThreadsDirty();
 
@@ -3457,8 +3458,7 @@ public:
                  type == DB_IPCE_SET_ALL_DEBUG_STATE ||
                  type == DB_IPCE_DETACH_FROM_PROCESS ||
                  type == DB_IPCE_INTERCEPT_EXCEPTION ||
-                 type == DB_IPCE_GET_NGEN_COMPILER_FLAGS ||
-                 type == DB_IPCE_SET_NGEN_COMPILER_FLAGS ||
+                 type == DB_IPCE_SET_EXCEPTION_FILTER ||
                  type == DB_IPCE_SET_VALUE_CLASS);
 
         ipce->type = type;
@@ -3477,17 +3477,8 @@ public:
     // Walks the cached CordbModule tables (no DAC prepopulation) looking for
     // a module whose PE image base address (as returned by
     // ICorDebugModule::GetBaseAddress) equals imageBase. Returns S_OK and
-    // *ppModule when exactly one match is found, S_FALSE when no match is
-    // found, or E_INVALIDARG when more than one cached module reports the
-    // same image base. Caller must hold the process lock.
-    HRESULT LookupCachedModuleByImageBase(CORDB_ADDRESS imageBase, CordbModule ** ppModule);
-
-    // Walks the cached CordbModule tables (no DAC prepopulation) looking for
-    // a module whose PE image base address (as returned by
-    // ICorDebugModule::GetBaseAddress) equals imageBase. Returns S_OK and
-    // *ppModule when exactly one match is found, S_FALSE when no match is
-    // found, or E_INVALIDARG when more than one cached module reports the
-    // same image base. Caller must hold the process lock.
+    // *ppModule when a match is found, or S_FALSE when no match is found.
+    // Caller must hold the process lock.
     HRESULT LookupCachedModuleByImageBase(CORDB_ADDRESS imageBase, CordbModule ** ppModule);
 
 #ifdef FEATURE_INTEROP_DEBUGGING

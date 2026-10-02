@@ -2492,9 +2492,8 @@ COM_METHOD CordbProcess::GetAsyncStack(CORDB_ADDRESS continuationAddress, ICorDe
 // ICorDebugModule::GetBaseAddress value into the EE's PTR_Module identifier
 // expected by the runtime-side filter matcher.
 //
-// Returns S_OK and *ppModule on a unique match, S_FALSE and *ppModule==NULL
-// when no cached module matches, and E_INVALIDARG when two or more cached
-// modules report the same image base. Caller must hold the process lock.
+// Returns S_OK and *ppModule on a match, or S_FALSE and *ppModule==NULL when
+// no cached module matches. Caller must hold the process lock.
 //
 HRESULT CordbProcess::LookupCachedModuleByImageBase(CORDB_ADDRESS imageBase, CordbModule ** ppModule)
 {
@@ -2507,41 +2506,20 @@ HRESULT CordbProcess::LookupCachedModuleByImageBase(CORDB_ADDRESS imageBase, Cor
         return S_FALSE;
     }
 
-    CordbModule * pFound = NULL;
-
-    HASHFIND hashFindAppDomain;
-    for (CordbAppDomain * pAppDomain = m_appDomains.FindFirst(&hashFindAppDomain);
-         pAppDomain != NULL;
-         pAppDomain = m_appDomains.FindNext(&hashFindAppDomain))
+    CordbAppDomain * pAppDomain = GetAppDomain();
+    HASHFIND hashFindModule;
+    for (CordbModule * pModule = pAppDomain->m_modules.FindFirst(&hashFindModule);
+         pModule != NULL;
+         pModule = pAppDomain->m_modules.FindNext(&hashFindModule))
     {
-        HASHFIND hashFindModule;
-        for (CordbModule * pModule = pAppDomain->m_modules.FindFirst(&hashFindModule);
-             pModule != NULL;
-             pModule = pAppDomain->m_modules.FindNext(&hashFindModule))
+        if (pModule->GetPEImageBaseAddress() == imageBase)
         {
-            if (pModule->GetPEImageBaseAddress() != imageBase)
-            {
-                continue;
-            }
-
-            // Same module surfacing through multiple appdomains is normal
-            // (e.g. CoreLib in legacy multi-domain hosts): we only consider
-            // it ambiguous when the underlying VM Module differs.
-            if (pFound != NULL && pFound->GetRuntimeModule() != pModule->GetRuntimeModule())
-            {
-                return E_INVALIDARG;
-            }
-            pFound = pModule;
+            *ppModule = pModule;
+            return S_OK;
         }
     }
 
-    if (pFound == NULL)
-    {
-        return S_FALSE;
-    }
-
-    *ppModule = pFound;
-    return S_OK;
+    return S_FALSE;
 }
 
 //
@@ -2603,31 +2581,46 @@ COM_METHOD CordbProcess::SetExceptionFilter(ULONG32 cEntries, COR_DEBUG_EXCEPTIO
         {
             const COR_DEBUG_EXCEPTION_FILTER_ENTRY& e = entries[i];
 
-            // At least one of CAUGHT / UNCAUGHT must be set or the entry can never match.
-            const ULONG32 caughtMask = COR_DEBUG_EXCEPTION_FILTER_CAUGHT | COR_DEBUG_EXCEPTION_FILTER_UNCAUGHT;
-            if ((e.flags & caughtMask) == 0)
+            const ULONG32 validStages =
+                COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE |
+                COR_DEBUG_EXCEPTION_STAGE_USER_FIRST_CHANCE |
+                COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND |
+                COR_DEBUG_EXCEPTION_STAGE_UNHANDLED;
+            const ULONG32 validFlags =
+                COR_DEBUG_EXCEPTION_FILTER_SUBCLASSES |
+                COR_DEBUG_EXCEPTION_FILTER_MODULE_DEFAULT |
+                COR_DEBUG_EXCEPTION_FILTER_PROCESS_DEFAULT;
+            if ((e.notificationMask & ~validStages) != 0 ||
+                (e.stoppingMask & ~e.notificationMask) != 0 ||
+                (e.flags & ~validFlags) != 0)
             {
                 ThrowHR(E_INVALIDARG);
             }
 
-            // EVERYTHING_ELSE entries are the catch-all bucket; a typeDef/moduleAddress would be ambiguous.
-            if ((e.flags & COR_DEBUG_EXCEPTION_FILTER_EVERYTHING_ELSE) != 0)
+            const bool isModuleDefault =
+                (e.flags & COR_DEBUG_EXCEPTION_FILTER_MODULE_DEFAULT) != 0;
+            const bool isProcessDefault =
+                (e.flags & COR_DEBUG_EXCEPTION_FILTER_PROCESS_DEFAULT) != 0;
+            if (isModuleDefault && isProcessDefault)
             {
-                if (e.typeDef != 0 || e.moduleAddress != 0)
-                {
+                ThrowHR(E_INVALIDARG);
+            }
+            if (isProcessDefault)
+            {
+                if (e.typeDef != 0 || e.moduleAddress != 0 ||
+                    (e.flags & COR_DEBUG_EXCEPTION_FILTER_SUBCLASSES) != 0)
                     ThrowHR(E_INVALIDARG);
-                }
+            }
+            else if (isModuleDefault)
+            {
+                if (e.typeDef != 0 || e.moduleAddress == 0 ||
+                    (e.flags & COR_DEBUG_EXCEPTION_FILTER_SUBCLASSES) != 0)
+                    ThrowHR(E_INVALIDARG);
             }
             else
             {
-                // Non-catch-all entries must specify a typeDef. moduleAddress
-                // is allowed to be 0, which means "match any module with this
-                // typeDef" — useful for hosts that add an exception type by
-                // name before the module has been resolved.
-                if (e.typeDef == 0)
-                {
+                if (e.typeDef == 0 || e.moduleAddress == 0)
                     ThrowHR(E_INVALIDARG);
-                }
             }
         }
 
@@ -2653,16 +2646,8 @@ COM_METHOD CordbProcess::SetExceptionFilter(ULONG32 cEntries, COR_DEBUG_EXCEPTIO
                 {
                     COR_DEBUG_EXCEPTION_FILTER_ENTRY& e = translatedEntries[i];
 
-                    if ((e.flags & COR_DEBUG_EXCEPTION_FILTER_EVERYTHING_ELSE) != 0)
+                    if ((e.flags & COR_DEBUG_EXCEPTION_FILTER_PROCESS_DEFAULT) != 0)
                     {
-                        continue;
-                    }
-
-                    if (e.moduleAddress == 0)
-                    {
-                        // Host explicitly opted into "match any module with
-                        // this typeDef". The EE side recognises 0 as the
-                        // any-module sentinel.
                         continue;
                     }
 
@@ -2670,12 +2655,9 @@ COM_METHOD CordbProcess::SetExceptionFilter(ULONG32 cEntries, COR_DEBUG_EXCEPTIO
                     HRESULT hrLookup = LookupCachedModuleByImageBase(e.moduleAddress, &pModule);
                     if (hrLookup != S_OK)
                     {
-                        // The PE image base did not resolve to a unique
-                        // cached CordbModule (S_FALSE means none, E_INVALIDARG
-                        // means more than one). Both are transient: a missing
-                        // module may still be loading, and an ambiguous match
-                        // can be triggered by mid-update load/unload races.
-                        // Tell the host to try again later — the previously
+                        // The PE image base did not resolve to a cached
+                        // CordbModule. The module may still be loading, so
+                        // tell the host to try again later; the previously
                         // installed filter remains live.
                         ThrowHR(E_NOT_VALID_STATE);
                     }
@@ -4784,7 +4766,8 @@ void CordbProcess::RawDispatchEvent(
     ICorDebugManagedCallback *  pCallback1,
     ICorDebugManagedCallback2 * pCallback2,
     ICorDebugManagedCallback3 * pCallback3,
-    ICorDebugManagedCallback4 * pCallback4)
+    ICorDebugManagedCallback4 * pCallback4,
+    ICorDebugManagedCallback5 * pCallback5)
 {
     CONTRACTL
     {
@@ -5670,6 +5653,22 @@ void CordbProcess::RawDispatchEvent(
                     (ULONG32)(pEvent->ExceptionCallback2.nOffset),
                     type,
                     pEvent->ExceptionCallback2.dwFlags);
+            }
+        }
+        break;
+
+    case DB_IPCE_EXCEPTION_NOTIFICATION:
+        {
+            if (pCallback5 != nullptr && pThread != nullptr)
+            {
+                PUBLIC_CALLBACK_IN_THIS_SCOPE(this, pLockHolder, pEvent);
+                pCallback5->ExceptionNotification(
+                    static_cast<ICorDebugProcess*>(this),
+                    pThread,
+                    pEvent->ExceptionNotification.moduleAddress,
+                    pEvent->ExceptionNotification.typeDef,
+                    pEvent->ExceptionNotification.instructionAddress,
+                    pEvent->ExceptionNotification.stage);
             }
         }
         break;
@@ -9899,16 +9898,31 @@ void CordbProcess::HandleRCEvent(
 
     RSExtSmartPtr<ICorDebugManagedCallback2> pCallback2;
     pCallback->QueryInterface(IID_ICorDebugManagedCallback2, reinterpret_cast<void **> (&pCallback2));
+    if (pCallback2 == nullptr)
+    {
+        pCallback2.Assign(m_cordb->m_managedCallback2);
+    }
 
     RSExtSmartPtr<ICorDebugManagedCallback3> pCallback3;
     pCallback->QueryInterface(IID_ICorDebugManagedCallback3, reinterpret_cast<void **> (&pCallback3));
+    if (pCallback3 == nullptr)
+    {
+        pCallback3.Assign(m_cordb->m_managedCallback3);
+    }
 
     RSExtSmartPtr<ICorDebugManagedCallback4> pCallback4;
     pCallback->QueryInterface(IID_ICorDebugManagedCallback4, reinterpret_cast<void **> (&pCallback4));
+    if (pCallback4 == nullptr)
+    {
+        pCallback4.Assign(m_cordb->m_managedCallback4);
+    }
+
+    RSExtSmartPtr<ICorDebugManagedCallback5> pCallback5;
+    pCallback->QueryInterface(IID_ICorDebugManagedCallback5, reinterpret_cast<void **> (&pCallback5));
 
     // Dispatch directly. May not necessarily dispatch an event.
     // Toggles the lock to dispatch callbacks.
-    RawDispatchEvent(pManagedEvent, pLockHolder, pCallback, pCallback2, pCallback3, pCallback4);
+    RawDispatchEvent(pManagedEvent, pLockHolder, pCallback, pCallback2, pCallback3, pCallback4, pCallback5);
 }
 
 //
@@ -10643,8 +10657,17 @@ void CordbProcess::FilterClrNotification(
             // Case 3: Notification. This will dispatch the event immediately.
             //
 
+            // The shim callback queues ordinary managed callbacks until a
+            // sync-complete event. Exception notifications are explicitly
+            // non-stopping and do not synchronize the runtime, so dispatch
+            // callback 5 directly to the registered debugger callback.
+            ICorDebugManagedCallback * pDispatchCallback =
+                pManagedEvent->type == DB_IPCE_EXCEPTION_NOTIFICATION
+                    ? m_cordb->m_managedCallback.GetValue()
+                    : pCallback;
+
             // Toggles the process-lock if it dispatches callbacks.
-            HandleRCEvent(pManagedEvent, pLockHolder, pCallback);
+            HandleRCEvent(pManagedEvent, pLockHolder, pDispatchCallback);
 
         } // end Notification
     }

@@ -347,6 +347,12 @@ public:
 
     BOOL RuntimeFilteredUserFirstChance()    { LIMITED_METHOD_CONTRACT; return m_flags & Ex_RuntimeFilteredUserFirstChance; }
     void SetRuntimeFilteredUserFirstChance() { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags |= Ex_RuntimeFilteredUserFirstChance; }
+
+    BOOL RuntimeExceptionNotificationSent(UINT32 stage) { LIMITED_METHOD_CONTRACT; return (m_flags & RuntimeNotificationFlag(stage)) != 0; }
+    void SetRuntimeExceptionNotificationSent(UINT32 stage) { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags |= RuntimeNotificationFlag(stage); }
+
+    BOOL RuntimeTraversedUserCode()    { LIMITED_METHOD_CONTRACT; return m_flags & Ex_RuntimeTraversedUserCode; }
+    void SetRuntimeTraversedUserCode() { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags |= Ex_RuntimeTraversedUserCode; }
 #endif
 
     BOOL WasThrownByUs()      { LIMITED_METHOD_CONTRACT; return m_flags & Ex_WasThrownByUs; }
@@ -358,6 +364,26 @@ public:
     void ResetGotWatsonBucketDetails() { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags &= ~Ex_GotWatsonBucketInfo; }
 
 private:
+    static UINT32 RuntimeNotificationFlag(UINT32 stage)
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        switch (stage)
+        {
+            case 0x1:
+                return Ex_RuntimeFirstChanceNotificationSent;
+            case 0x2:
+                return Ex_RuntimeUserFirstChanceNotificationSent;
+            case 0x4:
+                return Ex_RuntimeCatchHandlerFoundNotificationSent;
+            case 0x8:
+                return Ex_RuntimeUnhandledNotificationSent;
+            default:
+                _ASSERTE(!"Invalid exception notification stage");
+                return 0;
+        }
+    }
+
     enum
     {
         // Unused                       = 0x00000001,
@@ -374,8 +400,13 @@ private:
         Ex_DebuggerInterceptInfo        = 0x00000200,
         Ex_DebuggerInterceptNotPossible = 0x00000400,
         Ex_IsUnhandled                  = 0x00000800,
-        Ex_RuntimeFilteredFirstChance       = 0x00008000,
-        Ex_RuntimeFilteredUserFirstChance   = 0x00010000,
+        Ex_RuntimeFilteredFirstChance         = 0x00008000,
+        Ex_RuntimeFilteredUserFirstChance     = 0x00010000,
+        Ex_RuntimeTraversedUserCode            = 0x00040000,
+        Ex_RuntimeFirstChanceNotificationSent        = 0x00080000,
+        Ex_RuntimeUserFirstChanceNotificationSent    = 0x00100000,
+        Ex_RuntimeCatchHandlerFoundNotificationSent  = 0x00200000,
+        Ex_RuntimeUnhandledNotificationSent          = 0x00400000,
 #endif
         // Unused                       = 0x00001000,
 

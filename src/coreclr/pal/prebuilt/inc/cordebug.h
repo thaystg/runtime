@@ -176,6 +176,12 @@ typedef interface ICorDebugManagedCallback4 ICorDebugManagedCallback4;
 
 #endif  /* __ICorDebugManagedCallback4_FWD_DEFINED__ */
 
+#ifndef __ICorDebugManagedCallback5_FWD_DEFINED__
+#define __ICorDebugManagedCallback5_FWD_DEFINED__
+typedef interface ICorDebugManagedCallback5 ICorDebugManagedCallback5;
+
+#endif  /* __ICorDebugManagedCallback5_FWD_DEFINED__ */
+
 
 #ifndef __ICorDebugManagedCallback2_FWD_DEFINED__
 #define __ICorDebugManagedCallback2_FWD_DEFINED__
@@ -4073,6 +4079,69 @@ EXTERN_C const IID IID_ICorDebugManagedCallback4;
 
 
 #endif  /* __ICorDebugManagedCallback4_INTERFACE_DEFINED__ */
+
+typedef
+enum CorDebugExceptionNotificationStage
+    {
+        COR_DEBUG_EXCEPTION_STAGE_NONE = 0,
+        COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE = 0x1,
+        COR_DEBUG_EXCEPTION_STAGE_USER_FIRST_CHANCE = 0x2,
+        COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND = 0x4,
+        COR_DEBUG_EXCEPTION_STAGE_UNHANDLED = 0x8
+    } CorDebugExceptionNotificationStage;
+
+#ifndef __ICorDebugManagedCallback5_INTERFACE_DEFINED__
+#define __ICorDebugManagedCallback5_INTERFACE_DEFINED__
+
+EXTERN_C const IID IID_ICorDebugManagedCallback5;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+
+    MIDL_INTERFACE("0D3E6E77-7A0D-4C4A-97F8-7A4B56A50D13")
+    ICorDebugManagedCallback5 : public IUnknown
+    {
+    public:
+        virtual HRESULT STDMETHODCALLTYPE ExceptionNotification(
+            ICorDebugProcess *pProcess,
+            ICorDebugThread *pThread,
+            CORDB_ADDRESS moduleAddress,
+            mdTypeDef typeDef,
+            CORDB_ADDRESS instructionAddress,
+            CorDebugExceptionNotificationStage stage) = 0;
+    };
+
+#else
+
+    typedef struct ICorDebugManagedCallback5Vtbl
+    {
+        BEGIN_INTERFACE
+
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )(
+            ICorDebugManagedCallback5 * This,
+            REFIID riid,
+            _COM_Outptr_ void **ppvObject);
+        ULONG ( STDMETHODCALLTYPE *AddRef )(ICorDebugManagedCallback5 * This);
+        ULONG ( STDMETHODCALLTYPE *Release )(ICorDebugManagedCallback5 * This);
+        HRESULT ( STDMETHODCALLTYPE *ExceptionNotification )(
+            ICorDebugManagedCallback5 * This,
+            ICorDebugProcess *pProcess,
+            ICorDebugThread *pThread,
+            CORDB_ADDRESS moduleAddress,
+            mdTypeDef typeDef,
+            CORDB_ADDRESS instructionAddress,
+            CorDebugExceptionNotificationStage stage);
+
+        END_INTERFACE
+    } ICorDebugManagedCallback5Vtbl;
+
+    interface ICorDebugManagedCallback5
+    {
+        CONST_VTBL struct ICorDebugManagedCallback5Vtbl *lpVtbl;
+    };
+
+#endif
+
+#endif  /* __ICorDebugManagedCallback5_INTERFACE_DEFINED__ */
 
 
 /* interface __MIDL_itf_cordebug_0000_0018 */
@@ -8435,13 +8504,10 @@ EXTERN_C const IID IID_ICorDebugProcess12;
 typedef
 enum CorDebugExceptionFilterFlags
     {
-        COR_DEBUG_EXCEPTION_FILTER_NONE         = 0,
-        COR_DEBUG_EXCEPTION_FILTER_CAUGHT       = 0x1,
-        COR_DEBUG_EXCEPTION_FILTER_UNCAUGHT     = 0x2,
-        COR_DEBUG_EXCEPTION_FILTER_SUBCLASSES   = 0x4,
-        COR_DEBUG_EXCEPTION_FILTER_NOT_FILTERED = 0x8,
-        COR_DEBUG_EXCEPTION_FILTER_EVERYTHING_ELSE  = 0x10,
-        COR_DEBUG_EXCEPTION_FILTER_EXCLUDE          = 0x20
+        COR_DEBUG_EXCEPTION_FILTER_NONE = 0,
+        COR_DEBUG_EXCEPTION_FILTER_SUBCLASSES = 0x1,
+        COR_DEBUG_EXCEPTION_FILTER_MODULE_DEFAULT = 0x2,
+        COR_DEBUG_EXCEPTION_FILTER_PROCESS_DEFAULT = 0x4
     } CorDebugExceptionFilterFlags;
 
 typedef struct _COR_DEBUG_EXCEPTION_FILTER_ENTRY
@@ -8449,6 +8515,8 @@ typedef struct _COR_DEBUG_EXCEPTION_FILTER_ENTRY
     CORDB_ADDRESS moduleAddress;
     mdTypeDef typeDef;
     CorDebugExceptionFilterFlags flags;
+    ULONG32 notificationMask;
+    ULONG32 stoppingMask;
     } COR_DEBUG_EXCEPTION_FILTER_ENTRY;
 
 
@@ -20400,5 +20468,3 @@ EmbeddedCLRCorDebug;
 #endif
 
 #endif
-
-
