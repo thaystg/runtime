@@ -16,6 +16,19 @@
 #include <string.h>
 #include <stdio.h>
 
+#if defined(TARGET_SUNOS)
+  // Ensure character traits have been processed safely before we intercept the identifier
+  #if defined(__cplusplus)
+    #include <locale>
+    #include <cctype>
+  #else
+    #include <ctype.h>
+  #endif
+
+  // Undefine the system bitmask before defining this project _X macro
+  #undef _X
+#endif
+
 #if defined(_WIN32)
 typedef wchar_t pal_char_t;
 #ifdef __cplusplus
@@ -397,6 +410,7 @@ namespace pal
 
     size_t pal_utf8string(const string_t& str, char* out_buffer, size_t len);
     bool pal_utf8string(const string_t& str, std::vector<char>* out);
+    std::string pal_utf8string(const char_t* str, size_t length);
     bool pal_clrstring(const string_t& str, std::vector<char>* out);
     bool clr_palstring(const char* cstr, string_t* out);
 
@@ -466,6 +480,7 @@ namespace pal
         return len;
     }
     inline bool pal_utf8string(const string_t& str, std::vector<char>* out) { out->assign(str.begin(), str.end()); out->push_back('\0'); return true; }
+    inline std::string pal_utf8string(const char_t* str, size_t length) { return std::string(str, length); }
     inline bool pal_clrstring(const string_t& str, std::vector<char>* out) { return pal_utf8string(str, out); }
     inline bool clr_palstring(const char* cstr, string_t* out) { out->assign(cstr); return true; }
 
@@ -558,9 +573,6 @@ namespace pal
 
     // Returns the default install location for a given platform for the specified architecture
     bool get_default_installation_dir_for_arch(architecture arch, string_t* recv);
-
-    // Returns the global locations to search for SDK/Frameworks - used when multi-level lookup is enabled
-    bool get_global_dotnet_dirs(std::vector<string_t>* recv);
 
     bool get_default_breadcrumb_store(string_t* recv);
     bool is_path_rooted(const string_t& path);

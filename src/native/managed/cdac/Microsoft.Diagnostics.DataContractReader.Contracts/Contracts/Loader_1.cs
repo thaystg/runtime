@@ -483,6 +483,9 @@ internal readonly struct Loader_1 : ILoader
     string ILoader.GetPath(ModuleHandle handle)
     {
         Data.Module module = _target.ProcessedData.GetOrAdd<Data.Module>(handle.Address);
+        if (GetFlags(module).HasFlag(ModuleFlags.ReflectionEmit) || ((ILoader)this).IsProbeExtensionResultValid(handle))
+            return string.Empty;
+
         return module.Path != TargetPointer.Null
             ? _target.ReadUtf16String(module.Path)
             : string.Empty;
@@ -694,12 +697,6 @@ internal readonly struct Loader_1 : ILoader
         return loaderAllocator.LowFrequencyHeap;
     }
 
-    TargetPointer ILoader.GetStubHeap(TargetPointer loaderAllocatorPointer)
-    {
-        Data.LoaderAllocator loaderAllocator = _target.ProcessedData.GetOrAdd<Data.LoaderAllocator>(loaderAllocatorPointer);
-        return loaderAllocator.StubHeap;
-    }
-
     TargetPointer ILoader.GetObjectHandle(TargetPointer loaderAllocatorPointer)
     {
         Data.LoaderAllocator loaderAllocator = _target.ProcessedData.GetOrAdd<Data.LoaderAllocator>(loaderAllocatorPointer);
@@ -795,7 +792,6 @@ internal readonly struct Loader_1 : ILoader
             [LoaderAllocatorHeapType.LowFrequencyHeap] = loaderAllocator.LowFrequencyHeap,
             [LoaderAllocatorHeapType.HighFrequencyHeap] = loaderAllocator.HighFrequencyHeap,
             [LoaderAllocatorHeapType.StaticsHeap] = loaderAllocator.StaticsHeap,
-            [LoaderAllocatorHeapType.StubHeap] = loaderAllocator.StubHeap,
             [LoaderAllocatorHeapType.ExecutableHeap] = loaderAllocator.ExecutableHeap,
         };
 

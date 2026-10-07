@@ -63,7 +63,6 @@ enum LoaderAllocatorHeapType
     LowFrequencyHeap,
     HighFrequencyHeap,
     StaticsHeap,
-    StubHeap,
     ExecutableHeap,
     FixupPrecodeHeap,
     NewStubPrecodeHeap,
@@ -112,7 +111,6 @@ TargetPointer GetGlobalLoaderAllocator();
 TargetPointer GetSystemAssembly();
 TargetPointer GetHighFrequencyHeap(TargetPointer loaderAllocatorPointer);
 TargetPointer GetLowFrequencyHeap(TargetPointer loaderAllocatorPointer);
-TargetPointer GetStubHeap(TargetPointer loaderAllocatorPointer);
 TargetPointer GetObjectHandle(TargetPointer loaderAllocatorPointer);
 TargetPointer GetILHeader(ModuleHandle handle, uint token);
 TargetPointer GetDynamicIL(ModuleHandle handle, uint token);
@@ -171,8 +169,8 @@ enum ClrModifiableAssemblies : uint
 | `CGrowableSymbolStream` | `Buffer` | `pointer` | Pointer to the in-memory symbol stream buffer |
 | `CGrowableSymbolStream` | `Size` | `uint32` | Size of the symbol stream buffer in bytes |
 | `DynamicILBlobTable` | *(type size)* | `uint32` | Size in bytes of each table entry |
-| `DynamicILBlobTable` | `EntryIL` | `pointer` | Offset of the IL pointer within each dynamic IL table entry |
-| `DynamicILBlobTable` | `EntryMethodToken` | `uint32` | Offset of the method token within each dynamic IL table entry |
+| `DynamicILBlobTable` | `EntryIL` | `pointer` | Offset of the IL-body or RVA-field-data pointer within each entry |
+| `DynamicILBlobTable` | `EntryMethodToken` | `uint32` | Offset of the full MethodDef or FieldDef token within each entry |
 | `DynamicILBlobTable` | `Table` | `pointer` | Address of the SHash table |
 | `DynamicILBlobTable` | `TableSize` | `uint32` | Number of entries in the table |
 | `EEConfig` | `ModifiableAssemblies` | `uint32` | Edit and Continue configuration represented by `ClrModifiableAssemblies` |
@@ -193,7 +191,6 @@ enum ClrModifiableAssemblies : uint
 | `LoaderAllocator` | `ObjectHandle` | `ObjectHandle` | Handle to the managed loader allocator object |
 | `LoaderAllocator` | `ReferenceCount` | `uint32` | Reference count of the loader allocator |
 | `LoaderAllocator` | `StaticsHeap` | `pointer` | Heap containing statics-related allocations |
-| `LoaderAllocator` | `StubHeap` | `pointer` | Heap containing runtime stubs |
 | `LoaderAllocator` | `VirtualCallStubManager` | `pointer` | Pointer to the virtual-call stub manager |
 | `LoaderHeap` | `FirstBlock` | `pointer` | Pointer to the first loader-heap block |
 | `LoaderHeapBlock` | `Next` | `pointer` | Pointer to the next loader-heap block |
@@ -202,7 +199,7 @@ enum ClrModifiableAssemblies : uint
 | `Module` | `Assembly` | `pointer` | Pointer to the containing assembly |
 | `Module` | `AvailableTypeParams` | `pointer` | Pointer to the available type-parameter hash table |
 | `Module` | `Base` | `pointer` | Base address of the module's loaded image |
-| `Module` | `DynamicILBlobTable` | `pointer` | Pointer to the table of dynamically supplied IL bodies |
+| `Module` | `DynamicILBlobTable` | `pointer` | Pointer to the token-keyed table of dynamically supplied IL bodies and RVA field data |
 | `Module` | `FieldDefToDescMap` | `pointer` | Pointer to the field-definition-to-field-descriptor lookup map |
 | `Module` | `FileName` | `pointer` | Pointer to the null-terminated UTF-16 module file name |
 | `Module` | `Flags` | `uint32` | Module state and capability flags |
@@ -669,6 +666,10 @@ string GetSimpleName(ModuleHandle handle)
 
 string GetPath(ModuleHandle handle)
 {
+    ModuleFlags flags = GetFlags(handle);
+    if (flags.HasFlag(ModuleFlags.ReflectionEmit) || IsProbeExtensionResultValid(handle))
+        return string.Empty;
+
     TargetPointer pathStart = target.ReadPointer(handle.Address + /* Module::Path offset */);
     char[] path = // Read<char> from target starting at pathStart until null terminator
     return new string(path);
@@ -850,11 +851,6 @@ TargetPointer GetLowFrequencyHeap(TargetPointer loaderAllocatorPointer)
     return target.ReadPointer(loaderAllocatorPointer + /* LoaderAllocator::LowFrequencyHeap offset */);
 }
 
-TargetPointer GetStubHeap(TargetPointer loaderAllocatorPointer)
-{
-    return target.ReadPointer(loaderAllocatorPointer + /* LoaderAllocator::StubHeap offset */);
-}
-
 TargetPointer GetObjectHandle(TargetPointer loaderAllocatorPointer)
 {
     return target.ReadPointer(loaderAllocatorPointer + /* LoaderAllocator::ObjectHandle offset */);
@@ -870,7 +866,6 @@ IReadOnlyDictionary<LoaderAllocatorHeapType, TargetPointer> GetLoaderAllocatorHe
         [LoaderAllocatorHeapType.LowFrequencyHeap] = la.LowFrequencyHeap,
         [LoaderAllocatorHeapType.HighFrequencyHeap] = la.HighFrequencyHeap,
         [LoaderAllocatorHeapType.StaticsHeap] = la.StaticsHeap,
-        [LoaderAllocatorHeapType.StubHeap] = la.StubHeap,
         [LoaderAllocatorHeapType.ExecutableHeap] = la.ExecutableHeap,
     };
 

@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Threading;
 using Microsoft.Diagnostics.DataContractReader.Contracts.GCInfoHelpers;
 
 namespace Microsoft.Diagnostics.DataContractReader.Contracts;
@@ -15,6 +16,7 @@ public static class CoreCLRContracts
     public static void Register(ContractRegistry registry)
     {
         registry.Register<IException>("c1", static t => new Exception_1(t));
+        registry.Register<IExternalMemoryHandles>("c1", static t => new ExternalMemoryHandles_1(t));
         registry.Register<ILoader>("c1", static t => new Loader_1(t));
         registry.Register<IEcmaMetadata>("c1", static t => new EcmaMetadata_1(t));
         registry.Register<IDacStreams>("c1", static t => new DacStreams_1(t));
@@ -35,7 +37,6 @@ public static class CoreCLRContracts
         registry.Register<IDebugger>("c1", static t => new Debugger_1(t));
 
         registry.Register<IDebugInfo>("c1", static t => new DebugInfo_1(t));
-        registry.Register<IDebugInfo>("c2", static t => new DebugInfo_2(t));
         registry.Register<IStressLog>("c1", static t => new StressLog_1(t));
         registry.Register<IStressLog>("c2", static t => new StressLog_2(t));
 
@@ -52,7 +53,6 @@ public static class CoreCLRContracts
 
         registry.Register<IPrecodeStubs>("c1", static t => new PrecodeStubs_1(t));
         registry.Register<IPrecodeStubs>("c2", static t => new PrecodeStubs_2(t));
-        registry.Register<IPrecodeStubs>("c3", static t => new PrecodeStubs_3(t));
 
         registry.Register<IReJIT>("c1", static t => new ReJIT_1(t));
 
@@ -69,6 +69,7 @@ public static class CoreCLRContracts
                 RuntimeInfoArchitecture.Arm => new GCInfo_1<ARMGCInfoTraits>(t),
                 RuntimeInfoArchitecture.LoongArch64 => new GCInfo_1<LoongArch64GCInfoTraits>(t),
                 RuntimeInfoArchitecture.RiscV64 => new GCInfo_1<RISCV64GCInfoTraits>(t),
+                RuntimeInfoArchitecture.Wasm => new GCInfo_1<WasmGCInfoTraits>(t),
                 _ => default(GCInfo),
             };
         });
@@ -76,7 +77,6 @@ public static class CoreCLRContracts
         registry.Register<ISyncBlock>("c1", static t => new SyncBlock_1(t));
 
         registry.Register<IExecutionManager>("c1", static t => new ExecutionManager_1(t));
-        registry.Register<IExecutionManager>("c2", static t => new ExecutionManager_2(t));
 
         registry.Register<IRuntimeMutableTypeSystem>("c1", static t => new RuntimeMutableTypeSystem_1(t));
     }
@@ -102,8 +102,9 @@ public static class CoreCLRContracts
     /// <see cref="ContractObsoleteException"/> / <see cref="CdacHResults.CDAC_E_CONTRACT_UNSUPPORTED"/>
     /// if the advertised version is recognized but intentionally unimplemented.
     /// </exception>
-    public static void ValidateForDataAccess(Target target)
+    public static void ValidateForDataAccess(Target target, Lock? apiLock = null)
     {
+        using Lock.Scope scope = apiLock is null ? default : apiLock.EnterScope();
         ContractRegistry registry = target.Contracts;
 
         // In-box (main-descriptor) contract accesses across the ISOSDac* and IXCLRData* surface that
@@ -134,6 +135,13 @@ public static class CoreCLRContracts
         Validate<IStressLog>(registry);
         Validate<ISyncBlock>(registry);
         Validate<IThread>(registry);
+
+        // ExternalMemoryHandles was introduced in .NET 12. Readers built from this source may still
+        // inspect .NET 11 targets, which do not advertise the contract.
+        if (GetRuntimeMajorVersion(target) >= 12)
+        {
+            Validate<IExternalMemoryHandles>(registry);
+        }
 
         // Transitive contract accesses from the implementations above.
         Validate<IConditionalWeakTable>(registry); // IComWrappers: ComWrappers_1.cs
@@ -199,6 +207,19 @@ public static class CoreCLRContracts
                     contractVersion: null,
                     message: $"Contract '{TContract.Name}' validation failed but no reason was reported.");
             }
+        }
+
+        static int GetRuntimeMajorVersion(Target target)
+        {
+            if (!target.TryReadGlobalString(Constants.Globals.RuntimeProductVersionString, out string? productVersion))
+            {
+                // Preserve required-contract validation when the target version is unavailable.
+                return int.MaxValue;
+            }
+
+            int separator = productVersion.IndexOf('.');
+            string majorVersionText = separator >= 0 ? productVersion[..separator] : productVersion;
+            return int.TryParse(majorVersionText, out int majorVersion) ? majorVersion : int.MaxValue;
         }
     }
 }

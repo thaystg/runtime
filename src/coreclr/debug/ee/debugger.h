@@ -36,6 +36,7 @@
 #include "eedbginterface.h"
 #include "dbginterface.h"
 #include "corhost.h"
+#include "debugwait.h"
 
 
 #include "corjit.h"
@@ -90,6 +91,7 @@ class DebuggerEval;
 class DebuggerControllerQueue;
 class DebuggerController;
 class Crst;
+class ExternalMemoryHandle;
 
 typedef CUnorderedArray<DebuggerControllerPatch *, 17> PATCH_UNORDERED_ARRAY;
 template<class T> void DeleteInteropSafe(T *p);
@@ -649,10 +651,10 @@ protected:
     // that blew its stack
     FAVORCALLBACK m_fpFavor;
     void                           *m_pFavorData;
-    HANDLE                          m_FavorReadEvent;
+    WaitEvent                      *m_FavorReadEvent;
     Crst                            m_FavorLock;
 
-    HANDLE                          m_FavorAvailableEvent;
+    WaitEvent                      *m_FavorAvailableEvent;
 };
 
 
@@ -697,10 +699,10 @@ protected:
     // This is a separate lock from the larger Debugger-lock / Controller lock, which allows regions under those
     // locks to access debugger datastructures w/o blocking each other.
     Crst                  m_DebuggerDataLock;
-    HANDLE                m_CtrlCMutex;
-    HANDLE                m_exAttachEvent;
-    HANDLE                m_exUnmanagedAttachEvent;
-    HANDLE                m_garbageCollectionBlockerEvent;
+    CLREvent              m_CtrlCMutex;
+    CLREvent              m_exAttachEvent;
+    CLREvent              m_exUnmanagedAttachEvent;
+    CLREvent              m_garbageCollectionBlockerEvent;
 
     BOOL                  m_DebuggerHandlingCtrlC;
 
@@ -808,7 +810,8 @@ public:
     void MainLoop();
     void TemporaryHelperThreadMainLoop();
 
-    HANDLE GetHelperThreadCanGoEvent(void) {LIMITED_METHOD_CONTRACT;  return m_helperThreadCanGoEvent; }
+    CLREvent &GetHelperThreadCanGoEvent(void) {LIMITED_METHOD_CONTRACT; return m_helperThreadCanGoEvent; }
+    CLREvent &GetLeftSideUnmanagedWaitEvent(void) {LIMITED_METHOD_CONTRACT; return m_leftSideUnmanagedWaitEvent; }
 
     void EarlyHelperThreadDeath(void);
 
@@ -866,8 +869,8 @@ private:
     }
     Crst * GetFavorLock()                   { return &m_favorData.m_FavorLock; }
 
-    HANDLE GetFavorReadEvent()              { return m_favorData.m_FavorReadEvent; }
-    HANDLE GetFavorAvailableEvent()         { return m_favorData.m_FavorAvailableEvent; }
+    WaitEvent *GetFavorReadEvent()      { return m_favorData.m_FavorReadEvent; }
+    WaitEvent *GetFavorAvailableEvent() { return m_favorData.m_FavorAvailableEvent; }
 
     HelperThreadFavor m_favorData;
 
@@ -892,10 +895,14 @@ private:
 #endif // FEATURE_DBGIPC_TRANSPORT_VM
 
     HANDLE                          m_thread;
+    Volatile<BOOL>                  m_helperThreadRunning;
     bool                            m_run;
 
-    HANDLE                          m_threadControlEvent;
-    HANDLE                          m_helperThreadCanGoEvent;
+    WaitEvent                      *m_threadControlEvent;
+    WaitEvent                      *m_helperThreadExitedEvent;
+    CLREvent                        m_helperThreadCanGoEvent;
+    CLREvent                        m_rightSideEventRead;
+    CLREvent                        m_leftSideUnmanagedWaitEvent;
     bool                            m_rgfInitRuntimeOffsets[IPC_TARGET_COUNT];
     bool                            m_fDetachRightSide;
 
@@ -1508,7 +1515,7 @@ public:
             "                     m_lastIL: 0x%x\n"
             "           m_sequenceMapCount: %u\n",
             this, (m_jitComplete ? "true" : "false"), encState,
-            m_methodInfo, m_addrOfCode, m_sizeOfCode, m_lastIL, m_sequenceMapCount));
+            m_methodInfo, (void*)m_addrOfCode, m_sizeOfCode, m_lastIL, m_sequenceMapCount));
 #endif //LOGGING
     }
 
@@ -2286,6 +2293,7 @@ public:
 private:
     void DoNotCallDirectlyPrivateLock(void);
     void DoNotCallDirectlyPrivateUnlock(void);
+    void ReleaseDebuggerLockAndBlockForShutdownIfNotSpecialThread(Thread *pThread);
 
     // This function gets the jit debugger launched and waits for the native attach to complete
     // Make sure you called PreJitAttach and it returned TRUE before you call this
@@ -2750,7 +2758,7 @@ public:
     void MarkDebuggerAttachedInternal();
     void MarkDebuggerUnattachedInternal();
 
-    HANDLE                GetAttachEvent()          { return  GetLazyData()->m_exAttachEvent; }
+    CLREvent &GetAttachEvent()          { return GetLazyData()->m_exAttachEvent; }
 
 private:
 #ifndef DACCESS_COMPILE
@@ -2758,10 +2766,10 @@ private:
 #endif
     DebuggerPendingFuncEvalTable *GetPendingEvals() { return GetLazyData()->m_pPendingEvals; }
     SIZE_T_UNORDERED_ARRAY * GetBPMappingDuplicates() { return &GetLazyData()->m_BPMappingDuplicates; }
-    HANDLE                GetUnmanagedAttachEvent() { return  GetLazyData()->m_exUnmanagedAttachEvent; }
+    CLREvent &GetUnmanagedAttachEvent() { return GetLazyData()->m_exUnmanagedAttachEvent; }
     BOOL                  GetDebuggerHandlingCtrlC() { return GetLazyData()->m_DebuggerHandlingCtrlC; }
     void                  SetDebuggerHandlingCtrlC(BOOL f) { GetLazyData()->m_DebuggerHandlingCtrlC = f; }
-    HANDLE                GetCtrlCMutex()          { return GetLazyData()->m_CtrlCMutex; }
+    CLREvent &GetCtrlCMutex()          { return GetLazyData()->m_CtrlCMutex; }
     UnorderedPtrArray*    GetMemBlobs()            { return &GetLazyData()->m_pMemBlobs; }
 
 
@@ -2933,7 +2941,7 @@ public:
     // guarantee the corresponding AfterGC event is sent even if the events are disabled during GC.
     BOOL m_isGarbageCollectionEventsEnabledLatch;
 private:
-    HANDLE GetGarbageCollectionBlockerEvent() { return  GetLazyData()->m_garbageCollectionBlockerEvent; }
+    CLREvent &GetGarbageCollectionBlockerEvent() { return GetLazyData()->m_garbageCollectionBlockerEvent; }
 
 private:
     BOOL m_fOutOfProcessSetContextEnabled;
@@ -3389,6 +3397,24 @@ public:
  * type arguments <string,List<int>> you get string followed by List followed by int.
  * ------------------------------------------------------------------------ */
 
+// Owns an interop-safe buffer and the ExternalMemoryHandle registration that keeps references in
+// the buffer visible to the GC.
+class DebuggerExternalMemoryOwner
+{
+public:
+    DebuggerExternalMemoryOwner(MethodTable *pMT, BYTE *pMemory);
+    ~DebuggerExternalMemoryOwner();
+
+    BYTE *GetMemory() const
+    {
+        return m_pMemory;
+    }
+
+private:
+    ExternalMemoryHandle *m_pHandle;
+    BYTE                 *m_pMemory;
+};
+
 class DebuggerEval
 {
 public:
@@ -3422,6 +3448,7 @@ public:
     PCODE                              m_targetCodeAddr;
     ARG_SLOT                           m_result[NUMBER_RETURNVALUE_SLOTS];
     TypeHandle                         m_resultType;
+    DebuggerExternalMemoryOwner       *m_externalMemoryOwner;
     SIZE_T                             m_arrayRank;
     FUNC_EVAL_ABORT_TYPE               m_aborting;          // Has an abort been requested, and what type.
     bool                               m_aborted;           // Was this eval aborted
@@ -3432,6 +3459,8 @@ public:
     DebuggerEvalBreakpointInfoSegment* m_bpInfoSegment;
 
     DebuggerEval(T_CONTEXT * pContext, DebuggerIPCE_FuncEvalInfo * pEvalInfo, DebuggerEvalBreakpointInfoSegment* bpInfoSegmentRX);
+
+    BYTE *CreateExternalMemory(MethodTable *pMT, SIZE_T size);
 
     bool Init()
     {
@@ -3468,8 +3497,13 @@ public:
     {
         WRAPPER_NO_CONTRACT;
 
+        if (m_externalMemoryOwner != NULL)
+        {
+            DeleteInteropSafe(m_externalMemoryOwner);
+        }
+
         // Clean up any temporary buffers used to send the argument type information.  These were allocated
-        // in respnse to a GET_BUFFER message
+        // in response to a GET_BUFFER message.
         DebuggerIPCE_FuncEvalArgData *argData = GetArgData();
         for (unsigned int i = 0; i < m_argCount; i++)
         {
@@ -3491,6 +3525,7 @@ public:
         m_completed = false;
 #endif
     }
+
 };
 
 /* ------------------------------------------------------------------------ *
@@ -3687,18 +3722,6 @@ void DbgLogHelper(DebuggerIPCEventType event);
 // Helpers for cleanup
 // These are various utility functions, mainly where we factor out code.
 //-----------------------------------------------------------------------------
-
-// Specify type of Win32 event
-enum EEventResetType {
-    kManualResetEvent = TRUE,
-    kAutoResetEvent = FALSE
-};
-
-HANDLE CreateWin32EventOrThrow(
-    LPSECURITY_ATTRIBUTES lpEventAttributes,
-    EEventResetType eType,
-    BOOL bInitialState
-);
 
 HANDLE OpenWin32EventOrThrow(
     DWORD dwDesiredAccess,

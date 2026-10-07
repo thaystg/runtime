@@ -786,6 +786,7 @@ DEFINE_VMPTR(class FieldDesc,       PTR_FieldDesc,      VMPTR_FieldDesc);
 // ObjectHandle is a safe way to represent an object into the GC heap. It gets updated
 // when a GC occurs.
 DEFINE_VMPTR(struct OBJECTHANDLE__, TADDR,              VMPTR_OBJECTHANDLE);
+DEFINE_VMPTR(class DebuggerExternalMemoryOwner, TADDR, VMPTR_DebuggerExternalMemoryOwner);
 
 DEFINE_VMPTR(class TypeHandle,      PTR_TypeHandle,     VMPTR_TypeHandle);
 
@@ -1748,6 +1749,7 @@ struct MSLAYOUT DebuggerIPCEvent
             Portable<VMPTR_AppDomain> vmAppDomain;
 
             Portable<VMPTR_OBJECTHANDLE> vmObjectHandle;
+            Portable<VMPTR_DebuggerExternalMemoryOwner> vmExternalMemoryOwner;
             DebuggerIPCE_ExpandedTypeData resultType;
         } FuncEvalComplete;
 
@@ -1846,6 +1848,11 @@ struct MSLAYOUT DebuggerIPCEvent
             Portable<VMPTR_OBJECTHANDLE> vmObjectHandle;
             Portable<CorDebugHandleType> handleType;
         } DisposeHandle;
+
+        struct MSLAYOUT
+        {
+            Portable<VMPTR_DebuggerExternalMemoryOwner> vmExternalMemoryOwner;
+        } DisposeExternalMemoryOwner;
 
         struct MSLAYOUT
         {
