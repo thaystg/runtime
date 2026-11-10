@@ -7296,7 +7296,8 @@ void Debugger::SendExceptionEventsWorker(
     bool fContinuable,
     SIZE_T currentIP,
     FramePointer framePointer,
-    bool atSafePlace)
+    bool atSafePlace,
+    DebuggerMethodInfo** ppUserFirstChanceMethod)
 {
     HRESULT hr = S_OK;
 
@@ -7385,16 +7386,6 @@ void Debugger::SendExceptionEventsWorker(
             else if (!m_sendExceptionsOutsideOfJMC)
             {
                 // With JMC enabled, thrown stops are represented by user-first-chance.
-                if (!pExState->GetFlags()->RuntimeExceptionNotificationSent(
-                        COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE))
-                {
-                    SendExceptionNotification(
-                        pThread,
-                        reinterpret_cast<SIZE_T>(ip),
-                        COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE);
-                    pExState->GetFlags()->SetRuntimeExceptionNotificationSent(
-                        COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE);
-                }
                 pExState->GetFlags()->SetRuntimeFilteredFirstChance();
             }
             else
@@ -7470,6 +7461,10 @@ void Debugger::SendExceptionEventsWorker(
             }
             else
             {
+            bool retryAfterReclassification =
+                pExState->GetFlags()->RuntimeFilteredFirstChance() &&
+                GetExceptionNotificationAction(pThread, COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE) !=
+                    ExceptionNotificationAction::Stop;
             SENDIPCEVENT_BEGIN(this, pThread);
 
             InitIPCEvent(ipce, DB_IPCE_EXCEPTION_CALLBACK2, pThread);
@@ -7491,16 +7486,14 @@ void Debugger::SendExceptionEventsWorker(
                 TrapAllRuntimeThreads();
             }
 
-            // The debugger may reclassify the stopping method as non-user
-            // code while handling the callback. In that case, leave the flag
-            // clear so the next JMC frame can produce another user-first-
-            // chance callback.
-            if (pDebugMethodInfo->IsJMCFunction())
+            // SendException owns the preemptive scope, so the callback-time
+            // reclassification can only be checked after it returns to coop.
+            if (retryAfterReclassification)
+                *ppUserFirstChanceMethod = pDebugMethodInfo;
+            else
             {
                 pExState->GetFlags()->SetSentDebugUserFirstChance();
             }
-
-            // Let other Runtime threads handle their events.
             SENDIPCEVENT_END;
             } // end runtime-filter else (user-first-chance)
 
@@ -7655,6 +7648,7 @@ HRESULT Debugger::SendException(Thread *pThread,
 
     if(managedEventNeeded)
     {
+        DebuggerMethodInfo* pUserFirstChanceMethod = nullptr;
         {
             // We have to send enabled, so enable now.
             GCX_PREEMP_EEINTERFACE();
@@ -7683,7 +7677,8 @@ HRESULT Debugger::SendException(Thread *pThread,
                     fContinuable,
                     currentIP,
                     framePointer,
-                    !unsafePlaceHolder.IsAtUnsafePlace());
+                    !unsafePlaceHolder.IsAtUnsafePlace(),
+                    &pUserFirstChanceMethod);
             }
             else
             {
@@ -7697,6 +7692,9 @@ HRESULT Debugger::SendException(Thread *pThread,
 
         {
             GCX_COOP_EEINTERFACE();
+            if (CORDebuggerAttached() && pUserFirstChanceMethod != nullptr &&
+                pUserFirstChanceMethod->IsJMCFunction())
+                pExState->GetFlags()->SetSentDebugUserFirstChance();
             ProcessAnyPendingEvals(pThread);
         }
     }
@@ -7916,10 +7914,24 @@ void Debugger::FirstChanceManagedExceptionCatcherFound(Thread *pThread,
         !pExState->GetFlags()->RuntimeExceptionNotificationSent(
             COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND))
     {
+        ULONG32 ilOffset = static_cast<ULONG32>(-1);
+        DebuggerJitInfo* pJitInfo = pMD != nullptr
+            ? GetJitInfo(pMD, reinterpret_cast<const BYTE*>(pMethodAddr), nullptr) : nullptr;
+        if (pJitInfo != nullptr)
+        {
+            CorDebugMappingResult mapResult;
+            DWORD which;
+            ULONG32 mappedOffset = pJitInfo->MapNativeOffsetToIL(
+                pEHClause->HandlerStartPC, &mapResult, &which, TRUE);
+            if (static_cast<INT32>(mappedOffset) >= 0)
+                ilOffset = mappedOffset;
+        }
         SendExceptionNotification(
             pThread,
             static_cast<SIZE_T>(pMethodAddr),
-            COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND);
+            COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND,
+            pMD,
+            ilOffset);
         pExState->GetFlags()->SetRuntimeExceptionNotificationSent(
             COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND);
     }
@@ -8095,7 +8107,7 @@ LONG Debugger::NotifyOfCHFFilter(EXCEPTION_POINTERS* pExceptionPointers, PVOID p
     {
         SendExceptionNotification(
             pThread,
-            static_cast<SIZE_T>(GetIP(pExceptionPointers->ContextRecord)),
+            0,
             COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND);
         pExState->GetFlags()->SetRuntimeExceptionNotificationSent(
             COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND);
@@ -8214,6 +8226,16 @@ ExceptionNotificationAction Debugger::GetExceptionNotificationAction(
         return ExceptionNotificationAction::Stop;
     }
 
+    if (stage == COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND)
+    {
+        GCX_COOP_EEINTERFACE();
+        if (DebuggerController::HasActiveStepper(pThread) ||
+            m_pForceCatchHandlerFoundEventsTable->Lookup(pThread->GetThrowableAsPseudoHandle()) != nullptr)
+        {
+            return ExceptionNotificationAction::Stop;
+        }
+    }
+
     ExceptionFilterTable* pSnapshot = nullptr;
     {
         CrstHolderWithState ch(&m_mutex);
@@ -8256,7 +8278,9 @@ ExceptionNotificationAction Debugger::GetExceptionNotificationAction(
 void Debugger::SendExceptionNotification(
     Thread* pThread,
     SIZE_T currentIP,
-    CorDebugExceptionNotificationStage stage)
+    CorDebugExceptionNotificationStage stage,
+    MethodDesc* pMethodDesc,
+    ULONG32 ilOffset)
 {
     CONTRACTL
     {
@@ -8266,8 +8290,11 @@ void Debugger::SendExceptionNotification(
     }
     CONTRACTL_END;
 
-    CORDB_ADDRESS moduleAddress = 0;
+    Module* pExceptionModule = nullptr;
+    Module* pFunctionModule = nullptr;
     mdTypeDef typeDef = mdTypeDefNil;
+    mdMethodDef methodDef = mdMethodDefNil;
+    ULONG32 enCVersion = 0;
     {
         GCX_COOP_EEINTERFACE();
         OBJECTHANDLE handle = g_pEEInterface->GetThreadException(pThread);
@@ -8275,24 +8302,51 @@ void Debugger::SendExceptionNotification(
         MethodTable* pMT = throwable != nullptr ? throwable->GetMethodTable() : nullptr;
         if (pMT != nullptr)
         {
-            Module* pModule = pMT->GetModule();
-            if (pModule != nullptr && pModule->GetPEAssembly()->HasLoadedPEImage())
-            {
-                moduleAddress = PTR_TO_CORDB_ADDRESS(pModule->GetPEAssembly()->GetLoadedLayout()->GetBase());
-            }
+            pExceptionModule = pMT->GetModule();
             typeDef = pMT->GetCl();
         }
     }
 
+    const BYTE* ip = reinterpret_cast<const BYTE*>(currentIP);
+    if (pMethodDesc == nullptr && g_pEEInterface->IsManagedNativeCode(ip))
+        pMethodDesc = g_pEEInterface->GetNativeCodeMethodDesc(PCODE(ip));
+    if (pMethodDesc != nullptr && !IsNilToken(pMethodDesc->GetMemberDef()))
+    {
+        DebuggerMethodInfo* pMethodInfo = nullptr;
+        DebuggerJitInfo* pJitInfo = GetJitInfo(pMethodDesc, ip, &pMethodInfo);
+        if (pJitInfo != nullptr && pMethodInfo != nullptr &&
+            pJitInfo->m_encVersion == pMethodInfo->GetCurrentEnCVersion())
+        {
+            pFunctionModule = pMethodDesc->GetModule();
+            methodDef = pMethodDesc->GetMemberDef();
+            enCVersion = static_cast<ULONG32>(pJitInfo->m_encVersion);
+            if (ilOffset == static_cast<ULONG32>(-1) &&
+                stage != COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND)
+            {
+                CorDebugMappingResult mapResult;
+                DWORD which;
+                SIZE_T nativeOffset = CodeRegionInfo::GetCodeRegionInfo(pJitInfo, pMethodDesc).AddressToOffset(ip);
+                ULONG32 mappedOffset = pJitInfo->MapNativeOffsetToIL(nativeOffset, &mapResult, &which);
+                if (static_cast<INT32>(mappedOffset) >= 0)
+                    ilOffset = mappedOffset;
+            }
+        }
+    }
+    if (pFunctionModule == nullptr)
+        ilOffset = static_cast<ULONG32>(-1);
+
     SENDIPCEVENT_BEGIN(this, pThread);
     DebuggerIPCEvent* pEvent = m_pRCThread->GetIPCEventSendBuffer();
     InitIPCEvent(pEvent, DB_IPCE_EXCEPTION_NOTIFICATION, pThread);
-    pEvent->ExceptionNotification.moduleAddress = moduleAddress;
+    pEvent->ExceptionNotification.vmExceptionModule.SetRawPtr(pExceptionModule);
     pEvent->ExceptionNotification.typeDef = typeDef;
-    pEvent->ExceptionNotification.instructionAddress =
-        static_cast<CORDB_ADDRESS>(currentIP);
+    pEvent->ExceptionNotification.vmFunctionModule.SetRawPtr(pFunctionModule);
+    pEvent->ExceptionNotification.methodDef = methodDef;
+    pEvent->ExceptionNotification.enCVersion = enCVersion;
+    pEvent->ExceptionNotification.ilOffset = ilOffset;
     pEvent->ExceptionNotification.stage = stage;
-    m_pRCThread->SendIPCEvent();
+    HRESULT hr = m_pRCThread->SendIPCEvent();
+    _ASSERTE(SUCCEEDED(hr));
     SENDIPCEVENT_END;
 }
 

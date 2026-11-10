@@ -8,6 +8,8 @@
 #include <atomic>
 #include <cstdio>
 #include <cwchar>
+#include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -50,10 +52,12 @@ namespace
         public ICorDebugManagedCallback5
     {
     public:
-        ManagedCallback(bool installFilter, HANDLE exitEvent)
+        ManagedCallback(bool installFilter, bool validateContract, HANDLE exitEvent, bool validateJmcRetry = false)
             : _refCount(1),
               _process(nullptr),
               _installFilter(installFilter),
+              _validateContract(validateContract),
+              _validateJmcRetry(validateJmcRetry),
               _filterInstalled(false),
               _exitEvent(exitEvent),
               _firstChanceCallbacks(0),
@@ -64,7 +68,19 @@ namespace
 
         ~ManagedCallback()
         {
+            for (auto& entry : _metadata)
+                entry.second->Release();
             ReleaseInterface(_process);
+        }
+
+        bool ValidJmcRetry() const
+        {
+            return _nonUserCallbacks == 2 && _userCallerCallbacks == (_installFilter ? 1 : 0) && _directUserCallbacks == 1;
+        }
+
+        long LocatedNotifications() const
+        {
+            return _locatedNotifications.load();
         }
 
         bool FilterInstalled() const
@@ -142,19 +158,54 @@ namespace
         HRESULT STDMETHODCALLTYPE ExceptionNotification(
             ICorDebugProcess*,
             ICorDebugThread*,
-            CORDB_ADDRESS moduleAddress,
+            ICorDebugModule* exceptionModule,
             mdTypeDef typeDef,
-            CORDB_ADDRESS instructionAddress,
+            ICorDebugFunction* function,
+            ULONG32 ilOffset,
             CorDebugExceptionNotificationStage stage) override
         {
-            if (moduleAddress == 0 ||
+            if (exceptionModule == nullptr ||
                 typeDef == mdTypeDefNil ||
-                instructionAddress == 0 ||
                 stage != COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE)
             {
                 _invalidNotification.store(true);
             }
 
+            auto metadata = _metadata.find(exceptionModule);
+            WCHAR name[256] = {};
+            ULONG length;
+            DWORD flags;
+            mdToken extends;
+            if (metadata == _metadata.end() ||
+                FAILED(metadata->second->GetTypeDefProps(typeDef, name, ARRAYSIZE(name), &length, &flags, &extends)))
+                _invalidNotification.store(true);
+            if (function == nullptr)
+            {
+                if (ilOffset != UINT32_MAX)
+                    _invalidNotification.store(true);
+            }
+            else
+            {
+                ICorDebugModule* functionModule = nullptr;
+                mdMethodDef token = mdMethodDefNil;
+                ULONG32 version = 0;
+                if (FAILED(function->GetModule(&functionModule)) ||
+                    FAILED(function->GetToken(&token)) ||
+                    FAILED(function->GetCurrentVersionNumber(&version)) ||
+                    version == 0 || token == mdMethodDefNil || ilOffset == UINT32_MAX)
+                    _invalidNotification.store(true);
+                auto functionMetadata = _metadata.find(functionModule);
+                WCHAR methodName[256] = {};
+                if (functionMetadata == _metadata.end() ||
+                    FAILED(functionMetadata->second->GetMethodProps(token, nullptr, methodName,
+                        ARRAYSIZE(methodName), &length, nullptr, nullptr, nullptr, nullptr, nullptr)))
+                    _invalidNotification.store(true);
+                if (_notificationCallbacks.load() < 2)
+                    std::fwprintf(stderr, L"ExceptionNotification type=%ls method=%ls IL=%u version=%u\n",
+                        name, methodName, ilOffset, version);
+                ReleaseInterface(functionModule);
+                _locatedNotifications.fetch_add(1);
+            }
             _notificationCallbacks.fetch_add(1);
             return S_OK;
         }
@@ -168,7 +219,14 @@ namespace
 
         HRESULT STDMETHODCALLTYPE LoadModule(ICorDebugAppDomain*, ICorDebugModule* module) override
         {
-            if (_installFilter && !_filterInstalled.load())
+            IMetaDataImport* metadata = nullptr;
+            if (SUCCEEDED(module->GetMetaDataInterface(MetadataImportId, reinterpret_cast<IUnknown**>(&metadata))))
+            {
+                auto inserted = _metadata.emplace(module, metadata);
+                if (!inserted.second)
+                    metadata->Release();
+            }
+            if ((_installFilter || _validateJmcRetry) && !_filterInstalled.load())
             {
                 TryInstallFilter(module);
             }
@@ -179,7 +237,7 @@ namespace
         HRESULT STDMETHODCALLTYPE Exception(
             ICorDebugAppDomain*,
             ICorDebugThread*,
-            ICorDebugFrame*,
+            ICorDebugFrame* frame,
             ULONG32,
             CorDebugExceptionCallbackType eventType,
             DWORD) override
@@ -187,6 +245,42 @@ namespace
             if (eventType == DEBUG_EXCEPTION_FIRST_CHANCE)
             {
                 _firstChanceCallbacks.fetch_add(1);
+            }
+            if (_validateJmcRetry && eventType == DEBUG_EXCEPTION_USER_FIRST_CHANCE)
+            {
+                ICorDebugFunction* function = nullptr;
+                ICorDebugModule* module = nullptr;
+                ICorDebugFunction2* function2 = nullptr;
+                mdMethodDef token = mdMethodDefNil;
+                WCHAR name[256] = {};
+                ULONG length;
+                HRESULT hr = frame != nullptr ? frame->GetFunction(&function) : E_POINTER;
+                if (SUCCEEDED(hr)) hr = function->GetModule(&module);
+                if (SUCCEEDED(hr)) hr = function->GetToken(&token);
+                auto metadata = _metadata.find(module);
+                if (SUCCEEDED(hr) && metadata != _metadata.end())
+                    hr = metadata->second->GetMethodProps(token, nullptr, name, ARRAYSIZE(name),
+                        &length, nullptr, nullptr, nullptr, nullptr, nullptr);
+                else
+                    hr = E_FAIL;
+                if (SUCCEEDED(hr) && (std::wcscmp(name, L"ThrowFromNonUserCode") == 0 ||
+                    std::wcscmp(name, L"NonUserCatcher") == 0))
+                {
+                    ++_nonUserCallbacks;
+                    hr = function->QueryInterface(IID_ICorDebugFunction2, reinterpret_cast<void**>(&function2));
+                    if (SUCCEEDED(hr)) hr = function2->SetJMCStatus(FALSE);
+                }
+                else if (SUCCEEDED(hr) && std::wcscmp(name, L"UserCaller") == 0)
+                    ++_userCallerCallbacks;
+                else if (SUCCEEDED(hr) && std::wcscmp(name, L"DirectUserThrow") == 0)
+                    ++_directUserCallbacks;
+                else
+                    hr = E_FAIL;
+                std::fwprintf(stderr, L"USER_FIRST_CHANCE method=%ls result=0x%08X\n", name, static_cast<unsigned>(hr));
+                if (FAILED(hr)) _invalidNotification.store(true);
+                ReleaseInterface(function2);
+                ReleaseInterface(module);
+                ReleaseInterface(function);
             }
 
             return Continue();
@@ -296,18 +390,61 @@ namespace
                 return;
             }
 
-            COR_DEBUG_EXCEPTION_FILTER_ENTRY entries[2] = {};
+            COR_DEBUG_EXCEPTION_FILTER_ENTRY entries[3] = {};
             entries[0].moduleAddress = moduleAddress;
             entries[0].typeDef = exceptionType;
             entries[0].notificationMask = COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE;
 
-            entries[1].flags = COR_DEBUG_EXCEPTION_FILTER_PROCESS_DEFAULT;
-            entries[1].notificationMask =
-                COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE |
-                COR_DEBUG_EXCEPTION_STAGE_USER_FIRST_CHANCE;
-            entries[1].stoppingMask = entries[1].notificationMask;
+            if (_validateJmcRetry)
+            {
+                ICorDebugModule2* module2 = nullptr;
+                hr = module->QueryInterface(IID_ICorDebugModule2, reinterpret_cast<void**>(&module2));
+                if (SUCCEEDED(hr)) hr = module2->SetJMCStatus(TRUE, 0, nullptr);
+                ReleaseInterface(module2);
+                entries[0] = {};
+                entries[0].stoppingMask = COR_DEBUG_EXCEPTION_STAGE_USER_FIRST_CHANCE;
+                if (SUCCEEDED(hr) && _installFilter) hr = process13->SetExceptionFilter(1, entries);
+                process13->Release();
+                if (!Check(hr, L"Install JMC retry filter"))
+                    _invalidNotification.store(true);
+                else
+                    _filterInstalled.store(true);
+                return;
+            }
+            if (_validateContract)
+            {
+                const ULONG32 unknownStage = 0x80000000;
+                COR_DEBUG_EXCEPTION_FILTER_ENTRY invalid = entries[0];
+                invalid.moduleAddress = 0;
+                bool valid = process13->SetExceptionFilter(1, &invalid) == E_INVALIDARG;
+                invalid = entries[0];
+                invalid.notificationMask = unknownStage;
+                valid = valid && process13->SetExceptionFilter(1, &invalid) == E_INVALIDARG;
+                invalid = entries[0];
+                invalid.stoppingMask = unknownStage;
+                valid = valid && process13->SetExceptionFilter(1, &invalid) == E_INVALIDARG;
+                valid = valid && process13->SetExceptionFilter(1, nullptr) == E_INVALIDARG;
+                if (!valid)
+                {
+                    std::fwprintf(stderr, L"SetExceptionFilter accepted an invalid entry.\n");
+                    _invalidNotification.store(true);
+                    process13->Release();
+                    return;
+                }
 
-            hr = process13->SetExceptionFilter(ARRAYSIZE(entries), entries);
+                entries[0].stoppingMask = COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE;
+                entries[1].moduleAddress = moduleAddress;
+                entries[1].notificationMask = COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE;
+                entries[2].stoppingMask = COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE;
+            }
+            else
+            {
+                entries[1].stoppingMask =
+                    COR_DEBUG_EXCEPTION_STAGE_FIRST_CHANCE |
+                    COR_DEBUG_EXCEPTION_STAGE_USER_FIRST_CHANCE;
+            }
+
+            hr = process13->SetExceptionFilter(_validateContract ? 3 : 2, entries);
             process13->Release();
 
             if (SUCCEEDED(hr))
@@ -323,6 +460,13 @@ namespace
         LONG _refCount;
         ICorDebugProcess* _process;
         bool _installFilter;
+        bool _validateContract;
+        bool _validateJmcRetry;
+        std::map<ICorDebugModule*, IMetaDataImport*> _metadata;
+        std::atomic<long> _locatedNotifications{0};
+        std::atomic<long> _nonUserCallbacks{0};
+        std::atomic<long> _userCallerCallbacks{0};
+        std::atomic<long> _directUserCallbacks{0};
         std::atomic<bool> _filterInstalled;
         HANDLE _exitEvent;
         std::atomic<long> _firstChanceCallbacks;
@@ -375,9 +519,11 @@ namespace
     class DebugSession
     {
     public:
-        DebugSession(DebugShim& shim, bool installFilter)
+        DebugSession(DebugShim& shim, bool installFilter, bool validateContract = false, bool validateJmcRetry = false)
             : _shim(shim),
               _installFilter(installFilter),
+              _validateContract(validateContract),
+              _validateJmcRetry(validateJmcRetry),
               _processId(0),
               _unregisterToken(nullptr),
               _debug(nullptr),
@@ -448,7 +594,9 @@ namespace
             CloseHandle(processHandle);
             WaitForSingleObject(_exitEvent, 5'000);
 
-            const long expectedCallbacks = 2'100L + 4L * samples * iterations;
+            const long expectedCallbacks = _validateJmcRetry ? (_installFilter ? 0 : 3) :
+                (_validateContract ? 2 : 2'100L + 4L * samples * iterations);
+            const long expectedStoppingCallbacks = _installFilter ? (_validateContract ? 2 : 0) : expectedCallbacks;
             const long callbacks = _callback != nullptr ? _callback->FirstChanceCallbacks() : -1;
             const long notifications = _callback != nullptr ? _callback->NotificationCallbacks() : -1;
             if (_installFilter)
@@ -456,25 +604,31 @@ namespace
                 succeeded = succeeded &&
                     _callback != nullptr &&
                     _callback->FilterInstalled() &&
-                    callbacks == 0 &&
+                    callbacks == expectedStoppingCallbacks &&
                     notifications == expectedCallbacks &&
-                    !_callback->InvalidNotification();
+                    (_validateJmcRetry || _callback->LocatedNotifications() == expectedCallbacks) &&
+                    !_callback->InvalidNotification() &&
+                    (!_validateJmcRetry || _callback->ValidJmcRetry());
             }
             else
             {
                 succeeded = succeeded &&
                     callbacks == expectedCallbacks &&
-                    notifications == 0;
+                    notifications == 0 &&
+                    (!_validateJmcRetry || (_callback->ValidJmcRetry() && !_callback->InvalidNotification()));
             }
 
             std::fwprintf(
                 stderr,
-                L"%ls: first-chance callbacks=%ld, notifications=%ld, expected=%ld, exit=%u\n",
-                _installFilter ? L"filtered" : L"baseline",
+                L"%ls: first-chance callbacks=%ld (expected=%ld), notifications=%ld (expected=%ld), exit=%u\n",
+                _validateContract ? L"contract" : (_installFilter ? L"filtered" : L"baseline"),
                 callbacks,
+                expectedStoppingCallbacks,
                 notifications,
-                _installFilter ? 0L : expectedCallbacks,
+                _installFilter ? expectedCallbacks : 0L,
                 exitCode);
+            std::fwprintf(stderr, L"located notifications=%ld\n",
+                _callback != nullptr ? _callback->LocatedNotifications() : -1);
 
             return succeeded && exitCode == 100;
         }
@@ -506,7 +660,7 @@ namespace
                 return hr;
             }
 
-            _callback = new ManagedCallback(_installFilter, _exitEvent);
+            _callback = new ManagedCallback(_installFilter, _validateContract, _exitEvent, _validateJmcRetry);
             hr = _debug->SetManagedHandler(_callback);
             if (FAILED(hr))
             {
@@ -518,6 +672,8 @@ namespace
 
         DebugShim& _shim;
         bool _installFilter;
+        bool _validateContract;
+        bool _validateJmcRetry;
         DWORD _processId;
         void* _unregisterToken;
         ICorDebug* _debug;
@@ -540,7 +696,7 @@ int wmain(int argc, wchar_t** argv)
     {
         std::fwprintf(
             stderr,
-            L"Usage: RuntimeExceptionFilterDriver <dbgshim> <host> <benchmark.dll> <iterations> [samples] [baseline|filtered|both]\n");
+            L"Usage: RuntimeExceptionFilterDriver <dbgshim> <host> <benchmark.dll> <iterations> [samples] [baseline|filtered|both|contract|jmc-retry|jmc-baseline]\n");
         return 1;
     }
 
@@ -553,9 +709,10 @@ int wmain(int argc, wchar_t** argv)
     }
 
     std::wstring scenario = argc > 6 ? argv[6] : L"both";
-    if (scenario != L"baseline" && scenario != L"filtered" && scenario != L"both")
+    if (scenario != L"baseline" && scenario != L"filtered" && scenario != L"both" &&
+        scenario != L"contract" && scenario != L"jmc-retry" && scenario != L"jmc-baseline")
     {
-        std::fwprintf(stderr, L"Scenario must be baseline, filtered, or both.\n");
+        std::fwprintf(stderr, L"Scenario must be baseline, filtered, both, contract, jmc-retry, or jmc-baseline.\n");
         return 1;
     }
 
@@ -563,6 +720,17 @@ int wmain(int argc, wchar_t** argv)
     if (!shim.Load(argv[1]))
     {
         return 1;
+    }
+
+    if (scenario == L"contract")
+    {
+        DebugSession session(shim, true, true);
+        return session.Run(Quote(argv[2]) + L" " + Quote(argv[3]) + L" contract", iterations, samples) ? 0 : 1;
+    }
+    if (scenario == L"jmc-retry" || scenario == L"jmc-baseline")
+    {
+        DebugSession session(shim, scenario == L"jmc-retry", false, true);
+        return session.Run(Quote(argv[2]) + L" " + Quote(argv[3]) + L" jmc-retry", iterations, samples) ? 0 : 1;
     }
 
     std::printf("scenario,depth,iterations,median_ms,ns_per_throw,throws_per_second,legacy_expected_filter_evaluations,optimized_expected_filter_evaluations,evaluation_reduction_percent\n");

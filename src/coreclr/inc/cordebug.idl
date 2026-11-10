@@ -1411,7 +1411,7 @@ typedef enum CorDebugExceptionNotificationStage
 [
     object,
     local,
-    uuid(0D3E6E77-7A0D-4C4A-97F8-7A4B56A50D13),
+    uuid(D27F462E-47FE-4DF4-AEF6-D6D659FB5EE9),
     pointer_default(unique)
 ]
 
@@ -1420,14 +1420,17 @@ interface ICorDebugManagedCallback5 : IUnknown
     /*
      * Reports an exception without synchronizing or stopping the debuggee.
      * The callback is informational only: the receiver must not inspect live
-     * process state or call Continue from this callback.
+     * process state or call Continue from this callback. Optional module/function
+     * objects describe cached metadata, not a live frame. ilOffset is an IL offset;
+     * ULONG32_MAX means unavailable and is required when pFunction is null.
      */
     HRESULT ExceptionNotification(
         [in] ICorDebugProcess* pProcess,
         [in] ICorDebugThread* pThread,
-        [in] CORDB_ADDRESS moduleAddress,
+        [in, unique] ICorDebugModule* pExceptionModule,
         [in] mdTypeDef typeDef,
-        [in] CORDB_ADDRESS instructionAddress,
+        [in, unique] ICorDebugFunction* pFunction,
+        [in] ULONG32 ilOffset,
         [in] CorDebugExceptionNotificationStage stage);
 }
 
@@ -3365,33 +3368,25 @@ interface ICorDebugProcess12 : IUnknown
     HRESULT GetAsyncStack([in] CORDB_ADDRESS continuationAddress, [out] ICorDebugStackWalk** ppStackWalk);
 }
 
-typedef enum CorDebugExceptionFilterFlags
-{
-    COR_DEBUG_EXCEPTION_FILTER_NONE            = 0x00,
-    COR_DEBUG_EXCEPTION_FILTER_SUBCLASSES      = 0x01,
-    COR_DEBUG_EXCEPTION_FILTER_MODULE_DEFAULT  = 0x02,
-    COR_DEBUG_EXCEPTION_FILTER_PROCESS_DEFAULT = 0x04
-} CorDebugExceptionFilterFlags;
-
 /*
  * A single entry in the runtime-side exception filter set installed via
  * ICorDebugProcess13::SetExceptionFilter.
  *
- * Specific entries identify a managed exception type by moduleAddress and typeDef.
- * MODULE_DEFAULT entries set typeDef to 0 and apply only when no specific entry
+ * Specific entries identify an exact managed exception type by moduleAddress and typeDef.
+ * Module-default entries set typeDef to 0 and apply only when no specific entry
  * matches an exception whose runtime type is defined by moduleAddress.
- * PROCESS_DEFAULT entries set moduleAddress and typeDef to 0 and apply when no
+ * Process-default entries set moduleAddress and typeDef to 0 and apply when no
  * specific or module-default entry matches.
  *
- * notificationMask selects the stages for which a lightweight notification is
- * required. stoppingMask must be a subset of notificationMask and selects the
- * stages that synchronize and stop the debuggee.
+ * notificationMask selects stages for lightweight, non-stopping notifications.
+ * stoppingMask independently selects stages that synchronize and stop the debuggee.
+ * A stopping stage uses the stopping callback instead of a lightweight notification,
+ * even when the stage is selected in both masks.
  */
 typedef struct _COR_DEBUG_EXCEPTION_FILTER_ENTRY
 {
     CORDB_ADDRESS                   moduleAddress;
     mdTypeDef                       typeDef;
-    CorDebugExceptionFilterFlags    flags;
     ULONG32                         notificationMask;
     ULONG32                         stoppingMask;
 } COR_DEBUG_EXCEPTION_FILTER_ENTRY;
@@ -3399,7 +3394,7 @@ typedef struct _COR_DEBUG_EXCEPTION_FILTER_ENTRY
 [
     object,
     local,
-    uuid(8BC6A7D9-76C2-4E06-AAAF-B04CC09B8BBC),
+    uuid(B69F4A34-E026-4E6E-82BE-672ECC139FFA),
     pointer_default(unique)
 ]
 interface ICorDebugProcess13 : IUnknown
@@ -3410,9 +3405,14 @@ interface ICorDebugProcess13 : IUnknown
      * the process default. This permits a host to stop for selected types in modules
      * A and B while stopping for every type in all other modules.
      *
-     * A notification-only first-chance event carries the exception type and throw
-     * instruction address through ICorDebugManagedCallback5 without stopping the
-     * debuggee. A stopping event continues to use ICorDebugManagedCallback2.
+     * A notification-only event carries the exception type and optional function
+     * and IL offset through ICorDebugManagedCallback5 without stopping the debuggee.
+     * A stopping event continues to use ICorDebugManagedCallback2.
+     *
+     * On CoreCLR, when filtering suppresses the initial first-chance callback, a
+     * stopping USER_FIRST_CHANCE callback that reclassifies its reported function
+     * as non-JMC leaves user-first-chance unsent so exception search can retry in
+     * a deeper JMC caller. Without filtering, ordinary callback behavior is preserved.
      *
      * Calling this API replaces the entire filter set atomically; readers in flight
      * continue to observe the previous snapshot until the replacement publishes.
@@ -3423,8 +3423,8 @@ interface ICorDebugProcess13 : IUnknown
      *
      * Returns:
      *   S_OK             - the filter was accepted and installed.
-     *   E_INVALIDARG     - an entry has an invalid default shape, stoppingMask contains
-     *                      bits not present in notificationMask, or an unknown stage bit.
+     *   E_INVALIDARG     - an entry has a typeDef without a moduleAddress, or either
+     *                      mask contains an unknown stage bit.
      *   CORDBG_E_*       - other process-state errors (process exited, etc.).
      */
     HRESULT SetExceptionFilter(

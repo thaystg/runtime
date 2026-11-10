@@ -50,8 +50,6 @@ private:
     ExceptionFilterTable(ULONG32 cEntries);
     ~ExceptionFilterTable();
 
-    ULONG32 GetTypeMatchDepth(const COR_DEBUG_EXCEPTION_FILTER_ENTRY& entry,
-                              MethodTable* pExceptionMT) const;
     ExceptionNotificationAction GetEntryAction(
         const COR_DEBUG_EXCEPTION_FILTER_ENTRY& entry,
         CorDebugExceptionNotificationStage stage) const;

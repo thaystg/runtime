@@ -1865,9 +1865,12 @@ struct MSLAYOUT DebuggerIPCEvent
 
         struct MSLAYOUT
         {
-            Portable<CORDB_ADDRESS> moduleAddress;
+            Portable<VMPTR_Module> vmExceptionModule;
             Portable<mdTypeDef> typeDef;
-            Portable<CORDB_ADDRESS> instructionAddress;
+            Portable<VMPTR_Module> vmFunctionModule;
+            Portable<mdMethodDef> methodDef;
+            Portable<ULONG32> enCVersion;
+            Portable<ULONG32> ilOffset;
             Portable<CorDebugExceptionNotificationStage> stage;
         } ExceptionNotification;
 

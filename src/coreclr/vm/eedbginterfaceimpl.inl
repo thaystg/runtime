@@ -29,7 +29,9 @@ class EEToDebuggerExceptionInterfaceWrapper
         CONTRACTL_END;
 
         ThreadExceptionState* pExState = pThread->GetExceptionState();
-        if (pExState->GetFlags()->RuntimeFilteredFirstChance())
+        if (pExState->GetFlags()->RuntimeFilteredFirstChance() &&
+            (pExState->GetFlags()->RuntimeFilteredUserFirstChance() ||
+             pExState->GetFlags()->SentDebugUserFirstChance()))
         {
             return false;
         }

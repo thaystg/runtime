@@ -4097,16 +4097,18 @@ EXTERN_C const IID IID_ICorDebugManagedCallback5;
 
 #if defined(__cplusplus) && !defined(CINTERFACE)
 
-    MIDL_INTERFACE("0D3E6E77-7A0D-4C4A-97F8-7A4B56A50D13")
+    MIDL_INTERFACE("D27F462E-47FE-4DF4-AEF6-D6D659FB5EE9")
     ICorDebugManagedCallback5 : public IUnknown
     {
     public:
+        // Cached metadata only. Null function requires ULONG32_MAX IL offset.
         virtual HRESULT STDMETHODCALLTYPE ExceptionNotification(
             ICorDebugProcess *pProcess,
             ICorDebugThread *pThread,
-            CORDB_ADDRESS moduleAddress,
+            ICorDebugModule *pExceptionModule,
             mdTypeDef typeDef,
-            CORDB_ADDRESS instructionAddress,
+            ICorDebugFunction *pFunction,
+            ULONG32 ilOffset,
             CorDebugExceptionNotificationStage stage) = 0;
     };
 
@@ -4126,9 +4128,10 @@ EXTERN_C const IID IID_ICorDebugManagedCallback5;
             ICorDebugManagedCallback5 * This,
             ICorDebugProcess *pProcess,
             ICorDebugThread *pThread,
-            CORDB_ADDRESS moduleAddress,
+            ICorDebugModule *pExceptionModule,
             mdTypeDef typeDef,
-            CORDB_ADDRESS instructionAddress,
+            ICorDebugFunction *pFunction,
+            ULONG32 ilOffset,
             CorDebugExceptionNotificationStage stage);
 
         END_INTERFACE
@@ -8501,20 +8504,10 @@ EXTERN_C const IID IID_ICorDebugProcess12;
 /* interface __MIDL_itf_cordebug_0000_0093 */
 /* [local] */
 
-typedef
-enum CorDebugExceptionFilterFlags
-    {
-        COR_DEBUG_EXCEPTION_FILTER_NONE = 0,
-        COR_DEBUG_EXCEPTION_FILTER_SUBCLASSES = 0x1,
-        COR_DEBUG_EXCEPTION_FILTER_MODULE_DEFAULT = 0x2,
-        COR_DEBUG_EXCEPTION_FILTER_PROCESS_DEFAULT = 0x4
-    } CorDebugExceptionFilterFlags;
-
 typedef struct _COR_DEBUG_EXCEPTION_FILTER_ENTRY
     {
     CORDB_ADDRESS moduleAddress;
     mdTypeDef typeDef;
-    CorDebugExceptionFilterFlags flags;
     ULONG32 notificationMask;
     ULONG32 stoppingMask;
     } COR_DEBUG_EXCEPTION_FILTER_ENTRY;
@@ -8535,10 +8528,12 @@ EXTERN_C const IID IID_ICorDebugProcess13;
 
 #if defined(__cplusplus) && !defined(CINTERFACE)
 
-    MIDL_INTERFACE("8BC6A7D9-76C2-4E06-AAAF-B04CC09B8BBC")
+    MIDL_INTERFACE("B69F4A34-E026-4E6E-82BE-672ECC139FFA")
     ICorDebugProcess13 : public IUnknown
     {
     public:
+        // CoreCLR retries deeper JMC frames after callback-time reclassification
+        // when the initial first-chance callback was filtered.
         virtual HRESULT STDMETHODCALLTYPE SetExceptionFilter(
             /* [in] */ ULONG32 cEntries,
             /* [size_is][in] */ COR_DEBUG_EXCEPTION_FILTER_ENTRY entries[  ]) = 0;

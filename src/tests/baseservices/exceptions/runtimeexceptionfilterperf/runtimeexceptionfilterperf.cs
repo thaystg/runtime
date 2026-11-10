@@ -28,11 +28,27 @@ public static class RuntimeExceptionFilterPerf
             return NotConfigured;
         }
 
+        if (args.Length > scenarioArgument &&
+            args[scenarioArgument].Equals("jmc-retry", StringComparison.Ordinal))
+        {
+            UserCaller();
+            NonUserCatcher();
+            DirectUserThrow();
+            return Success;
+        }
+
+        if (args.Length > scenarioArgument &&
+            args[scenarioArgument].Equals("contract", StringComparison.Ordinal))
+        {
+            ValidateFilterContract();
+            return Success;
+        }
+
         if (args.Length <= scenarioArgument ||
             !TryParseScenario(args[scenarioArgument], out Scenario scenario))
         {
             Console.Error.WriteLine(
-                "Usage: runtimeexceptionfilterperf [--allow-unattached] <baseline|filtered> [--no-header] [iterations] [samples]");
+                "Usage: runtimeexceptionfilterperf [--allow-unattached] <baseline|filtered|contract|jmc-retry> [--no-header] [iterations] [samples]");
             return NotConfigured;
         }
 
@@ -145,6 +161,47 @@ public static class RuntimeExceptionFilterPerf
         }
     }
 
+    private static void ValidateFilterContract()
+    {
+        try { throw new FilteredException(); }
+        catch (FilteredException) { }
+
+        try { throw new DerivedFilteredException(); }
+        catch (DerivedFilteredException) { }
+
+        try { throw new OtherException(); }
+        catch (OtherException) { }
+
+        try { throw new ArgumentException(); }
+        catch (ArgumentException) { }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void UserCaller()
+    {
+        try { ThrowFromNonUserCode(); }
+        catch (FilteredException) { }
+    }
+
+    [DebuggerNonUserCode]
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ThrowFromNonUserCode() => throw new FilteredException();
+
+    [DebuggerNonUserCode]
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void NonUserCatcher()
+    {
+        try { ThrowFromNonUserCode(); }
+        catch (FilteredException) { }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void DirectUserThrow()
+    {
+        try { throw new FilteredException(); }
+        catch (FilteredException) { }
+    }
+
     private static void WarmUp()
     {
         for (int i = 0; i < 2_000; i++)
@@ -205,7 +262,15 @@ public static class RuntimeExceptionFilterPerf
         ThrowAtDepth(depth - 1);
     }
 
-    private sealed class FilteredException : Exception
+    private class FilteredException : Exception
+    {
+    }
+
+    private sealed class DerivedFilteredException : FilteredException
+    {
+    }
+
+    private sealed class OtherException : Exception
     {
     }
 

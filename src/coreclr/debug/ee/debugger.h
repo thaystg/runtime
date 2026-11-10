@@ -2183,7 +2183,8 @@ public:
         bool continuable,
         SIZE_T currentIP,
         FramePointer framePointer,
-        bool atSafePlace);
+        bool atSafePlace,
+        DebuggerMethodInfo** ppUserFirstChanceMethod);
 
     // Main function to send an exception event, handle jit-attach if needed, etc
     HRESULT SendException(Thread *pThread,
@@ -2860,7 +2861,9 @@ public:
     void SendExceptionNotification(
         class Thread* pThread,
         SIZE_T currentIP,
-        CorDebugExceptionNotificationStage stage);
+        CorDebugExceptionNotificationStage stage,
+        MethodDesc* pMethodDesc = nullptr,
+        ULONG32 ilOffset = static_cast<ULONG32>(-1));
 
     void ResetExceptionFilter();
 

@@ -51,51 +51,6 @@ ExceptionFilterTable* ExceptionFilterTable::Create(const COR_DEBUG_EXCEPTION_FIL
     return pTable;
 }
 
-ULONG32 ExceptionFilterTable::GetTypeMatchDepth(
-    const COR_DEBUG_EXCEPTION_FILTER_ENTRY& entry,
-    MethodTable* pExceptionMT) const
-{
-    if ((entry.flags & (COR_DEBUG_EXCEPTION_FILTER_MODULE_DEFAULT |
-                        COR_DEBUG_EXCEPTION_FILTER_PROCESS_DEFAULT)) != 0)
-    {
-        return ULONG_MAX;
-    }
-
-    // Walk the MethodTable's type identity. Concord pushes
-    // (moduleAddress, mdTypeDef) pairs that resolve at the EE side to a
-    // unique MethodTable per loaded type. moduleAddress is the runtime
-    // PTR_Module value Concord obtained via the ICorDebugModule mapping.
-    if (pExceptionMT == nullptr)
-    {
-        return ULONG_MAX;
-    }
-
-    MethodTable* pCurrentMT = pExceptionMT;
-    bool includeSubclasses = (entry.flags & COR_DEBUG_EXCEPTION_FILTER_SUBCLASSES) != 0;
-    ULONG32 depth = 0;
-
-    do
-    {
-        Module* pCurrentModule = pCurrentMT->GetModule();
-        bool moduleMatches = pCurrentModule != nullptr &&
-            entry.moduleAddress == static_cast<CORDB_ADDRESS>(PTR_TO_TADDR(pCurrentModule));
-        if (moduleMatches && entry.typeDef == pCurrentMT->GetCl())
-        {
-            return depth;
-        }
-
-        if (!includeSubclasses)
-        {
-            return ULONG_MAX;
-        }
-
-        pCurrentMT = pCurrentMT->GetParentMethodTable();
-        depth++;
-    } while (pCurrentMT != nullptr);
-
-    return ULONG_MAX;
-}
-
 ExceptionNotificationAction ExceptionFilterTable::GetEntryAction(
     const COR_DEBUG_EXCEPTION_FILTER_ENTRY& entry,
     CorDebugExceptionNotificationStage stage) const
@@ -123,8 +78,6 @@ ExceptionNotificationAction ExceptionFilterTable::GetAction(
 
     const COR_DEBUG_EXCEPTION_FILTER_ENTRY* pModuleDefault = nullptr;
     const COR_DEBUG_EXCEPTION_FILTER_ENTRY* pProcessDefault = nullptr;
-    const COR_DEBUG_EXCEPTION_FILTER_ENTRY* pBestTypeMatch = nullptr;
-    ULONG32 bestTypeMatchDepth = ULONG_MAX;
     Module* pExceptionModule = pExceptionMT == nullptr ? nullptr : pExceptionMT->GetModule();
     CORDB_ADDRESS exceptionModuleAddress = pExceptionModule == nullptr
         ? 0
@@ -133,31 +86,26 @@ ExceptionNotificationAction ExceptionFilterTable::GetAction(
     for (ULONG32 i = 0; i < m_cEntries; i++)
     {
         const COR_DEBUG_EXCEPTION_FILTER_ENTRY& entry = m_entries[i];
-        if ((entry.flags & COR_DEBUG_EXCEPTION_FILTER_PROCESS_DEFAULT) != 0)
+        if (entry.moduleAddress == 0)
         {
             pProcessDefault = &entry;
             continue;
         }
-        if ((entry.flags & COR_DEBUG_EXCEPTION_FILTER_MODULE_DEFAULT) != 0)
+        if (entry.moduleAddress != exceptionModuleAddress)
         {
-            if (entry.moduleAddress == exceptionModuleAddress)
-            {
-                pModuleDefault = &entry;
-            }
             continue;
         }
-        ULONG32 matchDepth = GetTypeMatchDepth(entry, pExceptionMT);
-        if (matchDepth < bestTypeMatchDepth)
+        if (entry.typeDef == 0)
         {
-            pBestTypeMatch = &entry;
-            bestTypeMatchDepth = matchDepth;
+            pModuleDefault = &entry;
+            continue;
+        }
+        if (pExceptionMT != nullptr && entry.typeDef == pExceptionMT->GetCl())
+        {
+            return GetEntryAction(entry, stage);
         }
     }
 
-    if (pBestTypeMatch != nullptr)
-    {
-        return GetEntryAction(*pBestTypeMatch, stage);
-    }
     if (pModuleDefault != nullptr)
     {
         return GetEntryAction(*pModuleDefault, stage);

@@ -2572,41 +2572,11 @@ COM_METHOD CordbProcess::SetExceptionFilter(ULONG32 cEntries, COR_DEBUG_EXCEPTIO
                 COR_DEBUG_EXCEPTION_STAGE_USER_FIRST_CHANCE |
                 COR_DEBUG_EXCEPTION_STAGE_CATCH_HANDLER_FOUND |
                 COR_DEBUG_EXCEPTION_STAGE_UNHANDLED;
-            const ULONG32 validFlags =
-                COR_DEBUG_EXCEPTION_FILTER_SUBCLASSES |
-                COR_DEBUG_EXCEPTION_FILTER_MODULE_DEFAULT |
-                COR_DEBUG_EXCEPTION_FILTER_PROCESS_DEFAULT;
             if ((e.notificationMask & ~validStages) != 0 ||
-                (e.stoppingMask & ~e.notificationMask) != 0 ||
-                (e.flags & ~validFlags) != 0)
+                (e.stoppingMask & ~validStages) != 0 ||
+                (e.moduleAddress == 0 && e.typeDef != 0))
             {
                 ThrowHR(E_INVALIDARG);
-            }
-
-            const bool isModuleDefault =
-                (e.flags & COR_DEBUG_EXCEPTION_FILTER_MODULE_DEFAULT) != 0;
-            const bool isProcessDefault =
-                (e.flags & COR_DEBUG_EXCEPTION_FILTER_PROCESS_DEFAULT) != 0;
-            if (isModuleDefault && isProcessDefault)
-            {
-                ThrowHR(E_INVALIDARG);
-            }
-            if (isProcessDefault)
-            {
-                if (e.typeDef != 0 || e.moduleAddress != 0 ||
-                    (e.flags & COR_DEBUG_EXCEPTION_FILTER_SUBCLASSES) != 0)
-                    ThrowHR(E_INVALIDARG);
-            }
-            else if (isModuleDefault)
-            {
-                if (e.typeDef != 0 || e.moduleAddress == 0 ||
-                    (e.flags & COR_DEBUG_EXCEPTION_FILTER_SUBCLASSES) != 0)
-                    ThrowHR(E_INVALIDARG);
-            }
-            else
-            {
-                if (e.typeDef == 0 || e.moduleAddress == 0)
-                    ThrowHR(E_INVALIDARG);
             }
         }
 
@@ -2632,7 +2602,7 @@ COM_METHOD CordbProcess::SetExceptionFilter(ULONG32 cEntries, COR_DEBUG_EXCEPTIO
                 {
                     COR_DEBUG_EXCEPTION_FILTER_ENTRY& e = translatedEntries[i];
 
-                    if ((e.flags & COR_DEBUG_EXCEPTION_FILTER_PROCESS_DEFAULT) != 0)
+                    if (e.moduleAddress == 0)
                     {
                         continue;
                     }
@@ -4802,10 +4772,11 @@ void CordbProcess::RawDispatchEvent(
     // Get thread that this event is on. In attach scenarios, this may be the first time ICorDebug has seen this thread.
     if (!pEvent->vmThread.IsNull())
     {
-        pThread = LookupOrCreateThread(pEvent->vmThread);
+        pThread = pEvent->type == DB_IPCE_EXCEPTION_NOTIFICATION
+            ? TryLookupThread(pEvent->vmThread) : LookupOrCreateThread(pEvent->vmThread);
     }
 
-    pAppDomain.Assign(GetAppDomain());
+    pAppDomain.Assign(pEvent->type == DB_IPCE_EXCEPTION_NOTIFICATION ? m_pAppDomain : GetAppDomain());
 
     DWORD dwVolatileThreadId = 0;
     if (pThread != NULL)
@@ -5663,13 +5634,37 @@ void CordbProcess::RawDispatchEvent(
         {
             if (pCallback5 != nullptr && pThread != nullptr)
             {
+                RSSmartPtr<CordbModule> pExceptionModule;
+                RSSmartPtr<CordbFunction> pFunction;
+                ULONG32 ilOffset = static_cast<ULONG32>(-1);
+                if (pAppDomain != nullptr)
+                {
+                    pExceptionModule.Assign(pAppDomain->m_modules.GetBase(
+                        VmPtrToCookie(pEvent->ExceptionNotification.vmExceptionModule)));
+                    CordbModule* pFunctionModule = pAppDomain->m_modules.GetBase(
+                        VmPtrToCookie(pEvent->ExceptionNotification.vmFunctionModule));
+                    mdMethodDef methodDef = pEvent->ExceptionNotification.methodDef;
+                    ULONG32 enCVersion = pEvent->ExceptionNotification.enCVersion;
+                    if (pFunctionModule != nullptr && !IsNilToken(methodDef) && enCVersion != 0)
+                    {
+                        CordbFunction* pLatest = pFunctionModule->LookupFunctionLatestVersion(methodDef);
+                        if (pLatest == nullptr)
+                            pLatest = pFunctionModule->CreateFunction(methodDef, enCVersion);
+                        if (pLatest->GetEnCVersionNumber() == enCVersion)
+                        {
+                            pFunction.Assign(pLatest);
+                            ilOffset = pEvent->ExceptionNotification.ilOffset;
+                        }
+                    }
+                }
                 PUBLIC_CALLBACK_IN_THIS_SCOPE(this, pLockHolder, pEvent);
-                pCallback5->ExceptionNotification(
+                hr = pCallback5->ExceptionNotification(
                     static_cast<ICorDebugProcess*>(this),
                     pThread,
-                    pEvent->ExceptionNotification.moduleAddress,
+                    pExceptionModule,
                     pEvent->ExceptionNotification.typeDef,
-                    pEvent->ExceptionNotification.instructionAddress,
+                    pFunction,
+                    ilOffset,
                     pEvent->ExceptionNotification.stage);
             }
         }
